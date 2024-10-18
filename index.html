@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>chancydf, the website</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS -->
+    <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS if needed -->
     <style>
-        /* Add some basic styling */
+        /* Basic styling */
         body {
-            font-family: Roboto, sans-serif;
+            font-family: Courier New, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f4f4f4;
             color: #333;
         }
         header {
-            background-color: #ac43ba;
+            background-color: #d81b60; /* Darker pink for header */
             color: white;
             padding: 10px 0;
             text-align: center;
@@ -26,31 +26,54 @@
             padding: 10px 0;
         }
         nav a {
-            margin: 0 15px;
+            display: inline-block;
+            margin: 10px;
             text-decoration: none;
-            color: #333;
+            color: white; /* White text on buttons */
+            background-color: #f06292; /* Lighter pink for buttons */
+            padding: 10px 20px;
+            border-radius: 25px; /* Rounded corners */
+            transition: background-color 0.3s; /* Smooth background change */
         }
         nav a:hover {
-            color: #ac43ba;
+            background-color: #d81b60; /* Darker pink on hover */
         }
         section {
             padding: 20px;
             text-align: center;
         }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 10px 0;
-            position: fixed;
-            width: 100%;
-            bottom: 0;
+
+        /* Keyframes for overshoot animation */
+        @keyframes overshoot {
+            0% {
+                opacity: 0;
+                transform: translateY(3px); /* Start 3px below */
+            }
+            66% {
+                opacity: 1;
+                transform: translateY(-4px); /* Move up 4px */
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0); /* Settle back to original position */
+            }
+        }
+
+        /* Initial state: invisible and moved down 3px */
+        nav, section {
+            opacity: 0;
+            transform: translateY(3px);
+        }
+
+        /* Animation */
+        .animate-fade-in {
+            animation: overshoot 0.3s ease-out forwards;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>chancydf, the website</h1>
+        <h1>my website</h1>
     </header>
 
     <nav>
@@ -62,7 +85,21 @@
 
     <section>
         <h2>parody, to spread awareness.</h2>
-        <p>chancydf</p>
+        <p>- chancydf</p>
     </section>
+
+    <script>
+        // Wait for the DOM to load, then add the fade-in animation class with delays
+        window.addEventListener('DOMContentLoaded', (event) => {
+            const elements = document.querySelectorAll('nav, section');
+            
+            // Delay each element's animation to create a top-to-bottom effect
+            elements.forEach((element, index) => {
+                setTimeout(() => {
+                    element.classList.add('animate-fade-in');
+                }, index * 300); // 300ms delay for each subsequent element
+            });
+        });
+    </script>
 </body>
 </html>
