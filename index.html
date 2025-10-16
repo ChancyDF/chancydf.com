@@ -1,105 +1,193 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>chancydf, the website</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS if needed -->
-    <style>
-        /* Basic styling */
-        body {
-            font-family: Courier New, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        header {
-            background-color: #d81b60; /* Darker pink for header */
-            color: white;
-            padding: 10px 0;
-            text-align: center;
-        }
-        nav {
-            text-align: center;
-            padding: 10px 0;
-        }
-        nav a {
-            display: inline-block;
-            margin: 10px;
-            text-decoration: none;
-            color: white; /* White text on buttons */
-            background-color: #f06292; /* Lighter pink for buttons */
-            padding: 10px 20px;
-            border-radius: 25px; /* Rounded corners */
-            transition: background-color 0.3s; /* Smooth background change */
-        }
-        nav a:hover {
-            background-color: #d81b60; /* Darker pink on hover */
-        }
-        section {
-            padding: 20px;
-            text-align: center;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>chancydf.com - Home</title>
+  <style>
+    @font-face { font-family: 'Pixel'; src: local('Courier New'); }
+    :root {
+      --bg: #d7ecff;
+      --panel: #e9f5ff;
+      --accent: #0096ff;
+      --text: #111;
+      --shadow: rgba(0,0,0,.25);
+    }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Pixel, 'Arial', sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg), #ffffff) fixed;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      width: 100%;
+      background: #fff;
+      border-bottom: 4px solid #000;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 0 var(--shadow);
+    }
+    .topbar img {
+      max-width: 240px;
+      height: auto;
+    }
+    main {
+      flex: 1;
+      width: 95%;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 4px solid #000;
+      background: var(--panel);
+      box-shadow: 8px 8px 0 var(--shadow);
+      text-align: center;
+    }
 
-        /* Keyframes for overshoot animation */
-        @keyframes overshoot {
-            0% {
-                opacity: 0;
-                transform: translateY(3px); /* Start 3px below */
-            }
-            66% {
-                opacity: 1;
-                transform: translateY(-4px); /* Move up 4px */
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0); /* Settle back to original position */
-            }
-        }
+    .wave {
+      display: inline-block;
+      font-size: 32px;
+      font-weight: bold;
+    }
+    .wave span {
+      display: inline-block;
+      animation: wave 1.5s infinite ease-in-out;
+    }
+    @keyframes wave {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .wave span:nth-child(1) { animation-delay: 0s; }
+    .wave span:nth-child(2) { animation-delay: 0.1s; }
+    .wave span:nth-child(3) { animation-delay: 0.2s; }
+    .wave span:nth-child(4) { animation-delay: 0.3s; }
+    .wave span:nth-child(5) { animation-delay: 0.4s; }
+    .wave span:nth-child(6) { animation-delay: 0.5s; }
+    .wave span:nth-child(7) { animation-delay: 0.6s; }
+    .wave span:nth-child(8) { animation-delay: 0.7s; }
 
-        /* Initial state: invisible and moved down 3px */
-        nav, section {
-            opacity: 0;
-            transform: translateY(3px);
-        }
+    .subheading {
+      margin-top: 10px;
+      font-size: 16px;
+      font-style: italic;
+    }
 
-        /* Animation */
-        .animate-fade-in {
-            animation: overshoot 0.3s ease-out forwards;
-        }
-    </style>
+    .buttons {
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border: 2px solid #000;
+      background: linear-gradient(180deg, #fff, #e0f2ff);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 6px;
+      box-shadow: 3px 3px 0 var(--shadow);
+      transition: transform .1s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(1px); }
+
+    .socials {
+      margin-top: 40px;
+    }
+    .socials h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+    .social-links a {
+      width: 48px;
+      height: 48px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      border: 2px solid #000;
+      border-radius: 4px;
+      background: var(--panel);
+      box-shadow: 3px 3px 0 var(--shadow);
+      overflow: hidden;
+    }
+    .social-links a img {
+      width: 80%;
+      height: 80%;
+      image-rendering: pixelated; /* aliasing effect */
+    }
+
+    @media (max-width: 600px) {
+      main { padding: 14px; }
+      .wave { font-size: 24px; }
+      .btn { padding: 8px 14px; }
+    }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>my website</h1>
-    </header>
+  <div class="topbar">
+    <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" />
+  </div>
 
-    <nav>
-        <a href="#">home</a>
-        <a href="#">about</a>
-        <a href="#">pages</a>
-        <a href="#">contact</a>
-    </nav>
+  <main>
+    <h1 class="wave"><span>W</span><span>e</span><span>l</span><span>c</span><span>o</span><span>m</span><span>e</span><span>!</span></h1>
+    <p class="subheading">it's like we're in somekind of... chancydf.com website-!</p>
 
-    <section>
-        <h2>parody, to spread awareness.</h2>
-        <p>- chancydf</p>
-    </section>
+    <div class="buttons">
+      <a href="/downloads.html" class="btn">Royalty-Free Tracks</a>
+      <a href="#" class="btn">About</a>
+    </div>
 
-    <script>
-        // Wait for the DOM to load, then add the fade-in animation class with delays
-        window.addEventListener('DOMContentLoaded', (event) => {
-            const elements = document.querySelectorAll('nav, section');
-            
-            // Delay each element's animation to create a top-to-bottom effect
-            elements.forEach((element, index) => {
-                setTimeout(() => {
-                    element.classList.add('animate-fade-in');
-                }, index * 300); // 300ms delay for each subsequent element
-            });
-        });
-    </script>
+    <div class="socials">
+      <h2>Where can you find me?</h2>
+      <div class="social-links">
+        <a href="https://www.youtube.com/@chancydf" target="_blank" rel="noopener">
+          <img src="https://www.youtube.com/s/desktop/8d0ed159/img/favicon_32x32.png" alt="YouTube" />
+        </a>
+        <a href="https://www.tiktok.com/@chancydf" target="_blank" rel="noopener">
+          <img src="https://www.tiktok.com/favicon.ico" alt="TikTok" />
+        </a>
+        <a href="https://www.twitch.tv/chancydf" target="_blank" rel="noopener">
+          <img src="https://www.twitch.tv/favicon.ico" alt="Twitch" />
+        </a>
+      </div>
+
+      <h2 style="margin-top: 20px;">Where can you listen?</h2>
+      <div class="social-links">
+        <a href="https://open.spotify.com/artist/ChancyDF" target="_blank" rel="noopener">
+          <img src="https://spotify.com/favicon.ico" alt="Spotify" />
+        </a>
+        <a href="https://music.apple.com/us/artist/chancydf" target="_blank" rel="noopener">
+          <img src="https://music.apple.com/favicon.ico" alt="Apple Music" />
+        </a>
+        <a href="https://www.deezer.com/artist/ChancyDF" target="_blank" rel="noopener">
+          <img src="https://www.deezer.com/favicon.ico" alt="Deezer" />
+        </a>
+      </div>
+    </div>
+
+    <div class="banner-container" style="margin-top: 30px;">
+      <a href="https://www.youtube.com/@PurpulPancakes" target="_blank" rel="noopener">
+        <img src="/graphics/sos_bannerad.png" alt="SOS Banner Ad" />
+      </a>
+      <img src="/graphics/downlord_bannerad.png" alt="Downlord Banner Ad" />
+    </div>
+  </main>
 </body>
 </html>
