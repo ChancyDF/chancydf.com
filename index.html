@@ -9,185 +9,272 @@
     :root {
       --bg: #d7ecff;
       --panel: #e9f5ff;
-      --accent: #0096ff;
       --text: #111;
       --shadow: rgba(0,0,0,.25);
     }
-    html, body {
+    html,body {
       margin: 0;
       min-height: 100%;
       font-family: Pixel, 'Arial', sans-serif;
       color: var(--text);
       background: linear-gradient(180deg, var(--bg), #ffffff) fixed;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
     }
     body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+      display:flex;
+      flex-direction:column;
+      min-height:100vh;
+      overflow-x:hidden;
     }
     .topbar {
-      width: 100%;
-      background: #fff;
-      border-bottom: 4px solid #000;
-      padding: 10px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      box-shadow: 0 4px 0 var(--shadow);
+      width:100%;
+      background:#fff;
+      border-bottom:4px solid #000;
+      padding:10px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      box-shadow:0 4px 0 var(--shadow);
+      position:fixed;
+      top:0;
+      left:0;
+      z-index:1000;
     }
     .topbar img {
-      max-width: 240px;
-      height: auto;
+      max-width:240px;
+      height:auto;
+      image-rendering:pixelated;
+      cursor:pointer;
     }
     main {
-      flex: 1;
-      width: 95%;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      border: 4px solid #000;
-      background: var(--panel);
-      box-shadow: 8px 8px 0 var(--shadow);
-      text-align: center;
+      flex:1;
+      width:95%;
+      max-width:960px;
+      margin:120px auto 34px;
+      padding:20px;
+      border:4px solid #000;
+      background:var(--panel);
+      box-shadow:8px 8px 0 var(--shadow);
+      text-align:center;
+      position:relative;
     }
-
     .wave {
-      display: inline-block;
-      font-size: 32px;
-      font-weight: bold;
+      display:inline-block;
+      font-size:40px;
+      font-weight:bold;
     }
     .wave span {
-      display: inline-block;
+      display:inline-block;
       animation: wave 1.5s infinite ease-in-out;
     }
-    @keyframes wave {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-    .wave span:nth-child(1) { animation-delay: 0s; }
-    .wave span:nth-child(2) { animation-delay: 0.1s; }
-    .wave span:nth-child(3) { animation-delay: 0.2s; }
-    .wave span:nth-child(4) { animation-delay: 0.3s; }
-    .wave span:nth-child(5) { animation-delay: 0.4s; }
-    .wave span:nth-child(6) { animation-delay: 0.5s; }
-    .wave span:nth-child(7) { animation-delay: 0.6s; }
-    .wave span:nth-child(8) { animation-delay: 0.7s; }
-
+    @keyframes wave {0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+    .wave span:nth-child(1){animation-delay:0s}
+    .wave span:nth-child(2){animation-delay:0.08s}
+    .wave span:nth-child(3){animation-delay:0.16s}
+    .wave span:nth-child(4){animation-delay:0.24s}
+    .wave span:nth-child(5){animation-delay:0.32s}
+    .wave span:nth-child(6){animation-delay:0.40s}
+    .wave span:nth-child(7){animation-delay:0.48s}
+    .wave span:nth-child(8){animation-delay:0.56s}
     .subheading {
-      margin-top: 10px;
-      font-size: 16px;
-      font-style: italic;
+      margin-top:10px;
+      font-size:16px;
+      font-style:italic;
     }
-
     .buttons {
-      margin-top: 30px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 15px;
+      margin-top:30px;
+      display:flex;
+      justify-content:center;
+      gap:16px;
+      flex-wrap:wrap;
+      position:relative;
+      z-index:3;
     }
     .btn {
-      display: inline-block;
-      padding: 10px 20px;
-      border: 2px solid #000;
-      background: linear-gradient(180deg, #fff, #e0f2ff);
-      color: var(--text);
-      text-decoration: none;
-      font-weight: bold;
-      border-radius: 6px;
-      box-shadow: 3px 3px 0 var(--shadow);
-      transition: transform .1s;
+      display:inline-block;
+      padding:10px 20px;
+      border:2px solid #000;
+      background:linear-gradient(180deg,#fff,#e0f2ff);
+      color:var(--text);
+      text-decoration:none;
+      font-weight:bold;
+      border-radius:6px;
+      box-shadow:3px 3px 0 var(--shadow);
+      transition:transform .08s;
+      font-family:Pixel,'Courier New',monospace;
+      cursor:pointer;
     }
-    .btn:hover { transform: translateY(-2px); }
-    .btn:active { transform: translateY(1px); }
-
+    .btn:hover {transform:translateY(-2px);}
+    .btn:active {transform:translateY(1px);}
+    .copied-popup {
+      position:fixed;
+      pointer-events:none;
+      background:#f7f7f7;
+      border:2px solid #000;
+      padding:6px 8px;
+      font-family:'Courier New',monospace;
+      font-size:13px;
+      box-shadow:3px 3px 0 rgba(0,0,0,0.12);
+      white-space:nowrap;
+      z-index:10000;
+      display:none;
+    }
     .socials {
-      margin-top: 40px;
+      margin-top:36px;
+      z-index:2;
+      position:relative;
     }
     .socials h2 {
-      font-size: 20px;
-      margin-bottom: 10px;
+      font-size:20px;
+      margin-bottom:10px;
     }
     .social-links {
-      display: flex;
-      justify-content: center;
-      gap: 16px;
+      display:flex;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
     }
     .social-links a {
-      width: 48px;
-      height: 48px;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      border: 2px solid #000;
-      border-radius: 4px;
-      background: var(--panel);
-      box-shadow: 3px 3px 0 var(--shadow);
-      overflow: hidden;
+      width:64px;
+      height:64px;
+      display:inline-flex;
+      justify-content:center;
+      align-items:center;
+      border:2px solid #000;
+      border-radius:6px;
+      background:var(--panel);
+      box-shadow:3px 3px 0 var(--shadow);
+      overflow:hidden;
+      transition:transform .08s, box-shadow .08s;
     }
     .social-links a img {
-      width: 80%;
-      height: 80%;
-      image-rendering: pixelated; /* aliasing effect */
+      width:86%;
+      height:86%;
+      object-fit:contain;
+      image-rendering:pixelated;
     }
-
-    @media (max-width: 600px) {
-      main { padding: 14px; }
-      .wave { font-size: 24px; }
-      .btn { padding: 8px 14px; }
+    .social-links a:hover {
+      transform:translateY(-4px);
+      box-shadow:6px 6px 0 rgba(0,0,0,0.28);
+    }
+    .music-grid {
+      margin-top:20px;
+      display:grid;
+      grid-template-columns:repeat(5,auto);
+      justify-content:center;
+      gap:10px 10px;
+    }
+    .music-item {
+      width:44px;
+      height:44px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:2px solid #000;
+      background:var(--panel);
+      box-shadow:3px 3px 0 var(--shadow);
+      border-radius:4px;
+      overflow:hidden;
+      transition:transform .06s, box-shadow .06s;
+    }
+    .music-item img {
+      width:85%;
+      height:85%;
+      object-fit:contain;
+      image-rendering:pixelated;
+      display:block;
+    }
+    .music-item:hover {
+      transform:translateY(-6px);
+      box-shadow:6px 6px 0 rgba(0,0,0,0.28);
+    }
+    .retro-tooltip {
+      position:fixed;
+      pointer-events:none;
+      display:none;
+      background:#f7f7f7;
+      border:2px solid #000;
+      padding:6px 8px;
+      font-family:'Courier New',monospace;
+      font-size:13px;
+      z-index:9999;
+      white-space:nowrap;
+      box-shadow:3px 3px 0 rgba(0,0,0,0.12);
+    }
+    .banner-container {
+      margin-top:30px;
+      display:flex;
+      justify-content:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .banner-container img {
+      max-width:100%;
+      height:auto;
+    }
+    @media (max-width:700px){
+      .social-links a {width:56px;height:56px;}
+      .music-item {width:38px;height:38px;}
+      .topbar img {max-width:180px;}
+    }
+    @media (max-width:420px){
+      .music-item {width:32px;height:32px;}
+      .social-links a {width:48px;height:48px;}
+      .wave {font-size:28px;}
+      .btn {padding:8px 12px;}
+      main {padding:14px;margin:100px auto 20px;}
     }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" />
+    <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" onclick="location.href='/'" />
   </div>
-
   <main>
     <h1 class="wave"><span>W</span><span>e</span><span>l</span><span>c</span><span>o</span><span>m</span><span>e</span><span>!</span></h1>
     <p class="subheading">it's like we're in some kind of... chancydf.com website-!</p>
-
     <div class="buttons">
-      <a href="/downloads.html" class="btn">Royalty-Free Tracks</a>
-      <a href="#" class="btn">About</a>
+      <a href="/downloads" class="btn">Royalty-Free Tracks</a>
+      <button class="btn" id="contactBtn" type="button">Contact</button>
     </div>
-
     <div class="socials">
       <h2>Where can you find me?</h2>
       <div class="social-links">
-        <a href="https://www.youtube.com/@chancydf" target="_blank" rel="noopener">
-          <img src="https://www.youtube.com/s/desktop/8d0ed159/img/favicon_32x32.png" alt="YouTube" />
-        </a>
-        <a href="https://www.tiktok.com/@chancydf" target="_blank" rel="noopener">
-          <img src="https://www.tiktok.com/favicon.ico" alt="TikTok" />
-        </a>
-        <a href="https://www.twitch.tv/chancydf" target="_blank" rel="noopener">
-          <img src="https://www.twitch.tv/favicon.ico" alt="Twitch" />
-        </a>
+        <a href="https://www.youtube.com/@chancydf" target="_blank"><img src="/graphics/youtubelogo.png" alt="YouTube" /></a>
+        <a href="https://www.tiktok.com/@chancydf" target="_blank"><img src="/graphics/tiktoklogo.png" alt="TikTok" /></a>
+        <a href="https://www.twitch.tv/chancydf" target="_blank"><img src="/graphics/twitchlogo.png" alt="Twitch" /></a>
       </div>
-
-      <h2 style="margin-top: 20px;">Where can you listen?</h2>
-      <div class="social-links">
-        <a href="https://open.spotify.com/artist/6a2hiHLTsEiXM1sIRxOOao" target="_blank" rel="noopener">
-          <img src="https://spotify.com/favicon.ico" alt="Spotify" />
-        </a>
-        <a href="https://music.apple.com/us/artist/chancydf/1760397985" target="_blank" rel="noopener">
-          <img src="https://music.apple.com/favicon.ico" alt="Apple Music" />
-        </a>
-        <a href="https://www.deezer.com/us/artist/276230131" target="_blank" rel="noopener">
-          <img src="https://www.deezer.com/favicon.ico" alt="Deezer" />
-        </a>
-      </div>
+      <h2 style="margin-top:20px;">and these...</h2>
+      <div class="music-grid"></div>
     </div>
-
-    <div class="banner-container" style="margin-top: 30px;">
-      <a href="https://www.youtube.com/@PurpulPancakes" target="_blank" rel="noopener">
+    <div class="banner-container">
+      <a href="https://www.youtube.com/@PurpulPancakes" target="_blank">
         <img src="/graphics/sos_bannerad.png" alt="SOS Banner Ad" />
       </a>
-      <img src="/graphics/downlord_bannerad.png" alt="Downlord Banner Ad" />
+      <a href="https://chancydf.com/realdownlord">
+        <img src="/graphics/downlord_bannerad.png" alt="Downlord Banner Ad" />
+      </a>
     </div>
   </main>
+  <div id="retroTooltip" class="retro-tooltip"></div>
+  <div id="copiedPopup" class="copied-popup">Email copied to clipboard!</div>
+  <script>
+    const MUSIC_PROVIDERS=["Spotify","Apple Music","YouTube Music","Amazon","Pandora","Deezer","Tidal","iHeartRadio","Claro Musica","Saavn","Boomplay","Anghami","NetEase","Tencent","Qobuz","Joox","Kuack Media","Adaptr","Flo","MediaNet"];
+    const fixMap={"iheartradio":"iheart","claromusica":"imusica","adaptr":"feedfm","medianet":"beats"};
+    function dkName(n){let b=n.toLowerCase().replace(/[\s\/]+/g,'').replace(/[^a-z0-9]/g,'');return fixMap[b]||b;}
+    const grid=document.querySelector('.music-grid');
+    MUSIC_PROVIDERS.forEach(n=>{const d=document.createElement('div');d.className='music-item';d.dataset.name=n;const i=document.createElement('img');i.src='https://distrokid.com/images/icons/'+dkName(n)+'.png';i.alt=n+' icon';d.appendChild(i);grid.appendChild(d);});
+    const tooltip=document.getElementById('retroTooltip');
+    document.querySelectorAll('.music-item').forEach(it=>{
+      it.addEventListener('mouseenter',e=>{tooltip.textContent=it.dataset.name;tooltip.style.display='block';});
+      it.addEventListener('mousemove',e=>{tooltip.style.left=(e.clientX+12)+'px';tooltip.style.top=(e.clientY+12)+'px';});
+      it.addEventListener('mouseleave',()=>tooltip.style.display='none');
+    });
+    const contactBtn=document.getElementById('contactBtn');
+    const copiedPopup=document.getElementById('copiedPopup');
+    const EMAIL='chancyalt@gmail.com';
+    let hideTimeout=null;
+    contactBtn.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(EMAIL);}catch(e){}copiedPopup.style.display='block';if(hideTimeout)clearTimeout(hideTimeout);hideTimeout=setTimeout(()=>{copiedPopup.style.display='none';},2000);});
+    document.addEventListener('mousemove',e=>{if(copiedPopup.style.display==='block'){copiedPopup.style.left=(e.clientX+10)+'px';copiedPopup.style.top=(e.clientY+10)+'px';}});
+  </script>
 </body>
 </html>
