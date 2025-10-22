@@ -170,28 +170,18 @@
       }
     </style>
 
-    <script>
-  // Create the Howl object but don't autoplay yet
-  var chancy = new Howl({
-    src: ['audios/hacked.mp3'],
-    volume: 0.5,
-    loop: true
-  });
+<audio id="chancyAudio" src="audios/hacked.mp3" loop></audio>
 
-  // Function to start audio safely
-  function playChancyAudio() {
-    chancy.play();
-    // Remove the listener so it doesn't trigger again
-    document.removeEventListener('click', playChancyAudio);
-  }
+<script>
+  const audio = document.getElementById('chancyAudio');
+  audio.volume = 0.5; // 50% volume
 
-  // Wait for the first user click anywhere on the page
-  document.addEventListener('click', playChancyAudio);
-
-  // Optional: start visually after page loads
-  $(document).ready(function() {
-    $('#center').addClass('hidden');
-    $('#ytand').removeClass('hidden');
+  // Try to autoplay
+  audio.play().catch(() => {
+    // If autoplay is blocked, play on first user click
+    document.addEventListener('click', () => {
+      audio.play();
+    }, { once: true });
   });
 </script>
   </main>
