@@ -174,13 +174,14 @@
       var chancy = new Howl({
         src: ['audios/hacked.mp3'],
         volume: 0.5,
-        loop: true,
-        autoplay: true
+        loop: true
       });
 
-      chancy.play();
+      $(document).one('click', function() {
+        chancy.play();
+      });
 
-      $(document).ready(function() {
+    $(document).ready(function() {
         $('#center').addClass('hidden');
         $('#ytand').removeClass('hidden');
       });
