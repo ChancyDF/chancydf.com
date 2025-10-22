@@ -15,7 +15,7 @@
     <script crossorigin='anonymous' integrity='sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==' referrerpolicy='no-referrer' src='https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js'></script>
 
     <div id='center'>
-<div class='lancer'>
+<div class='chancy'>
 <img alt='There's so much chancydf.com!' src='/graphics/theressomuchchancydfcom.gif'>
 </div>
 </div>
@@ -145,7 +145,7 @@
 </div>
 </div>
     <style>
-      .lancer {
+      .chancy {
         min-width: 160px;
         max-width: 100%;
         min-height: 160px;
@@ -154,7 +154,7 @@
         color: black;
         cursor: pointer;
       }
-      .lancer img {
+      .chancy img {
         position: absolute;
         height: 100%;
         width: 100%;
@@ -164,21 +164,21 @@
       .hidden { display: none; }
       @media (prefers-reduced-motion: reduce) {
         #ytand #image {
-          background-image: url('lancer-spin.png') !important;
+          background-image: url('chancy-spin.png') !important;
           background-size: 32px 32px !important;
         }
       }
     </style>
 
     <script>
-      var lancer = new Howl({
-        src: ['hacked.mp3'],
+      var chancy = new Howl({
+        src: ['audios/hacked.mp3'],
         volume: 0.5,
         loop: true,
         autoplay: true
       });
 
-      lancer.play();
+      chancy.play();
 
       $(document).ready(function() {
         $('#center').addClass('hidden');
