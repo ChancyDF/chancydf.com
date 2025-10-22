@@ -171,21 +171,29 @@
     </style>
 
     <script>
-      var chancy = new Howl({
-        src: ['audios/hacked.mp3'],
-        volume: 0.5,
-        loop: true
-      });
+  // Create the Howl object but don't autoplay yet
+  var chancy = new Howl({
+    src: ['audios/hacked.mp3'],
+    volume: 0.5,
+    loop: true
+  });
 
-      $(document).one('click', function() {
-        chancy.play();
-      });
+  // Function to start audio safely
+  function playChancyAudio() {
+    chancy.play();
+    // Remove the listener so it doesn't trigger again
+    document.removeEventListener('click', playChancyAudio);
+  }
 
-    $(document).ready(function() {
-        $('#center').addClass('hidden');
-        $('#ytand').removeClass('hidden');
-      });
-    </script>
+  // Wait for the first user click anywhere on the page
+  document.addEventListener('click', playChancyAudio);
+
+  // Optional: start visually after page loads
+  $(document).ready(function() {
+    $('#center').addClass('hidden');
+    $('#ytand').removeClass('hidden');
+  });
+</script>
   </main>
 </body>
 </html>
