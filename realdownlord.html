@@ -1,27 +1,45 @@
-
-<html lang='en'>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta content='text/html; charset=UTF-8' http-equiv='Content-Type'>
-  <meta charset='utf-8'>
-  <meta content='width=device-width' name='viewport'>
-  <meta content='#000000' name='theme-color'>
-  <meta content='noindex' name='robots'>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex">
   <title>You're the Chancy now DF!</title>
-  <link href='/assets/css/ytmnd.css' rel='stylesheet' type='text/css'>
+  <link href="/assets/css/ytmnd.css" rel="stylesheet" type="text/css">
+  <style>
+    .chancy {
+      min-width: 160px;
+      max-width: 100%;
+      min-height: 160px;
+      max-height: 100%;
+      position: relative;
+      color: black;
+      cursor: pointer;
+    }
+    .chancy img {
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+  </style>
 </head>
 <body>
   <main>
-    <script crossorigin='anonymous' integrity='sha512-yBpuflZmP5lwMzZ03hiCLzA94N0K2vgBtJgqQ2E1meJzmIBfjbb7k4Y23k2i2c/rIeSUGc7jojyIY5waK3ZxCQ==' referrerpolicy='no-referrer' src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.slim.min.js'></script>
-    <script crossorigin='anonymous' integrity='sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==' referrerpolicy='no-referrer' src='https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js'></script>
+    <!-- Audio element -->
+    <audio id="chancyAudio" src="/audios/hacked.mp3" loop></audio>
 
-    <div id='center'>
-<div class='chancy'>
-<img alt='click me.' src='/graphics/downlord_bannerad.png'>
-</div>
-</div>
-<div class='hidden' id='ytand'>
-<div id='image' style='background-image: url(&#39;/graphics/theressomuchchancydfcom.gif&#39;); background-size: 80px 80px;'></div>
-<div id='text'>
+    <div id="center">
+      <div class="chancy">
+        <img alt="click me." src="/graphics/downlord_bannerad.png">
+      </div>
+    </div>
+
+    <div class="hidden" id="ytand">
+      <div id="image" style="background-image: url('/graphics/theressomuchchancydfcom.gif'); background-size: 80px 80px;"></div>
+      <div id="text">
 <div style='z-index: 101px; left: 2px; top: 421px; color: rgb(4, 4, 4); font-size: 2pt;'>CHANCYDF.COM</div>
 <div style='z-index: 102px; left: 4px; top: 422px; color: rgb(8, 8, 8); font-size: 4pt;'>CHANCYDF.COM</div>
 <div style='z-index: 103px; left: 6px; top: 423px; color: rgb(12, 12, 12); font-size: 6pt;'>CHANCYDF.COM</div>
@@ -142,40 +160,19 @@
 <div style='z-index: 238px; left: 76px; top: 38px; color: rgb(152, 152, 152); font-size: 76pt;'>YOU JUST GOT</div>
 <div style='z-index: 239px; left: 78px; top: 39px; color: rgb(156, 156, 156); font-size: 78pt;'>YOU JUST GOT</div>
 <div style='z-index: 240px; left: 80px; top: 40px; color: rgb(0, 0, 0); font-size: 80pt;'>YOU JUST GOT</div>
-</div>
-</div>
-<style>
-  .chancy {
-    min-width: 160px;
-    max-width: 100%;
-    min-height: 160px;
-    max-height: 100%;
-    position: relative;
-    color: black;
-    cursor: pointer;
-  }
-  .chancy img {
-    position: absolute;
-    height: 100%;
-    width: 100%;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-</style>
-<script>
-  var chancy = new Howl({
-    src: ['/audios/hacked.mp3'],
-    volume: 0.5,
-    loop: true
-  });
-  
-  $(document).on('click', '.chancy', function() {
-    chancy.play();
-    $('#center').addClass('hidden');
-    $('#ytand').removeClass('hidden');
-  });
-</script>
+      </div>
+    </div>
 
+    <script>
+      const audio = document.getElementById('chancyAudio');
+      audio.volume = 0.5; // 50% volume
+
+      document.querySelector('.chancy').addEventListener('click', () => {
+        audio.play().catch(err => console.log('Audio play error:', err));
+        document.getElementById('center').classList.add('hidden');
+        document.getElementById('ytand').classList.remove('hidden');
+      });
+    </script>
   </main>
 </body>
 </html>
