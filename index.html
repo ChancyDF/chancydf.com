@@ -276,6 +276,6 @@
     contactBtn.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(EMAIL);}catch(e){}copiedPopup.style.display='block';if(hideTimeout)clearTimeout(hideTimeout);hideTimeout=setTimeout(()=>{copiedPopup.style.display='none';},2000);});
     document.addEventListener('mousemove',e=>{if(copiedPopup.style.display==='block'){copiedPopup.style.left=(e.clientX+10)+'px';copiedPopup.style.top=(e.clientY+10)+'px';}});
   </script>
+ <script src="/tinychancy/tcloader.js"></script>
 </body>
-  <script src="/tinychancy/tcloader.js"></script>
 </html>
