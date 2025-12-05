@@ -5,9 +5,8 @@
   const SIT_MIN = 10000;
   const SIT_MAX = 60000;
   const GRAVITY = 300;
-  const DROP_SPEED_THRESHOLD = 40;
-  const THROW_SPEED_THRESHOLD = 60;
-  const FRICTION = 500;
+  const DROP_SPEED_THRESHOLD = 10;
+  const FRICTION = 600;
   const Z_INDEX = 9999;
 
   const idleSrc = '/tinychancy/tinychancy_idle.gif';
@@ -15,7 +14,7 @@
   const sitSrc = '/tinychancy/tinychancy_sit.gif';
   const dangleSrc = '/tinychancy/tinychancy_dangle.gif';
 
-  const preloadImgs = [idleSrc, walkSrc, sitSrc, dangleSrc].map(src => {
+  const preloadImgs = [idleSrc, walkSrc, sitSrc, dangleSrc].map(function(src) {
     const img = new Image();
     img.src = src;
     return img;
@@ -31,6 +30,7 @@
     main.style.transform = 'scale(' + BASE_SCALE + ') scaleX(1)';
     main.style.zIndex = String(Z_INDEX);
     main.style.willChange = 'transform,left,top';
+    main.style.pointerEvents = 'auto';
 
     let clone = null;
 
@@ -40,9 +40,8 @@
     let currentScale = BASE_SCALE;
 
     let mode = 'idle';
-    let sitMode = null;
+    let sitKind = null;
 
-    let moving = false;
     let direction = 0;
     let targetX = null;
 
@@ -52,8 +51,7 @@
 
     let velX = 0;
     let velY = 0;
-    let groundContacts = 0;
-    let sliding = false;
+    let hasBounced = false;
 
     let chooseTimer = null;
     let flipBackTimer = null;
@@ -106,32 +104,29 @@
       el.style.top = ay + 'px';
     }
 
+    function floorY() {
+      return window.innerHeight;
+    }
+
     function applyScaleForScreen() {
       const w = window.innerWidth;
       if (w < 400) currentScale = BASE_SCALE * 0.6;
       else if (w < 700) currentScale = BASE_SCALE * 0.8;
       else currentScale = BASE_SCALE;
-      applyTransform(main, mode === 'dangling' || mode === 'airborne');
-      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
+      applyTransform(main, mode === 'dangling' || mode === 'airborne' || mode === 'sitAfterPhysics');
+      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne' || mode === 'sitAfterPhysics');
     }
 
-    function floorY() {
-      return window.innerHeight;
-    }
-
-    function ensureAnchors() {
-      if (anchorX == null || anchorY == null) {
-        const r = spriteRect(main);
-        anchorX = r.left + r.width / 2;
-        anchorY = r.top;
-      }
+    function lockToFloor() {
+      const h = spriteHeight(main);
+      anchorY = floorY() - h;
     }
 
     function setFacing(newFacing) {
       if (facing === newFacing) return;
       facing = newFacing;
-      applyTransform(main, mode === 'dangling' || mode === 'airborne');
-      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
+      applyTransform(main, mode === 'dangling' || mode === 'airborne' || mode === 'sitAfterPhysics');
+      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne' || mode === 'sitAfterPhysics');
       if (anchorX != null && anchorY != null) {
         renderAt(main, anchorX, anchorY);
         if (clone && wrapActive) {
@@ -156,18 +151,15 @@
       }
     }
 
-    function resetMotion() {
+    function resetPhysics() {
       velX = 0;
       velY = 0;
-      groundContacts = 0;
-      sliding = false;
+      hasBounced = false;
     }
 
     function removeClone() {
       if (clone) {
-        try {
-          clone.remove();
-        } catch (e) {}
+        try { clone.remove(); } catch (e) {}
         clone = null;
       }
       wrapActive = false;
@@ -185,49 +177,16 @@
       clone.style.zIndex = String(Z_INDEX);
       clone.style.willChange = 'transform,left,top';
       clone.src = main.src;
-      applyTransform(clone, mode === 'dangling' || mode === 'airborne');
+      applyTransform(clone, false);
       document.body.appendChild(clone);
-    }
-
-    function lockToFloor() {
-      const h = spriteHeight(main);
-      anchorY = floorY() - h;
-    }
-
-    function startRandomSit(duration) {
-      clearTimers();
-      resetMotion();
-      mode = 'sit';
-      sitMode = 'random';
-      lockToFloor();
-      setFacing(1);
-      applyTransform(main, false);
-      main.src = sitSrc;
-      renderAt(main, anchorX, anchorY);
-      sitTimer = setTimeout(function() {
-        sitTimer = null;
-        startIdle();
-      }, duration);
-    }
-
-    function startPostFallSit() {
-      clearTimers();
-      resetMotion();
-      mode = 'sit';
-      sitMode = 'postFall';
-      lockToFloor();
-      setFacing(1);
-      applyTransform(main, false);
-      main.src = sitSrc;
-      renderAt(main, anchorX, anchorY);
     }
 
     function startIdle() {
       clearTimers();
-      resetMotion();
+      resetPhysics();
       removeClone();
       mode = 'idle';
-      sitMode = null;
+      sitKind = null;
       lockToFloor();
       main.src = idleSrc;
       if (facing === -1) {
@@ -251,37 +210,21 @@
       renderAt(main, anchorX, anchorY);
     }
 
-    function startWalk() {
+    function startRandomSit(duration) {
       clearTimers();
-      resetMotion();
-      mode = 'walk';
-      sitMode = null;
+      resetPhysics();
+      removeClone();
+      mode = 'sitRandom';
+      sitKind = 'random';
       lockToFloor();
-      const w = spriteWidth(main);
-      const minC = w / 2;
-      const maxC = Math.max(minC, window.innerWidth - w / 2);
-      let t = anchorX;
-      let attempts = 0;
-      while ((Math.abs(t - anchorX) < 100 || t <= minC || t >= maxC) && attempts < 2000) {
-        t = randBetween(minC, maxC);
-        attempts++;
-      }
-      t = clamp(t, minC, maxC);
-      targetX = t;
-      direction = targetX > anchorX ? 1 : -1;
-      setFacing(direction === 1 ? 1 : -1);
-      main.src = walkSrc;
+      setFacing(1);
+      applyTransform(main, false);
+      main.src = sitSrc;
       renderAt(main, anchorX, anchorY);
-    }
-
-    function stopWalkAndIdle(x) {
-      anchorX = x;
-      startIdle();
-    }
-
-    function startSittingFromIdleChoice() {
-      const dur = randBetween(SIT_MIN, SIT_MAX);
-      startRandomSit(dur);
+      sitTimer = setTimeout(function() {
+        sitTimer = null;
+        startIdle();
+      }, duration);
     }
 
     function startInitialState() {
@@ -294,18 +237,57 @@
       }
     }
 
-    function startDangling(pointerX, pointerY) {
+    function startWalk() {
       clearTimers();
-      resetMotion();
+      resetPhysics();
+      removeClone();
+      mode = 'walk';
+      sitKind = null;
+      lockToFloor();
+      const w = spriteWidth(main);
+      const minC = w / 2;
+      const maxC = Math.max(minC, window.innerWidth - w / 2);
+      let t = anchorX;
+      let attempts = 0;
+      while ((Math.abs(t - anchorX) < 100 || t <= minC || t >= maxC) && attempts < 2000) {
+        t = randBetween(minC, maxC);
+        attempts++;
+      }
+      targetX = clamp(t, minC, maxC);
+      direction = targetX > anchorX ? 1 : -1;
+      setFacing(direction === 1 ? 1 : -1);
+      main.src = walkSrc;
+      applyTransform(main, false);
+      renderAt(main, anchorX, anchorY);
+    }
+
+    function stopWalkAndIdle(x) {
+      anchorX = x;
+      startIdle();
+    }
+
+    function startPostPhysicsSit() {
+      clearTimers();
+      mode = 'sitAfterPhysics';
+      sitKind = 'postPhysics';
+      main.src = sitSrc;
+      applyTransform(main, false);
+      lockToFloor();
+      renderAt(main, anchorX, anchorY);
+    }
+
+    function startDangling(px, py) {
+      clearTimers();
+      resetPhysics();
       removeClone();
       mode = 'dangling';
-      sitMode = null;
+      sitKind = null;
       dragging = true;
-      anchorX = pointerX;
-      anchorY = pointerY;
       facing = 1;
-      applyTransform(main, true);
       main.src = dangleSrc;
+      applyTransform(main, true);
+      anchorX = px;
+      anchorY = py;
       renderAt(main, anchorX, anchorY);
     }
 
@@ -313,19 +295,18 @@
       dragging = false;
       dragPointerId = null;
       const speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
+      resetPhysics();
       if (speed < DROP_SPEED_THRESHOLD) {
         velX = 0;
         velY = 0;
-        mode = 'airborne';
-        groundContacts = 0;
-        sliding = false;
       } else {
         velX = dragVX;
         velY = dragVY;
-        mode = 'airborne';
-        groundContacts = 0;
-        sliding = false;
       }
+      mode = 'airborne';
+      sitKind = null;
+      main.src = dangleSrc;
+      applyTransform(main, true);
     }
 
     function updateAirborne(dt) {
@@ -346,46 +327,44 @@
       const bottom = anchorY + h;
       if (bottom >= fy) {
         anchorY = fy - h;
-        if (groundContacts === 0 && velY > 0) {
+        if (!hasBounced && velY > 0) {
           velY = -Math.abs(velY) * 0.5;
-          groundContacts = 1;
-          startPostFallSit();
-        } else {
+          hasBounced = true;
+        } else if (hasBounced) {
           velY = 0;
-          groundContacts = 2;
-          if (!sliding && Math.abs(velX) > 0) {
-            sliding = true;
-          }
+          startPostPhysicsSit();
         }
       }
-      if (mode === 'airborne') {
-        applyTransform(main, true);
-        main.src = dangleSrc;
-      } else if (mode === 'sit' && sitMode === 'postFall') {
-        applyTransform(main, false);
-        main.src = sitSrc;
-      }
-      if (mode === 'sit' && sitMode === 'postFall') {
-        if (Math.abs(velX) > 0) {
-          const sign = velX > 0 ? 1 : -1;
-          velX -= sign * FRICTION * dt;
-          if (velX * sign < 0) velX = 0;
-          anchorX += velX * dt;
-          const L = anchorX - w / 2;
-          const R = anchorX + w / 2;
-          if (R < 0) {
-            anchorX += W + w;
-          } else if (L > W) {
-            anchorX -= W + w;
-          }
-        }
-        if (velX === 0 && velY === 0) {
-          startIdle();
-        }
-      } else if (mode === 'airborne' && groundContacts >= 2) {
-        startPostFallSit();
-      }
+      main.src = dangleSrc;
+      applyTransform(main, true);
       renderAt(main, anchorX, anchorY);
+    }
+
+    function updateSitAfterPhysics(dt) {
+      const w = spriteWidth(main);
+      const h = spriteHeight(main);
+      const W = window.innerWidth;
+      const fy = floorY();
+      anchorY = fy - h;
+      if (Math.abs(velX) > 0) {
+        const sign = velX > 0 ? 1 : -1;
+        velX -= sign * FRICTION * dt;
+        if (velX * sign < 0) velX = 0;
+        anchorX += velX * dt;
+        const left = anchorX - w / 2;
+        const right = anchorX + w / 2;
+        if (right < 0) {
+          anchorX += W + w;
+        } else if (left > W) {
+          anchorX -= W + w;
+        }
+      }
+      main.src = sitSrc;
+      applyTransform(main, false);
+      renderAt(main, anchorX, anchorY);
+      if (Math.abs(velX) === 0) {
+        startIdle();
+      }
     }
 
     function updateWalk(dt) {
@@ -453,13 +432,21 @@
       }
 
       if (mode === 'dangling') {
+        main.src = dangleSrc;
+        applyTransform(main, true);
         renderAt(main, anchorX, anchorY);
         requestAnimationFrame(rafTick);
         return;
       }
 
-      if (mode === 'airborne' || (mode === 'sit' && sitMode === 'postFall')) {
+      if (mode === 'airborne') {
         updateAirborne(dt);
+        requestAnimationFrame(rafTick);
+        return;
+      }
+
+      if (mode === 'sitAfterPhysics') {
+        updateSitAfterPhysics(dt);
         requestAnimationFrame(rafTick);
         return;
       }
@@ -473,7 +460,7 @@
         main.src = idleSrc;
         applyTransform(main, false);
         renderAt(main, anchorX, anchorY);
-      } else if (mode === 'sit' && sitMode === 'random') {
+      } else if (mode === 'sitRandom') {
         lockToFloor();
         main.src = sitSrc;
         applyTransform(main, false);
@@ -513,8 +500,8 @@
       lastDragT = now;
       anchorX = e.clientX;
       anchorY = e.clientY;
-      applyTransform(main, true);
       main.src = dangleSrc;
+      applyTransform(main, true);
       renderAt(main, anchorX, anchorY);
     }
 
@@ -552,7 +539,9 @@
         const minC2 = w2 / 2;
         const maxC2 = Math.max(minC2, window.innerWidth - w2 / 2);
         if (anchorX != null) anchorX = clamp(anchorX, minC2, maxC2);
-        if (mode !== 'dangling' && mode !== 'airborne') lockToFloor();
+        if (mode !== 'dangling' && mode !== 'airborne') {
+          lockToFloor();
+        }
         renderAt(main, anchorX, anchorY);
       });
 
