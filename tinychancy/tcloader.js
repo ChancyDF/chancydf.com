@@ -11,6 +11,7 @@
     el.style.transform = 'scale(0.36) scaleX(1)';
     el.style.pointerEvents = 'none';
     el.style.willChange = 'left';
+    el.style.zIndex = '9999';
     document.body.appendChild(el);
 
     // ---- State ----
