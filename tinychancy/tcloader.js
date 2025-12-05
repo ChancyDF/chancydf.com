@@ -25,23 +25,28 @@
 
     const IDLE_MIN = 5000;
     const IDLE_MAX = 10000;
+    const BASE_SCALE = 0.36;
 
     // ---- Helpers ----
     function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
+
     function currentSpriteWidth() {
       const r = el.getBoundingClientRect();
       return (r && r.width) || 50;
     }
+
     function renderPositionFromCenter() {
       const width = currentSpriteWidth();
       el.style.left = (centerX - width / 2) + 'px';
     }
+
     function setFacing(newFacing) {
       if (facing === newFacing) return;
       facing = newFacing;
-      el.style.transform = `scale(0.36) scaleX(${facing})`;
+      el.style.transform = `scale(${currentScale}) scaleX(${facing})`;
       renderPositionFromCenter();
     }
+
     function pickTarget() {
       const spriteW = currentSpriteWidth();
       const minCenter = spriteW / 2;
@@ -55,18 +60,27 @@
       return clamp(t, minCenter, maxCenter);
     }
 
+    // ---- Scale adjustment for mobile ----
+    let currentScale = BASE_SCALE;
+    function adjustScale() {
+      const w = window.innerWidth;
+      if (w < 400) currentScale = BASE_SCALE * 0.6;
+      else if (w < 700) currentScale = BASE_SCALE * 0.8;
+      else currentScale = BASE_SCALE;
+
+      el.style.transform = `scale(${currentScale}) scaleX(${facing})`;
+    }
+
     // ---- Idle / Choose next target ----
     function startIdleState() {
       if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
       if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
       moving = false; direction = 0; targetX = null;
 
-      // flip back to right if facing left
       if (facing === -1) {
         flipBackTimer = setTimeout(() => { setFacing(1); flipBackTimer = null; }, 1000);
       }
 
-      // next walk after random delay
       const wait = Math.random() * (IDLE_MAX - IDLE_MIN) + IDLE_MIN;
       chooseTimer = setTimeout(() => {
         chooseTimer = null;
@@ -95,22 +109,17 @@
       startIdleState();
     }
 
-    // ---- Main RAF loop ----
+    // ---- Main animation loop ----
     function rafTick(timestamp) {
       if (lastTime === null) lastTime = timestamp;
       const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
       lastTime = timestamp;
 
-      if (centerX === null) {
-        const rect = el.getBoundingClientRect();
-        centerX = rect.left + rect.width / 2;
-      }
-
       const spriteW = currentSpriteWidth();
       const minCenter = spriteW / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
 
-      // Clamp to visible area
+      // Safety clamp: snap back if out-of-bounds
       if (centerX < minCenter || centerX > maxCenter) {
         centerX = Math.random() * (maxCenter - minCenter) + minCenter;
         targetX = null;
@@ -120,7 +129,6 @@
 
       if (moving && direction !== 0 && targetX !== null) {
         let nextCenter = centerX + direction * spriteW * dt;
-
         nextCenter = clamp(nextCenter, minCenter, maxCenter);
 
         const passedTarget = (direction === 1 && nextCenter >= targetX) || (direction === -1 && nextCenter <= targetX);
@@ -141,12 +149,16 @@
     }
 
     function initWhenLoaded() {
+      adjustScale();
+
       const w = currentSpriteWidth();
       const minCenter = w / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
+
       // Random starting x-coordinate
       centerX = Math.random() * (maxCenter - minCenter) + minCenter;
       renderPositionFromCenter();
+
       startIdleState();
       requestAnimationFrame(rafTick);
     }
@@ -160,6 +172,7 @@
 
     // ---- Handle window resize ----
     window.addEventListener('resize', () => {
+      adjustScale();
       const w = currentSpriteWidth();
       const minCenter = w / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
