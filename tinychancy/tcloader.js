@@ -6,7 +6,7 @@
     el.src = '/tinychancy/tinychancy_idle.gif';
     el.style.position = 'fixed';
     el.style.bottom = '0';
-    el.style.left = '50px';
+    el.style.left = '0';
     el.style.transformOrigin = 'center bottom';
     el.style.transform = 'scale(0.36) scaleX(1)';
     el.style.pointerEvents = 'none';
@@ -14,8 +14,8 @@
     document.body.appendChild(el);
 
     // ---- State ----
-    let centerX = null;     // center of the character
-    let facing = 1;         // 1 = right, -1 = left
+    let centerX = null;
+    let facing = 1;
     let moving = false;
     let direction = 0;
     let targetX = null;
@@ -73,7 +73,6 @@
         prepareAndStartMove();
       }, wait);
 
-      // show idle gif
       el.src = '/tinychancy/tinychancy_idle.gif';
     }
 
@@ -96,7 +95,7 @@
       startIdleState();
     }
 
-    // ---- Main animation loop ----
+    // ---- Main RAF loop ----
     function rafTick(timestamp) {
       if (lastTime === null) lastTime = timestamp;
       const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
@@ -107,12 +106,21 @@
         centerX = rect.left + rect.width / 2;
       }
 
-      if (moving && direction !== 0 && targetX !== null) {
-        const speed = currentSpriteWidth();
-        let nextCenter = centerX + direction * speed * dt;
+      const spriteW = currentSpriteWidth();
+      const minCenter = spriteW / 2;
+      const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
 
-        const minCenter = currentSpriteWidth() / 2;
-        const maxCenter = Math.max(minCenter, window.innerWidth - currentSpriteWidth() / 2);
+      // Clamp to visible area
+      if (centerX < minCenter || centerX > maxCenter) {
+        centerX = Math.random() * (maxCenter - minCenter) + minCenter;
+        targetX = null;
+        moving = false;
+        el.src = '/tinychancy/tinychancy_idle.gif';
+      }
+
+      if (moving && direction !== 0 && targetX !== null) {
+        let nextCenter = centerX + direction * spriteW * dt;
+
         nextCenter = clamp(nextCenter, minCenter, maxCenter);
 
         const passedTarget = (direction === 1 && nextCenter >= targetX) || (direction === -1 && nextCenter <= targetX);
@@ -133,20 +141,24 @@
     }
 
     function initWhenLoaded() {
-      const rect = el.getBoundingClientRect();
-      centerX = rect.left + rect.width / 2;
+      const w = currentSpriteWidth();
+      const minCenter = w / 2;
+      const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
+      // Random starting x-coordinate
+      centerX = Math.random() * (maxCenter - minCenter) + minCenter;
       renderPositionFromCenter();
       startIdleState();
       requestAnimationFrame(rafTick);
     }
 
-    // ---- Robust loading: always initialize ----
+    // ---- Robust loading ----
     if (el.complete && el.naturalWidth) {
       initWhenLoaded();
     } else {
       el.addEventListener('load', initWhenLoaded, { passive: true });
     }
 
+    // ---- Handle window resize ----
     window.addEventListener('resize', () => {
       const w = currentSpriteWidth();
       const minCenter = w / 2;
