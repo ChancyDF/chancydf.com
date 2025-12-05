@@ -4,9 +4,9 @@ const IDLE_MIN=5000;
 const IDLE_MAX=10000;
 const SIT_MIN=10000;
 const SIT_MAX=60000;
-const Z_INDEX=9999;
+const Z_INDEX=1000000;
 const GRAVITY=300;
-const MAX_ROT=90*Math.PI/180;
+const MAX_ROT=Math.PI/2;
 const ROT_EASE=8;
 const DRAG_VEL_SMOOTH=0.08;
 const BOUNCE_FACTOR=0.25;
@@ -32,6 +32,9 @@ function loadTinyChancy(){
   main.style.pointerEvents='auto';
   main.style.willChange='left,top,transform';
   main.style.zIndex=String(Z_INDEX);
+  main.draggable=false;
+  main.ondragstart=()=>false;
+
   let clone=null;
 
   let centerX=null;
@@ -54,35 +57,14 @@ function loadTinyChancy(){
   let prevPointer={x:0,y:0,time:0};
   let vx=0,vy=0;
   let rot=0,rotVel=0;
-  let bounceDone=false;
-  let fallStartY=null;
+  let bounceUsed=false;
 
-  function currentWidth(elRef){const r=(elRef.getBoundingClientRect());return (r&&r.width)||50}
-  function currentHeight(elRef){const r=(elRef.getBoundingClientRect());return (r&&r.height)||50}
-  function render(elRef,cx,cy){
-    const w=currentWidth(elRef);const h=currentHeight(elRef);
-    elRef.style.left=(cx-w/2)+'px';
-    elRef.style.top=(cy-h/2)+'px';
-  }
-  function applyVis(elRef){
-    elRef.style.transform=`scale(${currentScale}) scaleX(${facing}) rotate(${rot}rad)`;
-  }
-  function setFacing(f){
-    if(facing===f) return;
-    facing=f;
-    applyVis(main);
-    if(clone) applyVis(clone);
-    if(centerX!==null){render(main,centerX,centerY); if(clone) render(clone,centerX-projectedOffset,centerY)}
-  }
-  function adjustScale(){
-    const w=window.innerWidth;
-    if(w<400) currentScale=BASE_SCALE*0.6;
-    else if(w<700) currentScale=BASE_SCALE*0.8;
-    else currentScale=BASE_SCALE;
-    applyVis(main);
-    if(clone) applyVis(clone);
-  }
-
+  function currentWidth(elRef){const r=elRef.getBoundingClientRect();return (r&&r.width)||50}
+  function currentHeight(elRef){const r=elRef.getBoundingClientRect();return (r&&r.height)||50}
+  function render(elRef,cx,cy){const w=currentWidth(elRef);const h=currentHeight(elRef);elRef.style.left=(cx-w/2)+'px';elRef.style.top=(cy-h/2)+'px'}
+  function applyVis(elRef){elRef.style.transform=`scale(${currentScale}) scaleX(${facing}) rotate(${rot}rad)`}
+  function setFacing(f){if(facing===f) return; facing=f; applyVis(main); if(clone) applyVis(clone); if(centerX!==null){render(main,centerX,centerY); if(clone) render(clone,centerX-projectedOffset,centerY)}}
+  function adjustScale(){const w=window.innerWidth; if(w<400) currentScale=BASE_SCALE*0.6; else if(w<700) currentScale=BASE_SCALE*0.8; else currentScale=BASE_SCALE; applyVis(main); if(clone) applyVis(clone)}
   function clearAllTimers(){ if(chooseTimer){clearTimeout(chooseTimer); chooseTimer=null} if(flipBackTimer){clearTimeout(flipBackTimer); flipBackTimer=null} if(sitTimer){clearTimeout(sitTimer); sitTimer=null} }
 
   function startSitting(duration){
@@ -94,7 +76,7 @@ function loadTinyChancy(){
     targetX=null;
     setFacing(1);
     main.src=sitSrc;
-    sitTimer=setTimeout(()=>{ sitTimer=null; sitting=false; startIdleState(); }, duration);
+    sitTimer=setTimeout(()=>{ sitTimer=null; sitting=false; startIdleState() }, duration);
   }
 
   function startIdleState(){
@@ -111,6 +93,7 @@ function loadTinyChancy(){
       else prepareAndStartMove();
     }, wait);
     main.src=idleSrc;
+    bounceUsed=false;
   }
 
   function pickTarget(minC,maxC){
@@ -148,50 +131,59 @@ function loadTinyChancy(){
     clone.style.willChange='left,top,transform';
     clone.style.zIndex=String(Z_INDEX);
     clone.src=main.src;
-    clone.style.transform=`scale(${currentScale}) scaleX(${facing}) rotate(${rot}rad)`;
+    applyVis(clone);
     document.body.appendChild(clone);
   }
+
   function removeClone(){ if(!clone) return; try{clone.remove()}catch(e){} clone=null; wrapActive=false; wrapDirection=0; projectedOffset=0 }
 
-  function startDrag(pointerX,pointerY,id){
+  function startDrag(px,py,id){
     dangling=true;
     dragPointerId=id;
+    document.body.style.userSelect='none';
+    document.body.style.webkitUserSelect='none';
+    document.body.style.touchAction='none';
     clearAllTimers();
     moving=false; direction=0; targetX=null; sitting=false;
     main.src=dangleSrc;
     main.style.transformOrigin='center top';
     rot=0; rotVel=0; vx=0; vy=0;
-    prevPointer={x:pointerX,y:pointerY,time:performance.now()};
-    centerX=pointerX;
-    centerY=pointerY;
+    prevPointer={x:px,y:py,time:performance.now()};
+    const h=currentHeight(main);
+    centerX=px;
+    centerY=py + h/2;
     applyVis(main);
     render(main,centerX,centerY);
+    bounceUsed=false;
   }
 
-  function updateDrag(pointerX,pointerY){
+  function updateDrag(px,py){
     const now=performance.now();
     const dt=(now-prevPointer.time)/1000 || 0.016;
-    const dx=pointerX-prevPointer.x; const dy=pointerY-prevPointer.y;
+    const dx=px-prevPointer.x; const dy=py-prevPointer.y;
     const instantVx=dx/dt; const instantVy=dy/dt;
     vx = vx*(1-DRAG_VEL_SMOOTH) + instantVx*DRAG_VEL_SMOOTH;
     vy = vy*(1-DRAG_VEL_SMOOTH) + instantVy*DRAG_VEL_SMOOTH;
-    prevPointer={x:pointerX,y:pointerY,time:now};
-    centerX=pointerX;
-    centerY=pointerY;
-    rotVel = rotVel*0.8 + clamp(-vx/800, -1,1)*0.2;
+    prevPointer={x:px,y:py,time:now};
+    const h=currentHeight(main);
+    centerX=px;
+    centerY=py + h/2;
+    rotVel = rotVel*0.8 + clamp(-vx/800,-1,1)*0.2;
     rot += rotVel * dt;
-    rot = clamp(rot, -MAX_ROT, MAX_ROT);
+    rot = clamp(rot,-MAX_ROT,MAX_ROT);
     applyVis(main);
     render(main,centerX,centerY);
+    handleWrapDuringDrag();
   }
 
   function endDrag(){
+    document.body.style.userSelect='';
+    document.body.style.webkitUserSelect='';
+    document.body.style.touchAction='';
     dragPointerId=null;
     main.style.transformOrigin='center bottom';
-    rotVel = rotVel*0.5;
     if(Math.abs(vx)<20 && Math.abs(vy)<20){
       vy=0;
-      fallStartY = centerY;
       dangling=false;
       startFall();
     } else {
@@ -205,103 +197,103 @@ function loadTinyChancy(){
     let startY=centerY;
     let bounced=false;
     function fallStep(ts, last){
-      const dt = Math.min(0.05, (ts-last)/1000);
+      const dt=Math.min(0.05,(ts-last)/1000);
       vy_local += GRAVITY*dt;
       centerY += vy_local*dt;
       rot += (vy_local/1000)*dt;
-      rot = clamp(rot, -MAX_ROT, MAX_ROT);
+      rot = clamp(rot,-MAX_ROT,MAX_ROT);
       applyVis(main);
       render(main,centerX,centerY);
-      const h = currentHeight(main);
-      const floorY = window.innerHeight - h/2;
+      const h=currentHeight(main);
+      const floorY=window.innerHeight - h/2;
       if(centerY >= floorY){
         centerY = floorY;
         render(main,centerX,centerY);
         if(!bounced){
           bounced=true;
-          const dropHeight = Math.max(0, centerY - startY);
+          const dropHeight = Math.max(0, floorY - startY);
           const bounceHeight = dropHeight * BOUNCE_FACTOR;
           const v0 = Math.sqrt(2*GRAVITY*bounceHeight);
           vy_local = -v0;
-          startY = centerY;
-          setTimeout(()=>{ stopAndSitAfterBounce(centerY); }, Math.max(300, (v0/GRAVITY)*1000 + 50));
+          setTimeout(()=>{ finalizeBounceAndSit() }, Math.max(200, (v0/GRAVITY)*1000 + 50));
           requestAnimationFrame(ts2=>fallStep(ts2,ts));
         } else {
-          stopAndSitAfterBounce(centerY);
+          finalizeBounceAndSit();
         }
         return;
       }
       requestAnimationFrame(ts2=>fallStep(ts2,ts));
     }
-    requestAnimationFrame(ts=>fallStep(ts, performance.now()));
+    requestAnimationFrame(ts=>fallStep(ts,performance.now()));
   }
 
   function startThrow(initVx, initVy){
-    let vx_local = initVx;
-    let vy_local = initVy;
+    let vx_local=initVx;
+    let vy_local=initVy;
     let bounced=false;
-    const startY = centerY;
-    function step(ts, last){
-      const dt = Math.min(0.05, (ts-last)/1000);
+    const startY=centerY;
+    function step(ts,last){
+      const dt=Math.min(0.05,(ts-last)/1000);
       vy_local += GRAVITY*dt;
       centerX += vx_local*dt;
       centerY += vy_local*dt;
       rot += (vx_local/2000)*dt;
       applyVis(main);
-      handleWrapDuringDragProjection();
+      handleWrapDuringThrow();
       render(main,centerX,centerY);
       const h=currentHeight(main);
-      const floorY = window.innerHeight - h/2;
+      const floorY=window.innerHeight - h/2;
       if(centerY >= floorY){
         centerY = floorY;
         render(main,centerX,centerY);
         if(!bounced){
           bounced=true;
-          const dropHeight = Math.max(0, centerY - startY);
+          const dropHeight = Math.max(0, floorY - startY);
           const bounceHeight = dropHeight * BOUNCE_FACTOR;
           const v0 = Math.sqrt(2*GRAVITY*bounceHeight);
           vy_local = -v0;
-          setTimeout(()=>{ stopAndSitAfterBounce(centerY); }, Math.max(300,(v0/GRAVITY)*1000+50));
+          setTimeout(()=>{ finalizeBounceAndSit() }, Math.max(200,(v0/GRAVITY)*1000+50));
           requestAnimationFrame(ts2=>step(ts2,ts));
         } else {
-          stopAndSitAfterBounce(centerY);
+          finalizeBounceAndSit();
         }
         return;
       }
       requestAnimationFrame(ts2=>step(ts2,ts));
     }
-    requestAnimationFrame(ts=>step(ts, performance.now()));
+    requestAnimationFrame(ts=>step(ts,performance.now()));
   }
 
-  function stopAndSitAfterBounce(y){
-    render(main,centerX,y);
+  function finalizeBounceAndSit(){
     main.src=sitSrc;
     sitting=true;
-    setTimeout(()=>{ sitting=false; startIdleState(); }, 800);
+    bounceUsed=true;
     rot=0;
     applyVis(main);
+    setTimeout(()=>{ sitting=false; startIdleState() }, 800);
   }
 
-  function handleWrapDuringDragProjection(){
+  function handleWrapDuringDrag(){
     if(!wrapActive && (centerX - currentWidth(main)/2 < 0 || centerX + currentWidth(main)/2 > window.innerWidth)){
       wrapActive=true;
       wrapDirection = centerX - currentWidth(main)/2 < 0 ? -1 : 1;
       projectedOffset = window.innerWidth * wrapDirection;
-      createCloneIfNeededDuringDrag();
+      createCloneDuringDrag();
     }
     if(wrapActive && clone){
       const cloneCenter = centerX - projectedOffset;
       render(clone, cloneCenter, centerY);
       applyVis(clone);
-      if(cloneCenter - currentWidth(clone)/2 >=0 && cloneCenter + currentWidth(clone)/2 <= window.innerWidth){
+      const w=currentWidth(clone);
+      if(cloneCenter - w/2 >=0 && cloneCenter + w/2 <= window.innerWidth){
         centerX = cloneCenter;
-        render(main, centerX, centerY);
+        render(main,centerX,centerY);
         removeClone();
       }
     }
   }
 
-  function createCloneIfNeededDuringDrag(){
+  function createCloneDuringDrag(){
     if(clone) return;
     clone=document.createElement('img');
     clone.id='tinychancy_clone';
@@ -317,22 +309,43 @@ function loadTinyChancy(){
     document.body.appendChild(clone);
   }
 
-  function removeClone(){ if(!clone) return; try{clone.remove()}catch(e){} clone=null; wrapActive=false; wrapDirection=0; projectedOffset=0 }
+  function handleWrapDuringThrow(){
+    if(!wrapActive && (centerX - currentWidth(main)/2 < 0 || centerX + currentWidth(main)/2 > window.innerWidth)){
+      wrapActive=true;
+      wrapDirection = centerX - currentWidth(main)/2 < 0 ? -1 : 1;
+      projectedOffset = window.innerWidth * wrapDirection;
+      createClone();
+      clone.src = main.src;
+      applyVis(clone);
+    }
+    if(wrapActive && clone){
+      const cloneCenter = centerX - projectedOffset;
+      render(clone, cloneCenter, centerY);
+      applyVis(clone);
+      const w=currentWidth(clone);
+      if(cloneCenter - w/2 >=0 && cloneCenter + w/2 <= window.innerWidth){
+        centerX = cloneCenter;
+        if(targetX!==null) targetX = clamp(targetX - projectedOffset, w/2, Math.max(w/2,window.innerWidth - w/2));
+        removeClone();
+      }
+    }
+  }
 
   function rafLoop(ts){
     if(lastTime===null) lastTime=ts;
-    const dt=Math.min(0.05,(ts-lastTime)/1000); lastTime=ts;
+    const dt=Math.min(0.05,(ts-lastTime)/1000);
+    lastTime=ts;
+    adjustScale();
     if(centerX===null){
       const w=currentWidth(main);
       const minC=w/2; const maxC=Math.max(minC,window.innerWidth-w/2);
       centerX=randBetween(minC,maxC); centerY=window.innerHeight - currentHeight(main)/2;
     }
-    adjustScale();
     if(sitting){ applyVis(main); render(main,centerX,centerY); requestAnimationFrame(rafLoop); return }
-    if(dangling){ render(main,centerX,centerY); handleWrapDuringDragProjection(); requestAnimationFrame(rafLoop); return }
+    if(dangling){ applyVis(main); render(main,centerX,centerY); handleWrapDuringDrag(); requestAnimationFrame(rafLoop); return }
     if(moving && direction!==0 && targetX!==null){
       const speed=currentWidth(main);
-      let nextCenter=centerX+direction*speed*dt;
+      let nextCenter=centerX + direction * speed * dt;
       const W=window.innerWidth;
       const w=currentWidth(main);
       const leftEdge=nextCenter - w/2;
@@ -340,7 +353,7 @@ function loadTinyChancy(){
       if(!wrapActive && (leftEdge < 0 || rightEdge > W)){
         wrapActive=true;
         wrapDirection = leftEdge < 0 ? -1 : 1;
-        projectedOffset = W*wrapDirection;
+        projectedOffset = W * wrapDirection;
         createClone();
         clone.src = main.src;
         applyVis(clone);
@@ -353,7 +366,6 @@ function loadTinyChancy(){
         const cloneLeft = cloneCenter - w/2; const cloneRight = cloneCenter + w/2;
         if(cloneLeft >=0 && cloneRight <= W){
           centerX = cloneCenter;
-          // adjust targetX relative to projection
           if(targetX!==null) targetX = clamp(targetX - projectedOffset, w/2, Math.max(w/2,W-w/2));
           removeClone();
           render(main,centerX,centerY);
@@ -374,9 +386,7 @@ function loadTinyChancy(){
         render(main,centerX,centerY);
       }
       const reached = (direction===1 && centerX>=targetX) || (direction===-1 && centerX<=targetX);
-      if(reached){
-        stopAndIdleAt(targetX); if(clone) removeClone(); requestAnimationFrame(rafLoop); return;
-      }
+      if(reached){ stopAndIdleAt(targetX); if(clone) removeClone(); requestAnimationFrame(rafLoop); return }
       requestAnimationFrame(rafLoop); return;
     } else {
       render(main,centerX,centerY);
@@ -388,24 +398,29 @@ function loadTinyChancy(){
 
   function onPointerDown(e){
     if(e.pointerType==='mouse' && e.button!==0) return;
-    const target = e.target;
-    if(target!==main && target!==clone) return;
+    const rect=main.getBoundingClientRect();
+    const px=e.clientX;
+    const py=e.clientY;
+    if(px < rect.left || px > rect.right || py < rect.top || py > rect.bottom) return;
     e.preventDefault();
-    const rect = (target===main?main:clone).getBoundingClientRect();
-    const px = e.clientX;
-    const py = e.clientY;
     startDrag(px,py,e.pointerId);
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointermove', onPointerMove, {passive:false});
+    document.addEventListener('pointerup', onPointerUp, {passive:false});
+    document.addEventListener('pointercancel', onPointerUp, {passive:false});
   }
+
   function onPointerMove(e){
     if(dragPointerId!==e.pointerId) return;
+    e.preventDefault();
     updateDrag(e.clientX, e.clientY);
   }
+
   function onPointerUp(e){
     if(dragPointerId!==e.pointerId) return;
-    document.removeEventListener('pointermove', onPointerMove);
-    document.removeEventListener('pointerup', onPointerUp);
+    e.preventDefault();
+    document.removeEventListener('pointermove', onPointerMove, {passive:false});
+    document.removeEventListener('pointerup', onPointerUp, {passive:false});
+    document.removeEventListener('pointercancel', onPointerUp, {passive:false});
     endDrag();
   }
 
