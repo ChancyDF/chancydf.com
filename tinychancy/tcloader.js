@@ -1,494 +1,441 @@
-(function(){
-const BASE_SCALE=0.36;
-const IDLE_MIN=5000;
-const IDLE_MAX=10000;
-const SIT_MIN=10000;
-const SIT_MAX=60000;
-const Z_INDEX=1000000;
-const GRAVITY=300;
-const BOUNCE_FACTOR=0.25;
+(function() {
+  function loadTinyChancy() {
+    var main = document.createElement('img');
+    var clone = document.createElement('img');
+    var idleSrc = '/tinychancy/tinychancy_idle.gif';
+    var walkSrc = '/tinychancy/tinychancy_walk.gif';
+    var sitSrc = '/tinychancy/tinychancy_sit.gif';
+    var dangleSrc = '/tinychancy/tinychancy_dangle.gif';
 
-const idleSrc='/tinychancy/tinychancy_idle.gif';
-const walkSrc='/tinychancy/tinychancy_walk.gif';
-const sitSrc='/tinychancy/tinychancy_sit.gif';
-const dangleSrc='/tinychancy/tinychancy_dangle.gif';
+    main.id = 'tinychancy';
+    main.style.position = 'fixed';
+    main.style.bottom = '0';
+    main.style.left = '0';
+    main.style.transformOrigin = 'center bottom';
+    main.style.transform = 'scale(0.36) scaleX(1)';
+    main.style.pointerEvents = 'auto';
+    main.style.willChange = 'transform,left,bottom';
+    main.style.zIndex = '9999';
+    main.style.imageRendering = 'pixelated';
+    main.style.touchAction = 'none';
 
-function randBetween(a,b){return Math.random()*(b-a)+a}
-function chance(p){return Math.random()<p}
-function clamp(v,a,b){return Math.min(Math.max(v,a),b)}
-function iround(v){return Math.round(v)}
+    clone.style.position = 'fixed';
+    clone.style.bottom = '0';
+    clone.style.left = '0';
+    clone.style.transformOrigin = 'center bottom';
+    clone.style.transform = 'scale(0.36) scaleX(1)';
+    clone.style.pointerEvents = 'auto';
+    clone.style.willChange = 'transform,left,bottom';
+    clone.style.zIndex = '9999';
+    clone.style.imageRendering = 'pixelated';
+    clone.style.touchAction = 'none';
+    clone.style.display = 'none';
 
-function loadTinyChancy(){
-  const preloadImgs=[idleSrc,walkSrc,sitSrc,dangleSrc].map(s=>{const i=new Image();i.src=s;return i});
+    var worldX = 0;
+    var worldY = 0;
+    var velX = 0;
+    var velY = 0;
+    var facing = 1;
+    var baseScale = 0.36;
+    var currentScale = baseScale;
+    var state = 'idle';
+    var walkingTargetX = null;
+    var idleTimer = null;
+    var sittingTimer = null;
+    var lastTime = null;
+    var firstActionDone = false;
 
-  const wrapper=document.createElement('div');
-  wrapper.id='tinychancy-wrapper';
-  wrapper.style.position='fixed';
-  wrapper.style.top='0px';
-  wrapper.style.left='0px';
-  wrapper.style.transformOrigin='center bottom';
-  wrapper.style.pointerEvents='auto';
-  wrapper.style.touchAction='none';
-  wrapper.style.willChange='left,top,transform';
-  wrapper.style.zIndex=String(Z_INDEX);
-  wrapper.style.visibility='hidden';
-  wrapper.style.userSelect='none';
+    var dragActive = false;
+    var dragLastTime = null;
+    var dragLastWorldX = 0;
+    var dragLastWorldY = 0;
+    var dragVelX = 0;
+    var dragVelY = 0;
 
-  const img=document.createElement('img');
-  img.id='tinychancy';
-  img.src=idleSrc;
-  img.style.display='block';
-  img.style.pointerEvents='none';
-  img.draggable=false;
-  img.ondragstart=()=>false;
-  img.style.width='100%';
-  img.style.height='auto';
-  wrapper.appendChild(img);
+    var airborneStartHeight = 0;
+    var airborneHasBounced = false;
 
-  let cloneWrapper=null;
-  let cloneImg=null;
+    var GRAVITY = -300;
+    var SLIDE_FRICTION = 400;
+    var ZERO_SPEED_EPS = 40;
 
-  let spriteW=0;
-  let spriteH=0;
-  let scale=BASE_SCALE;
-  let facing=1;
-
-  let centerX=null;
-  let centerY=null;
-
-  let state='idle';
-  let direction=0;
-  let targetX=null;
-  let chooseTimer=null;
-  let sitTimer=null;
-  let flipBackTimer=null;
-  let lastTime=null;
-  let hasBounced=false;
-
-  let wrapActive=false;
-  let wrapDirection=0;
-  let projectedOffset=0;
-
-  let dragPointerId=null;
-  let prevPointer={x:0,y:0,t:0};
-  let vx=0,vy=0;
-
-  function updateSpriteSize(){
-    const r=wrapper.getBoundingClientRect();
-    if(r.width>0 && r.height>0){
-      spriteW=r.width;
-      spriteH=r.height;
+    function clamp(v, a, b) {
+      return Math.min(Math.max(v, a), b);
     }
-    if(!spriteW||!spriteH){
-      spriteW=64*scale;
-      spriteH=64*scale;
+
+    function randRange(min, max) {
+      return min + Math.random() * (max - min);
     }
-  }
 
-  function applyTransform(ref){
-    ref.style.transform='scale('+scale+') scaleX('+facing+')';
-  }
-
-  function render(ref,cx,cy){
-    if(!spriteW||!spriteH)return;
-    const l=iround(cx-spriteW/2);
-    const t=iround(cy-spriteH/2);
-    ref.style.left=l+'px';
-    ref.style.top=t+'px';
-  }
-
-  function clearTimers(){
-    if(chooseTimer){clearTimeout(chooseTimer);chooseTimer=null}
-    if(sitTimer){clearTimeout(sitTimer);sitTimer=null}
-    if(flipBackTimer){clearTimeout(flipBackTimer);flipBackTimer=null}
-  }
-
-  function adjustScale(){
-    const w=window.innerWidth;
-    if(w<400)scale=BASE_SCALE*0.6;
-    else if(w<700)scale=BASE_SCALE*0.8;
-    else scale=BASE_SCALE;
-    applyTransform(wrapper);
-    if(cloneWrapper)applyTransform(cloneWrapper);
-    updateSpriteSize();
-  }
-
-  function setFacing(f){
-    if(facing===f)return;
-    facing=f;
-    applyTransform(wrapper);
-    if(cloneWrapper)applyTransform(cloneWrapper);
-    if(centerX!=null){
-      render(wrapper,centerX,centerY);
-      if(cloneWrapper)render(cloneWrapper,centerX-projectedOffset,centerY);
+    function adjustScale() {
+      var w = window.innerWidth;
+      if (w < 400) currentScale = baseScale * 0.6;
+      else if (w < 700) currentScale = baseScale * 0.8;
+      else currentScale = baseScale;
+      main.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
+      clone.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
     }
-  }
 
-  function enterSit(duration){
-    clearTimers();
-    state='sit';
-    setFacing(1);
-    img.src=sitSrc;
-    ensureOnFloor();
-    sitTimer=setTimeout(()=>{sitTimer=null;enterIdle();},duration);
-  }
-
-  function enterIdle(){
-    clearTimers();
-    state='idle';
-    img.src=idleSrc;
-    ensureOnFloor();
-    if(facing===-1){
-      flipBackTimer=setTimeout(()=>{setFacing(1);flipBackTimer=null;},1000);
+    function currentSpriteWidth() {
+      var r = main.getBoundingClientRect();
+      return (r && r.width) || 50;
     }
-    const wait=randBetween(IDLE_MIN,IDLE_MAX);
-    chooseTimer=setTimeout(()=>{
-      chooseTimer=null;
-      if(chance(1/10))enterSit(randBetween(SIT_MIN,SIT_MAX));
-      else enterWalk();
-    },wait);
-    hasBounced=false;
-  }
 
-  function pickTarget(minC,maxC){
-    let t=centerX;
-    let attempts=0;
-    while((Math.abs(t-centerX)<100 || t<=minC || t>=maxC) && attempts<2000){
-      t=randBetween(minC,maxC);
-      attempts++;
+    function currentSpriteHeight() {
+      var r = main.getBoundingClientRect();
+      return (r && r.height) || 50;
     }
-    return clamp(t,minC,maxC);
-  }
 
-  function enterWalk(){
-    updateSpriteSize();
-    ensureOnFloor();
-    const minC=spriteW/2;
-    const maxC=Math.max(minC,window.innerWidth-spriteW/2);
-    targetX=pickTarget(minC,maxC);
-    direction=targetX>centerX?1:-1;
-    setFacing(direction===1?1:-1);
-    state='walk';
-    img.src=walkSrc;
-  }
-
-  function stopWalkAt(x){
-    centerX=x;
-    render(wrapper,centerX,centerY);
-    enterIdle();
-  }
-
-  function ensureOnFloor(){
-    updateSpriteSize();
-    const floorY=window.innerHeight-spriteH/2;
-    centerY=floorY;
-    render(wrapper,centerX,centerY);
-  }
-
-  function createClone(){
-    if(cloneWrapper)return;
-    cloneWrapper=document.createElement('div');
-    cloneWrapper.style.position='fixed';
-    cloneWrapper.style.top='0px';
-    cloneWrapper.style.left='0px';
-    cloneWrapper.style.transformOrigin='center bottom';
-    cloneWrapper.style.pointerEvents='none';
-    cloneWrapper.style.willChange='left,top,transform';
-    cloneWrapper.style.zIndex=String(Z_INDEX);
-    cloneImg=document.createElement('img');
-    cloneImg.style.display='block';
-    cloneImg.style.pointerEvents='none';
-    cloneImg.draggable=false;
-    cloneImg.ondragstart=()=>false;
-    cloneImg.style.width='100%';
-    cloneImg.style.height='auto';
-    cloneWrapper.appendChild(cloneImg);
-    document.body.appendChild(cloneWrapper);
-    applyTransform(cloneWrapper);
-  }
-
-  function removeClone(){
-    if(!cloneWrapper)return;
-    try{cloneWrapper.remove();}catch(e){}
-    cloneWrapper=null;
-    cloneImg=null;
-    wrapActive=false;
-    wrapDirection=0;
-    projectedOffset=0;
-  }
-
-  function beginWrapIfNeeded(){
-    if(!spriteW)return;
-    const W=window.innerWidth;
-    const left=centerX-spriteW/2;
-    const right=centerX+spriteW/2;
-    if(!wrapActive && (left<0 || right>W)){
-      wrapActive=true;
-      wrapDirection=left<0?-1:1;
-      projectedOffset=W*wrapDirection;
-      createClone();
-      if(cloneImg)cloneImg.src=img.src;
-      updateSpriteSize();
+    function setFacing(newFacing) {
+      facing = newFacing;
+      main.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
+      clone.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
     }
-  }
 
-  function updateWrap(){
-    if(!wrapActive||!cloneWrapper||!spriteW)return;
-    const W=window.innerWidth;
-    const cloneCenter=centerX-projectedOffset;
-    render(cloneWrapper,cloneCenter,centerY);
-    applyTransform(cloneWrapper);
-    const cloneLeft=cloneCenter-spriteW/2;
-    const cloneRight=cloneCenter+spriteW/2;
-    if(cloneLeft>=0 && cloneRight<=W){
-      centerX=cloneCenter;
-      render(wrapper,centerX,centerY);
-      if(targetX!=null)targetX=clamp(targetX-projectedOffset,spriteW/2,Math.max(spriteW/2,W-spriteW/2));
-      removeClone();
+    function syncSpriteSrc(src) {
+      if (main.src !== location.origin + src && !main.src.endsWith(src)) {
+        main.src = src;
+      } else {
+        main.src = src;
+      }
+      clone.src = src;
     }
-  }
 
-  function enterDrag(px,py,id){
-    if(dragPointerId!==null)return;
-    state='drag';
-    dragPointerId=id;
-    wrapper.setPointerCapture(id);
-    document.body.style.userSelect='none';
-    document.body.style.webkitUserSelect='none';
-    document.body.style.touchAction='none';
-    clearTimers();
-    wrapActive=false;
-    removeClone();
-    vx=0;vy=0;
-    img.src=dangleSrc;
-    wrapper.style.transformOrigin='center top';
-    prevPointer={x:px,y:py,t:performance.now()};
-    updateSpriteSize();
-    centerX=iround(px);
-    centerY=iround(py+spriteH/2);
-    render(wrapper,centerX,centerY);
-  }
+    function renderSprites() {
+      var w = window.innerWidth || 1;
+      var spriteW = currentSpriteWidth();
+      var cx = ((worldX % w) + w) % w;
+      var bottom = worldY;
 
-  function updateDrag(px,py){
-    if(state!=='drag')return;
-    const now=performance.now();
-    const dt=Math.max(0.001,(now-prevPointer.t)/1000);
-    const dx=px-prevPointer.x;
-    const dy=py-prevPointer.y;
-    const instVx=dx/dt;
-    const instVy=dy/dt;
-    vx=vx*0.92+instVx*0.08;
-    vy=vy*0.92+instVy*0.08;
-    prevPointer={x:px,y:py,t:now};
-    updateSpriteSize();
-    centerX=iround(px);
-    centerY=iround(py+spriteH/2);
-    render(wrapper,centerX,centerY);
-    beginWrapIfNeeded();
-    updateWrap();
-  }
+      main.style.bottom = bottom + 'px';
+      main.style.left = (cx - spriteW / 2) + 'px';
 
-  function endDrag(){
-    if(state!=='drag')return;
-    try{wrapper.releasePointerCapture(dragPointerId);}catch(e){}
-    dragPointerId=null;
-    document.body.style.userSelect='';
-    document.body.style.webkitUserSelect='';
-    document.body.style.touchAction='';
-    wrapper.style.transformOrigin='center bottom';
-    const speed=Math.hypot(vx,vy);
-    if(speed<30){
-      vy=0;
-      enterFall();
-    }else{
-      enterThrow(vx,vy);
-    }
-  }
+      clone.style.display = 'none';
 
-  function enterFall(){
-    state='fall';
-    img.src=dangleSrc;
-    hasBounced=false;
-    updateSpriteSize();
-  }
+      var leftEdge = cx - spriteW / 2;
+      var rightEdge = cx + spriteW / 2;
 
-  function enterThrow(initVx,initVy){
-    state='throw';
-    img.src=dangleSrc;
-    vx=initVx;
-    vy=initVy;
-    hasBounced=false;
-    updateSpriteSize();
-  }
-
-  function handleFall(dt){
-    updateSpriteSize();
-    vy+=GRAVITY*dt;
-    centerY+=vy*dt;
-    const floorY=window.innerHeight-spriteH/2;
-    if(centerY>=floorY){
-      centerY=floorY;
-      if(!hasBounced){
-        hasBounced=true;
-        const dropH=Math.max(0,floorY-(prevPointer.y||floorY));
-        const bounceH=dropH*BOUNCE_FACTOR;
-        const v0=Math.sqrt(2*GRAVITY*bounceH);
-        vy=-v0;
-      }else{
-        enterSitAfterBounce();
+      if (leftEdge < 0) {
+        var cloneCx = cx + w;
+        clone.style.bottom = bottom + 'px';
+        clone.style.left = (cloneCx - spriteW / 2) + 'px';
+        clone.style.display = 'block';
+      } else if (rightEdge > w) {
+        var cloneCx2 = cx - w;
+        clone.style.bottom = bottom + 'px';
+        clone.style.left = (cloneCx2 - spriteW / 2) + 'px';
+        clone.style.display = 'block';
       }
     }
-    render(wrapper,centerX,centerY);
-  }
 
-  function handleThrow(dt){
-    updateSpriteSize();
-    vy+=GRAVITY*dt;
-    centerX+=vx*dt;
-    centerY+=vy*dt;
-    beginWrapIfNeeded();
-    updateWrap();
-    const floorY=window.innerHeight-spriteH/2;
-    if(centerY>=floorY){
-      centerY=floorY;
-      if(!hasBounced){
-        hasBounced=true;
-        const dropH=0;
-        const bounceH=dropH*BOUNCE_FACTOR;
-        const v0=Math.sqrt(2*GRAVITY*bounceH);
-        vy=-v0;
-      }else{
-        enterSitAfterBounce();
+    function clearTimers() {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      if (sittingTimer) {
+        clearTimeout(sittingTimer);
+        sittingTimer = null;
       }
     }
-    render(wrapper,centerX,centerY);
-  }
 
-  function enterSitAfterBounce(){
-    img.src=sitSrc;
-    state='sit';
-    ensureOnFloor();
-    setTimeout(()=>{enterIdle();},800);
-  }
+    function enterIdle() {
+      state = 'idle';
+      velX = 0;
+      velY = 0;
+      worldY = 0;
+      clearTimers();
+      syncSpriteSrc(idleSrc);
+      var wait = randRange(5000, 10000);
+      idleTimer = setTimeout(function() {
+        idleTimer = null;
+        decideNextActionFromIdle();
+      }, wait);
+    }
 
-  function handleWalk(dt){
-    updateSpriteSize();
-    ensureOnFloor();
-    const speed=spriteW;
-    let nextCenter=centerX+direction*speed*dt;
-    const W=window.innerWidth;
-    const minC=spriteW/2;
-    const maxC=Math.max(minC,W-spriteW/2);
-    const leftEdge=nextCenter-spriteW/2;
-    const rightEdge=nextCenter+spriteW/2;
-    if(!wrapActive && (leftEdge<0 || rightEdge>W)){
-      centerX=nextCenter;
-      beginWrapIfNeeded();
-      updateWrap();
-    }else if(wrapActive){
-      centerX=nextCenter;
-      updateWrap();
-    }else{
-      const clamped=clamp(nextCenter,minC,maxC);
-      if(clamped!==nextCenter){
-        centerX=clamped;
-        stopWalkAt(centerX);
+    function decideNextActionFromIdle() {
+      if (!firstActionDone) {
+        firstActionDone = true;
+      }
+      var sitRoll = Math.random();
+      if (sitRoll < 0.1) {
+        enterRandomSit();
+      } else {
+        startWalking();
+      }
+    }
+
+    function enterRandomSit(initialOnly) {
+      state = 'sitting';
+      velX = 0;
+      velY = 0;
+      worldY = 0;
+      clearTimers();
+      setFacing(1);
+      syncSpriteSrc(sitSrc);
+      var dur = randRange(10000, 60000);
+      sittingTimer = setTimeout(function() {
+        sittingTimer = null;
+        enterIdle();
+      }, dur);
+    }
+
+    function startWalking() {
+      state = 'walking';
+      worldY = 0;
+      velY = 0;
+      var spriteW = currentSpriteWidth();
+      var dir = Math.random() < 0.5 ? -1 : 1;
+      setFacing(dir);
+      var screenW = window.innerWidth || 1;
+      var maxDist = Math.max(100, screenW - spriteW);
+      var dist = randRange(100, maxDist);
+      walkingTargetX = worldX + dir * dist;
+      syncSpriteSrc(walkSrc);
+    }
+
+    function startInitialState() {
+      var spriteW = currentSpriteWidth();
+      var minCenter = spriteW / 2;
+      var maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
+      worldX = randRange(minCenter, maxCenter);
+      worldY = 0;
+      renderSprites();
+      var firstSitRoll = Math.random();
+      if (firstSitRoll < 0.2) {
+        firstActionDone = true;
+        state = 'sitting';
+        setFacing(1);
+        syncSpriteSrc(sitSrc);
+        var dur = randRange(10000, 60000);
+        sittingTimer = setTimeout(function() {
+          sittingTimer = null;
+          enterIdle();
+        }, dur);
+      } else {
+        enterIdle();
+      }
+    }
+
+    function enterDangling(pointerX, pointerY) {
+      clearTimers();
+      state = 'dangling';
+      velX = 0;
+      velY = 0;
+      airborneHasBounced = false;
+      airborneStartHeight = 0;
+      main.style.transformOrigin = 'center top';
+      clone.style.transformOrigin = 'center top';
+      syncSpriteSrc(dangleSrc);
+      var spriteH = currentSpriteHeight();
+      var bottom = window.innerHeight - pointerY - spriteH;
+      if (bottom < 0) bottom = 0;
+      worldY = bottom;
+      worldX = pointerX;
+      dragLastTime = performance.now();
+      dragLastWorldX = worldX;
+      dragLastWorldY = worldY;
+      dragVelX = 0;
+      dragVelY = 0;
+      renderSprites();
+    }
+
+    function updateDangling(pointerX, pointerY) {
+      var now = performance.now();
+      var dt = (now - dragLastTime) / 1000;
+      if (dt < 0.001) dt = 0.001;
+      var spriteH = currentSpriteHeight();
+      var bottom = window.innerHeight - pointerY - spriteH;
+      if (bottom < 0) bottom = 0;
+      var newWorldX = pointerX;
+      var newWorldY = bottom;
+      var vx = (newWorldX - dragLastWorldX) / dt;
+      var vy = (newWorldY - dragLastWorldY) / dt;
+      dragVelX = vx;
+      dragVelY = vy;
+      worldX = newWorldX;
+      worldY = newWorldY;
+      dragLastWorldX = newWorldX;
+      dragLastWorldY = newWorldY;
+      dragLastTime = now;
+      renderSprites();
+    }
+
+    function releaseDangling() {
+      main.style.transformOrigin = 'center bottom';
+      clone.style.transformOrigin = 'center bottom';
+      state = 'airborne';
+      velX = dragVelX;
+      velY = dragVelY;
+      airborneStartHeight = worldY;
+      airborneHasBounced = false;
+      var speed = Math.sqrt(velX * velX + velY * velY);
+      if (speed < ZERO_SPEED_EPS) {
+        velX = 0;
+        velY = 0;
+      }
+      syncSpriteSrc(dangleSrc);
+    }
+
+    function handleAirborne(dt) {
+      velY += GRAVITY * dt;
+      worldY += velY * dt;
+      var spriteH = currentSpriteHeight();
+      if (worldY < 0) worldY = 0;
+      var groundHit = worldY <= 0 && velY < 0;
+      if (!groundHit) {
         return;
       }
-      centerX=clamped;
-    }
-    render(wrapper,centerX,centerY);
-    if(targetX!=null){
-      const reached=(direction===1 && centerX>=targetX)||(direction===-1 && centerX<=targetX);
-      if(reached){
-        stopWalkAt(targetX);
+      worldY = 0;
+      if (!airborneHasBounced) {
+        var bounceHeight = Math.max(airborneStartHeight / 4, 0);
+        var v0 = Math.sqrt(2 * 300 * bounceHeight);
+        velY = v0;
+        airborneHasBounced = true;
+        syncSpriteSrc(sitSrc);
+      } else {
+        velY = 0;
+        if (Math.abs(velX) > ZERO_SPEED_EPS) {
+          state = 'sliding';
+          syncSpriteSrc(sitSrc);
+        } else {
+          state = 'idle';
+          syncSpriteSrc(idleSrc);
+          enterIdle();
+        }
       }
     }
-  }
 
-  function mainLoop(t){
-    if(lastTime==null)lastTime=t;
-    const dt=Math.min(0.05,(t-lastTime)/1000);
-    lastTime=t;
-    adjustScale();
-    if(centerX==null || centerY==null){
-      updateSpriteSize();
-      centerX=iround(randBetween(spriteW/2,Math.max(spriteW/2,window.innerWidth-spriteW/2)));
-      centerY=iround(window.innerHeight-spriteH/2);
-      render(wrapper,centerX,centerY);
+    function handleSliding(dt) {
+      var sign = velX > 0 ? 1 : velX < 0 ? -1 : 0;
+      if (sign !== 0) {
+        var decel = SLIDE_FRICTION * dt;
+        var newSpeed = Math.max(0, Math.abs(velX) - decel);
+        velX = newSpeed * sign;
+      }
+      worldX += velX * dt;
+      if (Math.abs(velX) <= ZERO_SPEED_EPS) {
+        velX = 0;
+        state = 'idle';
+        syncSpriteSrc(idleSrc);
+        enterIdle();
+      }
     }
-    if(state==='sit'||state==='idle'){
-      ensureOnFloor();
-    }else if(state==='walk'){
-      handleWalk(dt);
-    }else if(state==='drag'){
-      updateSpriteSize();
-    }else if(state==='fall'){
-      handleFall(dt);
-    }else if(state==='throw'){
-      handleThrow(dt);
+
+    function handleWalking(dt) {
+      var spriteW = currentSpriteWidth();
+      var speed = spriteW;
+      worldX += facing * speed * dt;
+      if (walkingTargetX != null) {
+        if ((facing === 1 && worldX >= walkingTargetX) || (facing === -1 && worldX <= walkingTargetX)) {
+          walkingTargetX = null;
+          enterIdle();
+        }
+      }
     }
-    requestAnimationFrame(mainLoop);
-  }
 
-  function onPointerDown(e){
-    if(e.pointerType==='mouse' && e.button!==0)return;
-    const rect=wrapper.getBoundingClientRect();
-    const px=e.clientX;
-    const py=e.clientY;
-    if(px<rect.left||px>rect.right||py<rect.top||py>rect.bottom)return;
-    e.preventDefault();
-    enterDrag(px,py,e.pointerId);
-    wrapper.addEventListener('pointermove',onPointerMove);
-    wrapper.addEventListener('pointerup',onPointerUp);
-    wrapper.addEventListener('pointercancel',onPointerUp);
-  }
+    function rafLoop(timestamp) {
+      if (lastTime == null) lastTime = timestamp;
+      var dt = (timestamp - lastTime) / 1000;
+      if (dt > 0.05) dt = 0.05;
+      lastTime = timestamp;
 
-  function onPointerMove(e){
-    if(dragPointerId!==e.pointerId)return;
-    e.preventDefault();
-    updateDrag(e.clientX,e.clientY);
-  }
+      var spriteW = currentSpriteWidth();
+      var screenW = window.innerWidth || 1;
+      var minCenter = -screenW;
+      var maxCenter = screenW * 2;
+      if (worldX < minCenter) worldX += screenW * 3;
+      if (worldX > maxCenter) worldX -= screenW * 3;
 
-  function onPointerUp(e){
-    if(dragPointerId!==e.pointerId)return;
-    e.preventDefault();
-    wrapper.removeEventListener('pointermove',onPointerMove);
-    wrapper.removeEventListener('pointerup',onPointerUp);
-    wrapper.removeEventListener('pointercancel',onPointerUp);
-    endDrag();
-  }
+      if (state === 'walking') {
+        handleWalking(dt);
+      } else if (state === 'airborne') {
+        handleAirborne(dt);
+      } else if (state === 'sliding') {
+        handleSliding(dt);
+      }
 
-  function startAfterMeasured(){
-    wrapper.style.visibility='visible';
-    updateSpriteSize();
-    centerX=iround(randBetween(spriteW/2,Math.max(spriteW/2,window.innerWidth-spriteW/2)));
-    centerY=iround(window.innerHeight-spriteH/2);
-    render(wrapper,centerX,centerY);
-    if(chance(1/5))enterSit(randBetween(SIT_MIN,SIT_MAX));
-    else enterIdle();
-    wrapper.addEventListener('pointerdown',onPointerDown);
-    requestAnimationFrame(mainLoop);
-  }
-
-  function initAfterPreload(){
-    document.body.appendChild(wrapper);
-    adjustScale();
-    updateSpriteSize();
-    requestAnimationFrame(()=>{updateSpriteSize();startAfterMeasured();});
-  }
-
-  let remaining=preloadImgs.length;
-  preloadImgs.forEach(i=>{
-    if(i.complete && (i.naturalWidth||i.width))remaining--;
-    else{
-      i.addEventListener('load',()=>{remaining--;if(remaining===0)initAfterPreload();},{once:true,passive:true});
-      i.addEventListener('error',()=>{remaining--;if(remaining===0)initAfterPreload();},{once:true,passive:true});
+      renderSprites();
+      requestAnimationFrame(rafLoop);
     }
-  });
-  if(remaining===0)initAfterPreload();
-}
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadTinyChancy);
-else loadTinyChancy();
+    function pointerWithinSprite(x, y) {
+      var rectMain = main.getBoundingClientRect();
+      if (x >= rectMain.left && x <= rectMain.right && y >= rectMain.top && y <= rectMain.bottom) return true;
+      var rectClone = clone.getBoundingClientRect();
+      if (clone.style.display !== 'none') {
+        if (x >= rectClone.left && x <= rectClone.right && y >= rectClone.top && y <= rectClone.bottom) return true;
+      }
+      return false;
+    }
+
+    function onPointerDown(e) {
+      var x = e.clientX;
+      var y = e.clientY;
+      if (!pointerWithinSprite(x, y)) return;
+      e.preventDefault();
+      dragActive = true;
+      clearTimers();
+      state = 'dangling';
+      enterDangling(x, y);
+      try {
+        main.setPointerCapture(e.pointerId);
+      } catch (err) {}
+    }
+
+    function onPointerMove(e) {
+      if (!dragActive) return;
+      var x = e.clientX;
+      var y = e.clientY;
+      e.preventDefault();
+      updateDangling(x, y);
+    }
+
+    function onPointerUp(e) {
+      if (!dragActive) return;
+      dragActive = false;
+      e.preventDefault();
+      try {
+        main.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+      releaseDangling();
+    }
+
+    function onResize() {
+      adjustScale();
+      renderSprites();
+    }
+
+    var preload = new Image();
+    preload.src = idleSrc;
+
+    function startAfterPreload() {
+      main.src = idleSrc;
+      clone.src = idleSrc;
+      document.body.appendChild(main);
+      document.body.appendChild(clone);
+      adjustScale();
+      requestAnimationFrame(function() {
+        startInitialState();
+        requestAnimationFrame(rafLoop);
+      });
+      window.addEventListener('resize', onResize);
+      window.addEventListener('pointerdown', onPointerDown);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    }
+
+    if (preload.complete && preload.naturalWidth) {
+      startAfterPreload();
+    } else {
+      preload.onload = startAfterPreload;
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadTinyChancy);
+  } else {
+    loadTinyChancy();
+  }
 })();
