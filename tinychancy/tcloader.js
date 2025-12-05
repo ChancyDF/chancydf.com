@@ -1,9 +1,8 @@
 (function() {
   function loadTinyChancy() {
-    // Create the image element
+    // ---- Create the image element ----
     const el = document.createElement('img');
     el.id = 'tinychancy';
-    el.src = '/tinychancy/tinychancy_idle.gif';
     el.style.position = 'fixed';
     el.style.bottom = '0';
     el.style.left = '0';
@@ -12,7 +11,6 @@
     el.style.pointerEvents = 'none';
     el.style.willChange = 'left';
     el.style.zIndex = '9999';
-    document.body.appendChild(el);
 
     // ---- State ----
     let centerX = null;
@@ -27,27 +25,24 @@
     const IDLE_MIN = 5000;
     const IDLE_MAX = 10000;
     const BASE_SCALE = 0.36;
+    let currentScale = BASE_SCALE;
 
     // ---- Helpers ----
     function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
-
     function currentSpriteWidth() {
       const r = el.getBoundingClientRect();
       return (r && r.width) || 50;
     }
-
     function renderPositionFromCenter() {
       const width = currentSpriteWidth();
       el.style.left = (centerX - width / 2) + 'px';
     }
-
     function setFacing(newFacing) {
       if (facing === newFacing) return;
       facing = newFacing;
       el.style.transform = `scale(${currentScale}) scaleX(${facing})`;
       renderPositionFromCenter();
     }
-
     function pickTarget() {
       const spriteW = currentSpriteWidth();
       const minCenter = spriteW / 2;
@@ -60,19 +55,15 @@
       }
       return clamp(t, minCenter, maxCenter);
     }
-
-    // ---- Scale adjustment for mobile ----
-    let currentScale = BASE_SCALE;
     function adjustScale() {
       const w = window.innerWidth;
       if (w < 400) currentScale = BASE_SCALE * 0.6;
       else if (w < 700) currentScale = BASE_SCALE * 0.8;
       else currentScale = BASE_SCALE;
-
       el.style.transform = `scale(${currentScale}) scaleX(${facing})`;
     }
 
-    // ---- Idle / Choose next target ----
+    // ---- Idle / Walk ----
     function startIdleState() {
       if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
       if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
@@ -110,7 +101,7 @@
       startIdleState();
     }
 
-    // ---- Main animation loop ----
+    // ---- Animation Loop ----
     function rafTick(timestamp) {
       if (lastTime === null) lastTime = timestamp;
       const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
@@ -120,7 +111,7 @@
       const minCenter = spriteW / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
 
-      // Safety clamp: snap back if out-of-bounds
+      // Safety clamp
       if (centerX < minCenter || centerX > maxCenter) {
         centerX = Math.random() * (maxCenter - minCenter) + minCenter;
         targetX = null;
@@ -149,29 +140,33 @@
       requestAnimationFrame(rafTick);
     }
 
+    // ---- Initialize after preloading GIF ----
     function initWhenLoaded() {
       adjustScale();
 
       const w = currentSpriteWidth();
       const minCenter = w / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
-
-      // Random starting x-coordinate
       centerX = Math.random() * (maxCenter - minCenter) + minCenter;
-      renderPositionFromCenter();
 
+      document.body.appendChild(el); // add only after load
+      renderPositionFromCenter();
       startIdleState();
-      requestAnimationFrame(rafTick);
+
+      // slight delay ensures browser renders
+      setTimeout(() => requestAnimationFrame(rafTick), 50);
     }
 
-    // ---- Robust loading ----
-    if (el.complete && el.naturalWidth) {
+    // ---- Preload GIF for robust load ----
+    const preload = new Image();
+    preload.src = '/tinychancy/tinychancy_idle.gif';
+    if (preload.complete && preload.naturalWidth) {
       initWhenLoaded();
     } else {
-      el.addEventListener('load', initWhenLoaded, { passive: true });
+      preload.onload = initWhenLoaded;
     }
 
-    // ---- Handle window resize ----
+    // ---- Handle resize ----
     window.addEventListener('resize', () => {
       adjustScale();
       const w = currentSpriteWidth();
@@ -183,7 +178,6 @@
     });
   }
 
-  // ---- Ensure DOM is ready ----
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadTinyChancy);
   } else {
