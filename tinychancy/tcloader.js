@@ -1,167 +1,153 @@
 (function() {
+  // CONFIG
+  const BASE_SCALE = 0.36;
+  const IDLE_MIN = 5000;
+  const IDLE_MAX = 10000;
+  const SIT_MIN = 10 * 1000; // 10s
+  const SIT_MAX = 60 * 1000; // 60s
+  const Z_INDEX = 9999;
+
+  // Utility
+  const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+  const randBetween = (a, b) => Math.random() * (b - a) + a;
+  const chance = (p) => Math.random() < p;
+
   function loadTinyChancy() {
-    // ---- Config ----
-    const PATH = '/tinychancy/';
-    const IDLE_GIF = PATH + 'tinychancy_idle.gif';
-    const WALK_GIF = PATH + 'tinychancy_walk.gif';
-    const SIT_GIF  = PATH + 'tinychancy_sit.gif';
+    // Preload GIFs first to avoid flashes
+    const idleSrc = '/tinychancy/tinychancy_idle.gif';
+    const walkSrc = '/tinychancy/tinychancy_walk.gif';
+    const sitSrc  = '/tinychancy/tinychancy_sit.gif';
 
-    const IDLE_MIN = 5000;
-    const IDLE_MAX = 10000;
-    const SIT_MIN_MS = 10_000;    // 10 seconds
-    const SIT_MAX_MS = 60_000;    // 60 seconds
+    const preloadList = [idleSrc, walkSrc, sitSrc].map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
 
-    const BASE_SCALE = 0.36;
-    const FRONT_Z = 9999;
+    // Create main element (but don't append until preload done)
+    const main = document.createElement('img');
+    main.id = 'tinychancy';
+    main.style.position = 'fixed';
+    main.style.bottom = '0';
+    main.style.left = '0';
+    main.style.transformOrigin = 'center bottom';
+    main.style.transform = `scale(${BASE_SCALE}) scaleX(1)`;
+    main.style.pointerEvents = 'none';
+    main.style.willChange = 'left';
+    main.style.zIndex = String(Z_INDEX);
 
-    // ---- Create element (but don't append until preloads done) ----
-    const el = document.createElement('img');
-    el.id = 'tinychancy';
-    el.style.position = 'fixed';
-    el.style.bottom = '0';
-    el.style.left = '0';
-    el.style.transformOrigin = 'center bottom';
-    el.style.transform = `scale(${BASE_SCALE}) scaleX(1)`;
-    el.style.pointerEvents = 'none';
-    el.style.willChange = 'left';
-    el.style.zIndex = String(FRONT_Z);
+    // Clone element used during wrap transitions (created lazily)
+    let clone = null;
 
-    // ---- State ----
-    let centerX = null;
-    let facing = 1;       // 1 = right, -1 = left
+    // State
+    let centerX = null;               // authoritative centerX in page coords
+    let facing = 1;                   // 1=right, -1=left
+    let currentScale = BASE_SCALE;
     let moving = false;
-    let direction = 0;    // 1 or -1 while moving
+    let direction = 0;
     let targetX = null;
     let lastTime = null;
     let chooseTimer = null;
     let flipBackTimer = null;
     let sitTimer = null;
     let sitting = false;
+    let wrapActive = false;           // true while clone exists / in wrap
+    let wrapDirection = 0;            // 1 or -1 for wrap
+    let projectedOffset = 0;          // windowWidth * sign used for clone center
 
-    let currentScale = BASE_SCALE;
+    // Helpers to measure & render
+    function currentSpriteWidth(elRef = main) {
+      const r = elRef.getBoundingClientRect();
+      return (r && r.width) || (preloadList[0] && preloadList[0].width) || 50;
+    }
 
-    // ---- Helpers ----
-    function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
-    function currentSpriteWidth() {
-      const r = el.getBoundingClientRect();
-      return (r && r.width) || 50;
+    function renderFromCenter(elRef, center) {
+      const width = currentSpriteWidth(elRef);
+      elRef.style.left = (center - width / 2) + 'px';
     }
-    function renderPositionFromCenter() {
-      const width = currentSpriteWidth();
-      el.style.left = (centerX - width / 2) + 'px';
+
+    function applyScaleAndFacing(elRef) {
+      elRef.style.transform = `scale(${currentScale}) scaleX(${facing})`;
     }
-    function applyTransform() {
-      el.style.transform = `scale(${currentScale}) scaleX(${facing})`;
-    }
+
     function setFacing(newFacing) {
       if (facing === newFacing) return;
       facing = newFacing;
-      applyTransform();
-      renderPositionFromCenter();
-    }
-    function clampCenterToBounds() {
-      const w = currentSpriteWidth();
-      const minC = w / 2;
-      const maxC = Math.max(minC, window.innerWidth - w / 2);
-      centerX = clamp(centerX, minC, maxC);
-      if (targetX !== null) targetX = clamp(targetX, minC, maxC);
-    }
-
-    // choose a valid target at least 100px away
-    function pickTarget() {
-      const spriteW = currentSpriteWidth();
-      const minCenter = spriteW / 2;
-      const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
-      let t = centerX;
-      let attempts = 0;
-      while ((Math.abs(t - centerX) < 100 || t <= minCenter || t >= maxCenter) && attempts < 2000) {
-        t = Math.random() * (maxCenter - minCenter) + minCenter;
-        attempts++;
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
+      // Re-render positions so centerX remains visually stable
+      if (centerX !== null) {
+        renderFromCenter(main, centerX);
+        if (clone) renderFromCenter(clone, centerX - projectedOffset);
       }
-      return clamp(t, minCenter, maxCenter);
     }
 
-    function adjustScale() {
+    function adjustScaleForScreen() {
       const w = window.innerWidth;
       if (w < 400) currentScale = BASE_SCALE * 0.6;
       else if (w < 700) currentScale = BASE_SCALE * 0.8;
       else currentScale = BASE_SCALE;
-      applyTransform();
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
     }
 
-    // ---- Sitting behavior ----
-    function startSitFor(ms) {
-      clearAllTimersExceptSit();
+    // Sitting logic
+    function startSitting(durationMs) {
+      clearAllTimers();
       sitting = true;
       moving = false;
       direction = 0;
       targetX = null;
-
-      // sitting always faces right
+      // Always face right while sitting
       setFacing(1);
-      el.src = SIT_GIF;
+      main.src = sitSrc;
 
       sitTimer = setTimeout(() => {
         sitTimer = null;
         sitting = false;
-        // After sitting, always go to idle
+        // After sitting, go to idle as requested
         startIdleState();
-      }, ms);
+      }, durationMs);
     }
 
-    function clearAllTimersExceptSit() {
-      if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
-      if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
-      // don't clear sitTimer here (used only when explicitly ending sit)
-    }
-
-    // ---- Idle / decision / walk ----
+    // Idle/walk logic
     function startIdleState() {
-      // If currently sitting, do not enter idle loop (sit controls itself)
-      if (sitting) return;
-
-      clearAllTimersExceptSit();
+      clearAllTimers();
       moving = false;
       direction = 0;
       targetX = null;
 
-      // If he is facing left when idle begins, flip back after 1s
+      // If facing left when idle begins, flip back to right after 1s
       if (facing === -1) {
         flipBackTimer = setTimeout(() => { setFacing(1); flipBackTimer = null; }, 1000);
       }
 
-      // show idle sprite
-      el.src = IDLE_GIF;
-
-      // schedule next action (walk or sit)
-      const wait = Math.random() * (IDLE_MAX - IDLE_MIN) + IDLE_MIN;
+      // Decide next action after 5-10s
+      const wait = randBetween(IDLE_MIN, IDLE_MAX);
       chooseTimer = setTimeout(() => {
         chooseTimer = null;
-        chooseActionAfterIdle();
+        // 1/10 chance to sit instead of walk
+        if (chance(1/10)) {
+          const sitDur = randBetween(SIT_MIN, SIT_MAX);
+          startSitting(sitDur);
+        } else {
+          prepareAndStartMove();
+        }
       }, wait);
-    }
 
-    function chooseActionAfterIdle() {
-      // 1/10 chance to sit instead of walking
-      const sitChance = 1 / 10;
-      if (Math.random() < sitChance) {
-        const ms = Math.random() * (SIT_MAX_MS - SIT_MIN_MS) + SIT_MIN_MS;
-        startSitFor(ms);
-        return;
-      }
-      prepareAndStartMove();
+      main.src = idleSrc;
     }
 
     function prepareAndStartMove() {
-      // pick target and begin walking
+      // pick a target at least 100px away within bounds
       const w = currentSpriteWidth();
-      const minCenter = w / 2;
-      const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
-      targetX = pickTarget();
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      targetX = pickTargetWithin(minC, maxC);
       direction = targetX > centerX ? 1 : -1;
       setFacing(direction === 1 ? 1 : -1);
       moving = true;
-      el.src = WALK_GIF;
+      main.src = walkSrc;
     }
 
     function stopAndIdleAt(x) {
@@ -169,135 +155,243 @@
       direction = 0;
       targetX = null;
       centerX = x;
-      renderPositionFromCenter();
-      el.src = IDLE_GIF;
+      renderFromCenter(main, centerX);
+      main.src = idleSrc;
       startIdleState();
     }
 
-    // ---- RAF loop ----
-    function rafTick(timestamp) {
-      if (lastTime === null) lastTime = timestamp;
-      const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
-      lastTime = timestamp;
+    function pickTargetWithin(minCenter, maxCenter) {
+      let t = centerX;
+      let attempts = 0;
+      while ((Math.abs(t - centerX) < 100 || t <= minCenter || t >= maxCenter) && attempts < 2000) {
+        t = randBetween(minCenter, maxCenter);
+        attempts++;
+      }
+      return clamp(t, minCenter, maxCenter);
+    }
 
-      const spriteW = currentSpriteWidth();
+    // Wrap/clone helpers
+    function createCloneIfNeeded() {
+      if (clone) return;
+      clone = document.createElement('img');
+      clone.id = 'tinychancy_clone';
+      clone.style.position = 'fixed';
+      clone.style.bottom = '0';
+      clone.style.transformOrigin = 'center bottom';
+      clone.style.pointerEvents = 'none';
+      clone.style.willChange = 'left';
+      clone.style.zIndex = String(Z_INDEX);
+      // Use same visual state
+      clone.src = main.src;
+      applyScaleAndFacing(clone);
+      document.body.appendChild(clone);
+    }
+
+    function removeClone() {
+      if (!clone) return;
+      try { clone.remove(); } catch(e) {}
+      clone = null;
+      wrapActive = false;
+      wrapDirection = 0;
+      projectedOffset = 0;
+    }
+
+    // Main RAF loop
+    function rafTick(ts) {
+      if (lastTime === null) lastTime = ts;
+      const dt = Math.min(0.05, (ts - lastTime) / 1000);
+      lastTime = ts;
+
+      const spriteW = currentSpriteWidth(main);
       const minCenter = spriteW / 2;
       const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
 
-      // If somehow out-of-bounds, snap back to a safe random position and stop current action.
-      if (centerX < minCenter || centerX > maxCenter) {
-        centerX = Math.random() * (maxCenter - minCenter) + minCenter;
-        targetX = null;
-        moving = false;
-        sitting = false;
-        if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
-        el.src = IDLE_GIF;
-        startIdleState();
+      // Safety: if centerX invalid, reinitialize
+      if (centerX === null || !isFinite(centerX)) {
+        centerX = randBetween(minCenter, maxCenter);
       }
 
-      if (moving && direction !== 0 && targetX !== null && !sitting) {
-        const speed = spriteW; // one width per second
-        let nextCenter = centerX + direction * speed * dt;
-        nextCenter = clamp(nextCenter, minCenter, maxCenter);
+      // Sitting: do nothing but render
+      if (sitting) {
+        renderFromCenter(main, centerX);
+        if (clone) removeClone();
+        requestAnimationFrame(rafTick);
+        return;
+      }
 
-        const passedTarget = (direction === 1 && nextCenter >= targetX) || (direction === -1 && nextCenter <= targetX);
-        if (passedTarget) {
-          centerX = targetX;
-          renderPositionFromCenter();
-          stopAndIdleAt(centerX);
-        } else {
+      // Movement
+      if (moving && direction !== 0 && targetX !== null) {
+        // speed = one sprite width per second
+        const speed = spriteW;
+        let nextCenter = centerX + direction * speed * dt;
+
+        // When wrap is allowed, we DO NOT clamp nextCenter to min/max.
+        // Instead, detect crossing and create a clone projection.
+        const W = window.innerWidth;
+        const leftEdge = nextCenter - spriteW/2;
+        const rightEdge = nextCenter + spriteW/2;
+
+        // detect if we should start wrap (partially offscreen)
+        if (!wrapActive && (leftEdge < 0 || rightEdge > W)) {
+          // Start wrap: create clone
+          wrapActive = true;
+          wrapDirection = direction; // 1 or -1
+          projectedOffset = W * wrapDirection; // for clone center
+          createCloneIfNeeded();
+          // sync clone src/frame by setting same src (GIFs can't be frame-synced but this is the best we can do)
+          clone.src = main.src;
+          applyScaleAndFacing(clone);
+        }
+
+        // If wrap active, compute clone center (mirror across viewport)
+        if (wrapActive && clone) {
+          const cloneCenter = nextCenter - projectedOffset;
+          // render both main and clone
+          renderFromCenter(main, nextCenter);
+          renderFromCenter(clone, cloneCenter);
+
+          // Check if clone is fully in frame -> swap
+          const cloneLeft = cloneCenter - spriteW/2;
+          const cloneRight = cloneCenter + spriteW/2;
+          if (cloneLeft >= 0 && cloneRight <= W) {
+            // clone fully visible -> teleport real to clone spot and remove clone
+            // The "real" centerX becomes cloneCenter (which is inside bounds),
+            // but we want the real to continue walking smoothly from there.
+            centerX = cloneCenter;
+            // remove clone and continue (leave main.src as walk)
+            removeClone();
+            // if targetX was outside previously, recompute target relative to new center
+            // clamp target to allow final arrival
+            const minC = spriteW/2;
+            const maxC = Math.max(minC, W - spriteW/2);
+            if (targetX !== null) targetX = clamp(targetX - projectedOffset, minC, maxC);
+            // If cloned and passed target due to wrap, handle stop
+            const passedTarget = (direction === 1 && centerX >= targetX) || (direction === -1 && centerX <= targetX);
+            if (targetX !== null && passedTarget) {
+              stopAndIdleAt(targetX);
+              requestAnimationFrame(rafTick);
+              return;
+            }
+            // continue
+            renderFromCenter(main, centerX);
+            requestAnimationFrame(rafTick);
+            return;
+          }
+
+          // Not yet fully in frame: update centerX and continue
           centerX = nextCenter;
-          renderPositionFromCenter();
+          requestAnimationFrame(rafTick);
+          return;
         }
+
+        // Normal non-wrap path (not crossing edges)
+        // Clamp nextCenter so he doesn't get stuck offscreen (unless wrapActive)
+        const clamped = clamp(nextCenter, minCenter, maxCenter);
+        // If clamped and differs from nextCenter, we've hit the wall:
+        if (clamped !== nextCenter) {
+          centerX = clamped;
+          // stop and idle
+          stopAndIdleAt(centerX);
+          // Clean any clone if present
+          if (clone) removeClone();
+          requestAnimationFrame(rafTick);
+          return;
+        }
+
+        // Apply movement
+        centerX = nextCenter;
+        renderFromCenter(main, centerX);
+
+        // Check reached or passed target
+        const reached = (direction === 1 && centerX >= targetX) || (direction === -1 && centerX <= targetX);
+        if (reached) {
+          stopAndIdleAt(targetX);
+          if (clone) removeClone();
+          requestAnimationFrame(rafTick);
+          return;
+        }
+
       } else {
-        // Keep element positioned by center and ensure idle sprite visible when not moving/sitting
-        renderPositionFromCenter();
-        if (!sitting && el.src.indexOf(IDLE_GIF) === -1 && !moving) {
-          el.src = IDLE_GIF;
-        }
+        // Not moving: ensure idle sprite & render main (no clone)
+        renderFromCenter(main, centerX);
+        if (main.src.indexOf(idleSrc) === -1) main.src = idleSrc;
+        if (clone) removeClone();
       }
 
       requestAnimationFrame(rafTick);
     }
 
-    // ---- Initialization after preload ----
-    function initWhenPreloadsDone(initiallySitting) {
-      adjustScale();
-      const w = currentSpriteWidth();
-      const minCenter = w / 2;
-      const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
-      // pick random safe starting centerX
-      centerX = Math.random() * (maxCenter - minCenter) + minCenter;
+    // Initialize after preload
+    function initAfterPreload() {
+      // append main to DOM now that images are ready
+      document.body.appendChild(main);
 
-      // append element after we have sizes available
-      document.body.appendChild(el);
-      renderPositionFromCenter();
+      adjustScaleForScreen();
 
-      // if chosen to start sitting, do it now
-      if (initiallySitting) {
-        const ms = Math.random() * (SIT_MAX_MS - SIT_MIN_MS) + SIT_MIN_MS;
-        startSitFor(ms);
+      // compute initial centerX randomly on-screen
+      const w = currentSpriteWidth(main);
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      centerX = randBetween(minC, maxC);
+
+      // Starting state: 1/5 chance to start sitting for 10-60s
+      if (chance(1/5)) {
+        const sitDur = randBetween(SIT_MIN, SIT_MAX);
+        startSitting(sitDur);
       } else {
+        // start idle loop
         startIdleState();
       }
 
-      // start RAF loop slightly delayed so browser paints
-      setTimeout(() => requestAnimationFrame(rafTick), 50);
+      // Slight delay to ensure browser painted the image before RAF
+      setTimeout(() => {
+        requestAnimationFrame(rafTick);
+      }, 50);
     }
 
-    // ---- Preload images robustly ----
-    function loadImage(src) {
-      return new Promise((resolve) => {
-        const i = new Image();
-        i.src = src;
-        if (i.complete && i.naturalWidth) {
-          resolve();
-        } else {
-          i.onload = () => resolve();
-          i.onerror = () => resolve(); // resolve even if error — still proceed
-        }
-      });
+    function clearAllTimers() {
+      if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
+      if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
+      if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
     }
 
-    // Decide at load whether he should start sitting (1/5 chance)
-    const startSittingOnLoad = Math.random() < 1 / 5;
-
-    // Always preload IDLE. If initial sit chosen, preload SIT too before init.
-    // Preload WALK in background (non-blocking), but we don't wait for it.
-    const preloadPromises = [ loadImage(IDLE_GIF) ];
-    if (startSittingOnLoad) preloadPromises.push( loadImage(SIT_GIF) );
-    // start walk preload async (not blocking init)
-    loadImage(WALK_GIF);
-
-    // Safety timeout: if images never fire load (weird cases), init anyway after 2s
-    let timedOut = false;
-    const timeoutId = setTimeout(() => { timedOut = true; }, 2000);
-
-    Promise.all(preloadPromises).then(() => {
-      if (timedOut) {
-        // still proceed; promise resolved after timeout or before
+    // Robust preload: wait until all three images have loaded (or errored)
+    let remaining = preloadList.length;
+    preloadList.forEach(img => {
+      if (img.complete && img.naturalWidth) {
+        remaining--;
+      } else {
+        img.addEventListener('load', () => { remaining--; if (remaining === 0) initAfterPreload(); }, { once: true, passive: true });
+        img.addEventListener('error', () => { remaining--; if (remaining === 0) initAfterPreload(); }, { once: true, passive: true });
       }
-      clearTimeout(timeoutId);
-      initWhenPreloadsDone(startSittingOnLoad);
     });
+    if (remaining === 0) initAfterPreload();
 
-    // ---- Resize handling ----
+    // Resize handler: adjust scale and clamp positions
     window.addEventListener('resize', () => {
-      adjustScale();
-      // re-clamp center & target
-      const w = currentSpriteWidth();
-      const minCenter = w / 2;
-      const maxCenter = Math.max(minCenter, window.innerWidth - w / 2);
-      if (centerX !== null) centerX = clamp(centerX, minCenter, maxCenter);
-      if (targetX !== null) targetX = clamp(targetX, minCenter, maxCenter);
-      renderPositionFromCenter();
+      adjustScaleForScreen();
+      const w = currentSpriteWidth(main);
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      if (centerX !== null) centerX = clamp(centerX, minC, maxC);
+      if (targetX !== null) targetX = clamp(targetX, minC, maxC);
+      // If clone exists, update projectedOffset and reposition it
+      if (clone && wrapDirection !== 0) {
+        projectedOffset = window.innerWidth * wrapDirection;
+        applyScaleAndFacing(clone);
+        renderFromCenter(clone, centerX - projectedOffset);
+      }
+      renderFromCenter(main, centerX);
     }, { passive: true });
-  }
 
-  // DOM ready & run
+    // Ensure loader runs after DOM ready
+    // (we already appended main in initAfterPreload)
+  } // end loadTinyChancy
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadTinyChancy);
   } else {
     loadTinyChancy();
   }
+
 })();
