@@ -1,569 +1,513 @@
 (function() {
-  const BASE_SCALE = 0.36;
-  const IDLE_MIN = 5000;
-  const IDLE_MAX = 10000;
-  const SIT_MIN = 10000;
-  const SIT_MAX = 60000;
-  const GRAVITY = 300;
-  const DROP_SPEED_THRESHOLD = 40;
-  const THROW_SPEED_THRESHOLD = 60;
-  const FRICTION = 500;
-  const Z_INDEX = 9999;
-
-  const idleSrc = '/tinychancy/tinychancy_idle.gif';
-  const walkSrc = '/tinychancy/tinychancy_walk.gif';
-  const sitSrc = '/tinychancy/tinychancy_sit.gif';
-  const dangleSrc = '/tinychancy/tinychancy_dangle.gif';
-
-  const preloadImgs = [idleSrc, walkSrc, sitSrc, dangleSrc].map(src => {
-    const img = new Image();
-    img.src = src;
-    return img;
-  });
-
   function loadTinyChancy() {
-    const main = document.createElement('img');
+    var idleSrc = '/tinychancy/tinychancy_idle.gif';
+    var walkSrc = '/tinychancy/tinychancy_walk.gif';
+    var sitSrc = '/tinychancy/tinychancy_sit.gif';
+    var dangleSrc = '/tinychancy/tinychancy_dangle.gif';
+
+    var BASE_SCALE = 0.36;
+    var IDLE_MIN = 5000;
+    var IDLE_MAX = 10000;
+    var SIT_MIN = 10000;
+    var SIT_MAX = 60000;
+    var GRAVITY = -300;
+    var SLIDE_FRICTION = 600;
+    var THROW_SPEED_THRESHOLD = 80;
+    var Z_INDEX = 9999;
+
+    function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
+    function randBetween(a, b) { return Math.random() * (b - a) + a; }
+    function chance(p) { return Math.random() < p; }
+
+    var main = document.createElement('img');
     main.id = 'tinychancy';
     main.style.position = 'fixed';
-    main.style.top = '0';
+    main.style.bottom = '0';
     main.style.left = '0';
     main.style.transformOrigin = 'center bottom';
     main.style.transform = 'scale(' + BASE_SCALE + ') scaleX(1)';
+    main.style.pointerEvents = 'none';
+    main.style.willChange = 'left,bottom';
     main.style.zIndex = String(Z_INDEX);
-    main.style.willChange = 'transform,left,top';
 
-    let clone = null;
+    var clone = null;
 
-    let anchorX = null;
-    let anchorY = null;
-    let facing = 1;
-    let currentScale = BASE_SCALE;
+    var worldX = 0;
+    var y = 0;
+    var vx = 0;
+    var vy = 0;
 
-    let mode = 'idle';
-    let sitMode = null;
+    var mode = 'idle';
+    var pose = 'idle';
+    var physicsKind = null;
+    var hasBounced = false;
+    var dropStartHeight = 0;
 
-    let moving = false;
-    let direction = 0;
-    let targetX = null;
+    var facing = 1;
+    var currentScale = BASE_SCALE;
 
-    let wrapActive = false;
-    let wrapDirection = 0;
-    let projectedOffset = 0;
+    var chooseTimer = null;
+    var sitTimer = null;
+    var flipBackTimer = null;
 
-    let velX = 0;
-    let velY = 0;
-    let groundContacts = 0;
-    let sliding = false;
+    var lastTime = null;
 
-    let chooseTimer = null;
-    let flipBackTimer = null;
-    let sitTimer = null;
+    var dragging = false;
+    var dragPointerId = null;
+    var pointerX = 0;
+    var pointerY = 0;
+    var lastPX = 0;
+    var lastPY = 0;
+    var lastPTime = 0;
+    var dragVX = 0;
+    var dragVY = 0;
 
-    let lastTime = null;
-
-    let dragging = false;
-    let dragPointerId = null;
-    let lastDragX = 0;
-    let lastDragY = 0;
-    let lastDragT = 0;
-    let dragVX = 0;
-    let dragVY = 0;
-
-    function clamp(v, a, b) {
-      return Math.min(Math.max(v, a), b);
+    function currentSpriteWidth(elRef) {
+      if (!elRef) elRef = main;
+      var r = elRef.getBoundingClientRect();
+      return (r && r.width) || 50;
     }
 
-    function randBetween(a, b) {
-      return Math.random() * (b - a) + a;
+    function currentSpriteHeight(elRef) {
+      if (!elRef) elRef = main;
+      var r = elRef.getBoundingClientRect();
+      return (r && r.height) || 50;
     }
 
-    function chance(p) {
-      return Math.random() < p;
+    function applyScaleAndFacing(elRef) {
+      if (!elRef) elRef = main;
+      elRef.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
     }
 
-    function spriteRect(el) {
-      return el.getBoundingClientRect();
-    }
-
-    function spriteWidth(el) {
-      const r = spriteRect(el);
-      return r.width || 50;
-    }
-
-    function spriteHeight(el) {
-      const r = spriteRect(el);
-      return r.height || 50;
-    }
-
-    function applyTransform(el, originTop) {
-      el.style.transformOrigin = originTop ? 'center top' : 'center bottom';
-      el.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
-    }
-
-    function renderAt(el, ax, ay) {
-      const w = spriteWidth(el);
-      el.style.left = (ax - w / 2) + 'px';
-      el.style.top = ay + 'px';
-    }
-
-    function applyScaleForScreen() {
-      const w = window.innerWidth;
+    function adjustScaleForScreen() {
+      var w = window.innerWidth;
       if (w < 400) currentScale = BASE_SCALE * 0.6;
       else if (w < 700) currentScale = BASE_SCALE * 0.8;
       else currentScale = BASE_SCALE;
-      applyTransform(main, mode === 'dangling' || mode === 'airborne');
-      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
-    }
-
-    function floorY() {
-      return window.innerHeight;
-    }
-
-    function ensureAnchors() {
-      if (anchorX == null || anchorY == null) {
-        const r = spriteRect(main);
-        anchorX = r.left + r.width / 2;
-        anchorY = r.top;
-      }
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
     }
 
     function setFacing(newFacing) {
       if (facing === newFacing) return;
       facing = newFacing;
-      applyTransform(main, mode === 'dangling' || mode === 'airborne');
-      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
-      if (anchorX != null && anchorY != null) {
-        renderAt(main, anchorX, anchorY);
-        if (clone && wrapActive) {
-          const cloneCenter = anchorX - projectedOffset;
-          renderAt(clone, cloneCenter, anchorY);
-        }
-      }
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
+    }
+
+    function setPose(newPose) {
+      if (pose === newPose) return;
+      pose = newPose;
+      if (pose === 'idle') main.src = idleSrc;
+      else if (pose === 'walk') main.src = walkSrc;
+      else if (pose === 'sit') main.src = sitSrc;
+      else if (pose === 'dangle') main.src = dangleSrc;
+      if (clone) clone.src = main.src;
+    }
+
+    function setAnchorBottom() {
+      main.style.transformOrigin = 'center bottom';
+      if (clone) clone.style.transformOrigin = 'center bottom';
+    }
+
+    function setAnchorTop() {
+      main.style.transformOrigin = 'center top';
+      if (clone) clone.style.transformOrigin = 'center top';
     }
 
     function clearTimers() {
-      if (chooseTimer) {
-        clearTimeout(chooseTimer);
-        chooseTimer = null;
-      }
-      if (flipBackTimer) {
-        clearTimeout(flipBackTimer);
-        flipBackTimer = null;
-      }
-      if (sitTimer) {
-        clearTimeout(sitTimer);
-        sitTimer = null;
-      }
+      if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
+      if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
+      if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
     }
 
-    function resetMotion() {
-      velX = 0;
-      velY = 0;
-      groundContacts = 0;
-      sliding = false;
-    }
-
-    function removeClone() {
-      if (clone) {
-        try {
-          clone.remove();
-        } catch (e) {}
-        clone = null;
-      }
-      wrapActive = false;
-      wrapDirection = 0;
-      projectedOffset = 0;
-    }
-
-    function createCloneIfNeeded() {
+    function createClone() {
       if (clone) return;
       clone = document.createElement('img');
       clone.id = 'tinychancy_clone';
       clone.style.position = 'fixed';
-      clone.style.top = '0';
+      clone.style.bottom = '0';
       clone.style.left = '0';
+      clone.style.transformOrigin = main.style.transformOrigin;
+      clone.style.pointerEvents = 'none';
+      clone.style.willChange = 'left,bottom';
       clone.style.zIndex = String(Z_INDEX);
-      clone.style.willChange = 'transform,left,top';
       clone.src = main.src;
-      applyTransform(clone, mode === 'dangling' || mode === 'airborne');
+      applyScaleAndFacing(clone);
       document.body.appendChild(clone);
     }
 
-    function lockToFloor() {
-      const h = spriteHeight(main);
-      anchorY = floorY() - h;
+    function hideClone() {
+      if (!clone) return;
+      clone.style.display = 'none';
     }
 
-    function startRandomSit(duration) {
-      clearTimers();
-      resetMotion();
-      mode = 'sit';
-      sitMode = 'random';
-      lockToFloor();
-      setFacing(1);
-      applyTransform(main, false);
-      main.src = sitSrc;
-      renderAt(main, anchorX, anchorY);
-      sitTimer = setTimeout(function() {
-        sitTimer = null;
-        startIdle();
-      }, duration);
+    function showClone() {
+      if (!clone) return;
+      clone.style.display = 'block';
     }
 
-    function startPostFallSit() {
-      clearTimers();
-      resetMotion();
-      mode = 'sit';
-      sitMode = 'postFall';
-      lockToFloor();
-      setFacing(1);
-      applyTransform(main, false);
-      main.src = sitSrc;
-      renderAt(main, anchorX, anchorY);
+    function updatePortalRender() {
+      var W = window.innerWidth || 1;
+      var spriteW = currentSpriteWidth(main);
+      var displayCenter = ((worldX % W) + W) % W;
+      var bottom = y;
+      main.style.bottom = bottom + 'px';
+      main.style.left = (displayCenter - spriteW / 2) + 'px';
+      var needClone = false;
+      var cloneCenter = 0;
+      if (mode === 'walk' || mode === 'air' || mode === 'slide') {
+        if (displayCenter - spriteW / 2 < 0) {
+          needClone = true;
+          cloneCenter = displayCenter + W;
+        } else if (displayCenter + spriteW / 2 > W) {
+          needClone = true;
+          cloneCenter = displayCenter - W;
+        }
+      }
+      if (needClone) {
+        createClone();
+        var cloneW = currentSpriteWidth(clone);
+        clone.style.bottom = bottom + 'px';
+        clone.style.left = (cloneCenter - cloneW / 2) + 'px';
+        showClone();
+      } else {
+        hideClone();
+      }
     }
 
-    function startIdle() {
+    function renderDangling() {
+      var w = currentSpriteWidth(main);
+      var h = currentSpriteHeight(main);
+      var left = pointerX - w / 2;
+      var bottom = window.innerHeight - pointerY - h;
+      if (!isFinite(bottom)) bottom = 0;
+      main.style.left = left + 'px';
+      main.style.bottom = bottom + 'px';
+      worldX = pointerX;
+      y = Math.max(bottom, 0);
+      hideClone();
+    }
+
+    function normalizeWorldXToScreen() {
+      var W = window.innerWidth || 1;
+      var spriteW = currentSpriteWidth(main);
+      var displayCenter = ((worldX % W) + W) % W;
+      displayCenter = clamp(displayCenter, spriteW / 2, Math.max(spriteW / 2, W - spriteW / 2));
+      worldX = displayCenter;
+    }
+
+    function pickWalkTarget() {
+      var spriteW = currentSpriteWidth(main);
+      var W = window.innerWidth || 1;
+      var minC = spriteW / 2;
+      var maxC = Math.max(minC, W - spriteW / 2);
+      var target = worldX;
+      var attempts = 0;
+      while ((Math.abs(target - worldX) < 100 || target <= minC || target >= maxC) && attempts < 2000) {
+        target = randBetween(minC, maxC);
+        attempts++;
+      }
+      return clamp(target, minC, maxC);
+    }
+
+    function startIdleLoop() {
       clearTimers();
-      resetMotion();
-      removeClone();
       mode = 'idle';
-      sitMode = null;
-      lockToFloor();
-      main.src = idleSrc;
+      setPose('idle');
+      setAnchorBottom();
       if (facing === -1) {
         flipBackTimer = setTimeout(function() {
           setFacing(1);
           flipBackTimer = null;
-          lockToFloor();
-          renderAt(main, anchorX, anchorY);
         }, 1000);
       }
-      const wait = randBetween(IDLE_MIN, IDLE_MAX);
+      var wait = randBetween(IDLE_MIN, IDLE_MAX);
       chooseTimer = setTimeout(function() {
         chooseTimer = null;
-        if (chance(0.1)) {
-          const dur = randBetween(SIT_MIN, SIT_MAX);
-          startRandomSit(dur);
+        if (chance(1 / 10)) {
+          startRandomSit();
         } else {
           startWalk();
         }
       }, wait);
-      renderAt(main, anchorX, anchorY);
+    }
+
+    function startRandomSit() {
+      clearTimers();
+      mode = 'idle';
+      setPose('sit');
+      setFacing(1);
+      setAnchorBottom();
+      var dur = randBetween(SIT_MIN, SIT_MAX);
+      sitTimer = setTimeout(function() {
+        sitTimer = null;
+        startIdleLoop();
+      }, dur);
     }
 
     function startWalk() {
       clearTimers();
-      resetMotion();
       mode = 'walk';
-      sitMode = null;
-      lockToFloor();
-      const w = spriteWidth(main);
-      const minC = w / 2;
-      const maxC = Math.max(minC, window.innerWidth - w / 2);
-      let t = anchorX;
-      let attempts = 0;
-      while ((Math.abs(t - anchorX) < 100 || t <= minC || t >= maxC) && attempts < 2000) {
-        t = randBetween(minC, maxC);
-        attempts++;
+      setPose('walk');
+      setAnchorBottom();
+      normalizeWorldXToScreen();
+      var target = pickWalkTarget();
+      var dir = target > worldX ? 1 : -1;
+      setFacing(dir === 1 ? 1 : -1);
+      var speed = currentSpriteWidth(main);
+      vx = speed * dir;
+      vy = 0;
+      physicsKind = 'walk';
+      hasBounced = false;
+      dropStartHeight = 0;
+      var walkTarget = target;
+      function updateWalk(dt) {
+        worldX += vx * dt;
+        if ((dir === 1 && worldX >= walkTarget) || (dir === -1 && worldX <= walkTarget)) {
+          worldX = walkTarget;
+          mode = 'idle';
+          vx = 0;
+          startIdleLoop();
+        }
       }
-      t = clamp(t, minC, maxC);
-      targetX = t;
-      direction = targetX > anchorX ? 1 : -1;
-      setFacing(direction === 1 ? 1 : -1);
-      main.src = walkSrc;
-      renderAt(main, anchorX, anchorY);
+      modeWalkUpdate = updateWalk;
     }
 
-    function stopWalkAndIdle(x) {
-      anchorX = x;
-      startIdle();
-    }
+    var modeWalkUpdate = null;
 
-    function startSittingFromIdleChoice() {
-      const dur = randBetween(SIT_MIN, SIT_MAX);
-      startRandomSit(dur);
-    }
-
-    function startInitialState() {
-      lockToFloor();
-      if (chance(0.2)) {
-        const dur = randBetween(SIT_MIN, SIT_MAX);
-        startRandomSit(dur);
-      } else {
-        startIdle();
-      }
-    }
-
-    function startDangling(pointerX, pointerY) {
+    function startDangling(pointerId, x, yScreen) {
       clearTimers();
-      resetMotion();
-      removeClone();
-      mode = 'dangling';
-      sitMode = null;
       dragging = true;
-      anchorX = pointerX;
-      anchorY = pointerY;
-      facing = 1;
-      applyTransform(main, true);
-      main.src = dangleSrc;
-      renderAt(main, anchorX, anchorY);
+      dragPointerId = pointerId;
+      pointerX = x;
+      pointerY = yScreen;
+      lastPX = x;
+      lastPY = yScreen;
+      lastPTime = performance.now();
+      dragVX = 0;
+      dragVY = 0;
+      mode = 'dangling';
+      physicsKind = null;
+      hasBounced = false;
+      vx = 0;
+      vy = 0;
+      setPose('dangle');
+      setFacing(1);
+      setAnchorTop();
+      renderDangling();
     }
 
-    function endDangling() {
+    function releaseDangling() {
       dragging = false;
       dragPointerId = null;
-      const speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
-      if (speed < DROP_SPEED_THRESHOLD) {
-        velX = 0;
-        velY = 0;
-        mode = 'airborne';
-        groundContacts = 0;
-        sliding = false;
+      var speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
+      var w = currentSpriteWidth(main);
+      var h = currentSpriteHeight(main);
+      var bottom = window.innerHeight - pointerY - h;
+      if (!isFinite(bottom)) bottom = 0;
+      y = Math.max(bottom, 0);
+      worldX = pointerX;
+      dropStartHeight = y;
+      hasBounced = false;
+      setAnchorTop();
+      setPose('dangle');
+      if (speed < THROW_SPEED_THRESHOLD) {
+        mode = 'air';
+        physicsKind = 'drop';
+        vx = 0;
+        vy = 0;
       } else {
-        velX = dragVX;
-        velY = dragVY;
-        mode = 'airborne';
-        groundContacts = 0;
-        sliding = false;
+        mode = 'air';
+        physicsKind = 'throw';
+        vx = dragVX;
+        vy = -dragVY;
       }
     }
 
-    function updateAirborne(dt) {
-      const w = spriteWidth(main);
-      const h = spriteHeight(main);
-      velY += GRAVITY * dt;
-      anchorX += velX * dt;
-      anchorY += velY * dt;
-      const W = window.innerWidth;
-      const left = anchorX - w / 2;
-      const right = anchorX + w / 2;
-      if (right < 0) {
-        anchorX += W + w;
-      } else if (left > W) {
-        anchorX -= W + w;
-      }
-      const fy = floorY();
-      const bottom = anchorY + h;
-      if (bottom >= fy) {
-        anchorY = fy - h;
-        if (groundContacts === 0 && velY > 0) {
-          velY = -Math.abs(velY) * 0.5;
-          groundContacts = 1;
-          startPostFallSit();
+    function handleFloorCollision() {
+      if (y <= 0) {
+        y = 0;
+        if (physicsKind === 'drop') {
+          if (!hasBounced) {
+            hasBounced = true;
+            var dropH = dropStartHeight;
+            var bounceH = dropH / 4;
+            if (bounceH > 2) {
+              var vUp = Math.sqrt(Math.max(0, 2 * Math.abs(GRAVITY) * bounceH));
+              vy = vUp;
+              setPose('sit');
+              setFacing(1);
+              setAnchorBottom();
+              return;
+            }
+          }
+          vy = 0;
+          vx = 0;
+          physicsKind = null;
+          mode = 'idle';
+          setPose('idle');
+          setAnchorBottom();
+          startIdleLoop();
+        } else if (physicsKind === 'throw') {
+          if (!hasBounced) {
+            hasBounced = true;
+            var dropH2 = dropStartHeight;
+            var bounceH2 = dropH2 / 4;
+            if (bounceH2 > 2) {
+              var vUp2 = Math.sqrt(Math.max(0, 2 * Math.abs(GRAVITY) * bounceH2));
+              vy = vUp2;
+              setPose('sit');
+              setFacing(1);
+              setAnchorBottom();
+              return;
+            }
+          }
+          vy = 0;
+          physicsKind = null;
+          mode = 'slide';
+          setPose('sit');
+          setAnchorBottom();
         } else {
-          velY = 0;
-          groundContacts = 2;
-          if (!sliding && Math.abs(velX) > 0) {
-            sliding = true;
-          }
+          vy = 0;
+          vx = 0;
+          mode = 'idle';
+          setPose('idle');
+          setAnchorBottom();
+          startIdleLoop();
         }
       }
-      if (mode === 'airborne') {
-        applyTransform(main, true);
-        main.src = dangleSrc;
-      } else if (mode === 'sit' && sitMode === 'postFall') {
-        applyTransform(main, false);
-        main.src = sitSrc;
-      }
-      if (mode === 'sit' && sitMode === 'postFall') {
-        if (Math.abs(velX) > 0) {
-          const sign = velX > 0 ? 1 : -1;
-          velX -= sign * FRICTION * dt;
-          if (velX * sign < 0) velX = 0;
-          anchorX += velX * dt;
-          const L = anchorX - w / 2;
-          const R = anchorX + w / 2;
-          if (R < 0) {
-            anchorX += W + w;
-          } else if (L > W) {
-            anchorX -= W + w;
-          }
-        }
-        if (velX === 0 && velY === 0) {
-          startIdle();
-        }
-      } else if (mode === 'airborne' && groundContacts >= 2) {
-        startPostFallSit();
-      }
-      renderAt(main, anchorX, anchorY);
     }
 
-    function updateWalk(dt) {
-      const w = spriteWidth(main);
-      const h = spriteHeight(main);
-      lockToFloor();
-      const speed = w;
-      anchorX += direction * speed * dt;
-      const W = window.innerWidth;
-      const left = anchorX - w / 2;
-      const right = anchorX + w / 2;
-      if (!wrapActive && (left < 0 || right > W)) {
-        wrapActive = true;
-        wrapDirection = direction;
-        projectedOffset = W * wrapDirection;
-        createCloneIfNeeded();
-        clone.src = main.src;
-        applyTransform(clone, false);
+    function updateAir(dt) {
+      vy += GRAVITY * dt;
+      worldX += vx * dt;
+      y += vy * dt;
+      if (y <= 0) {
+        handleFloorCollision();
       }
-      if (wrapActive && clone) {
-        const mainCenter = anchorX;
-        const cloneCenter = mainCenter - projectedOffset;
-        renderAt(main, mainCenter, anchorY);
-        renderAt(clone, cloneCenter, anchorY);
-        const cloneLeft = cloneCenter - w / 2;
-        const cloneRight = cloneCenter + w / 2;
-        if (cloneLeft >= 0 && cloneRight <= W) {
-          anchorX = cloneCenter;
-          const dx = projectedOffset;
-          if (targetX != null) targetX -= dx;
-          removeClone();
-          const reached = (direction === 1 && anchorX >= targetX) || (direction === -1 && anchorX <= targetX);
-          if (reached) {
-            stopWalkAndIdle(targetX);
-          } else {
-            renderAt(main, anchorX, anchorY);
-          }
-          return;
-        }
-        return;
-      }
-      anchorX = clamp(anchorX, w / 2, Math.max(w / 2, window.innerWidth - w / 2));
-      const reached = (direction === 1 && anchorX >= targetX) || (direction === -1 && anchorX <= targetX);
-      if (reached) {
-        stopWalkAndIdle(targetX);
-        removeClone();
-        return;
-      }
-      renderAt(main, anchorX, anchorY);
     }
 
-    function rafTick(ts) {
-      if (!document.body.contains(main)) {
-        requestAnimationFrame(rafTick);
-        return;
+    function updateSlide(dt) {
+      worldX += vx * dt;
+      if (vx > 0) {
+        vx -= SLIDE_FRICTION * dt;
+        if (vx < 0) vx = 0;
+      } else if (vx < 0) {
+        vx += SLIDE_FRICTION * dt;
+        if (vx > 0) vx = 0;
       }
-      if (lastTime == null) lastTime = ts;
-      const dt = Math.min(0.05, (ts - lastTime) / 1000);
-      lastTime = ts;
+      y = 0;
+      if (Math.abs(vx) < 5) {
+        vx = 0;
+        mode = 'idle';
+        setPose('idle');
+        setAnchorBottom();
+        startIdleLoop();
+      }
+    }
 
-      if (anchorX == null || anchorY == null) {
-        const r = spriteRect(main);
-        anchorX = r.left + r.width / 2;
-        anchorY = r.top;
+    function loop(timestamp) {
+      if (lastTime === null) lastTime = timestamp;
+      var dt = (timestamp - lastTime) / 1000;
+      if (dt > 0.05) dt = 0.05;
+      lastTime = timestamp;
+
+      if (mode === 'walk' && modeWalkUpdate) {
+        modeWalkUpdate(dt);
+      } else if (mode === 'air') {
+        updateAir(dt);
+      } else if (mode === 'slide') {
+        updateSlide(dt);
       }
 
       if (mode === 'dangling') {
-        renderAt(main, anchorX, anchorY);
-        requestAnimationFrame(rafTick);
-        return;
+        renderDangling();
+      } else {
+        if (y < 0) y = 0;
+        updatePortalRender();
       }
 
-      if (mode === 'airborne' || (mode === 'sit' && sitMode === 'postFall')) {
-        updateAirborne(dt);
-        requestAnimationFrame(rafTick);
-        return;
-      }
-
-      if (mode === 'walk') {
-        main.src = walkSrc;
-        applyTransform(main, false);
-        updateWalk(dt);
-      } else if (mode === 'idle') {
-        lockToFloor();
-        main.src = idleSrc;
-        applyTransform(main, false);
-        renderAt(main, anchorX, anchorY);
-      } else if (mode === 'sit' && sitMode === 'random') {
-        lockToFloor();
-        main.src = sitSrc;
-        applyTransform(main, false);
-        renderAt(main, anchorX, anchorY);
-      }
-
-      if (clone && !wrapActive) {
-        removeClone();
-      }
-
-      requestAnimationFrame(rafTick);
+      requestAnimationFrame(loop);
     }
 
     function onPointerDown(e) {
-      if (dragging) return;
-      dragPointerId = e.pointerId;
-      dragging = true;
-      lastDragX = e.clientX;
-      lastDragY = e.clientY;
-      lastDragT = performance.now();
-      dragVX = 0;
-      dragVY = 0;
-      main.setPointerCapture(dragPointerId);
-      startDangling(e.clientX, e.clientY);
+      if (e.button !== undefined && e.button !== 0) return;
+      var rect = main.getBoundingClientRect();
+      var x = e.clientX;
+      var yScreen = e.clientY;
+      if (x < rect.left || x > rect.right || yScreen < rect.top || yScreen > rect.bottom) return;
+      e.preventDefault();
+      main.setPointerCapture(e.pointerId);
+      startDangling(e.pointerId, x, yScreen);
     }
 
     function onPointerMove(e) {
       if (!dragging || e.pointerId !== dragPointerId) return;
-      const now = performance.now();
-      const dt = Math.max(0.001, (now - lastDragT) / 1000);
-      const dx = e.clientX - lastDragX;
-      const dy = e.clientY - lastDragY;
-      dragVX = dx / dt;
-      dragVY = dy / dt;
-      lastDragX = e.clientX;
-      lastDragY = e.clientY;
-      lastDragT = now;
-      anchorX = e.clientX;
-      anchorY = e.clientY;
-      applyTransform(main, true);
-      main.src = dangleSrc;
-      renderAt(main, anchorX, anchorY);
+      var now = performance.now();
+      var dt = (now - lastPTime) / 1000;
+      pointerX = e.clientX;
+      pointerY = e.clientY;
+      if (dt > 0) {
+        dragVX = (pointerX - lastPX) / dt;
+        dragVY = (pointerY - lastPY) / dt;
+      }
+      lastPX = pointerX;
+      lastPY = pointerY;
+      lastPTime = now;
     }
 
     function onPointerUp(e) {
       if (!dragging || e.pointerId !== dragPointerId) return;
-      main.releasePointerCapture(dragPointerId);
-      endDangling();
+      main.releasePointerCapture(e.pointerId);
+      releaseDangling();
     }
 
-    function onPointerCancel(e) {
-      if (!dragging || e.pointerId !== dragPointerId) return;
-      main.releasePointerCapture(dragPointerId);
-      endDangling();
-    }
-
-    function initAfterPreload() {
-      document.body.appendChild(main);
-      main.src = idleSrc;
-      applyScaleForScreen();
-      const w = spriteWidth(main);
-      const minC = w / 2;
-      const maxC = Math.max(minC, window.innerWidth - w / 2);
-      anchorX = randBetween(minC, maxC);
-      lockToFloor();
-      renderAt(main, anchorX, anchorY);
-
+    function setupPointerEvents() {
       main.addEventListener('pointerdown', onPointerDown);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
-      window.addEventListener('pointercancel', onPointerCancel);
+      window.addEventListener('pointercancel', onPointerUp);
+    }
 
-      window.addEventListener('resize', function() {
-        applyScaleForScreen();
-        const w2 = spriteWidth(main);
-        const minC2 = w2 / 2;
-        const maxC2 = Math.max(minC2, window.innerWidth - w2 / 2);
-        if (anchorX != null) anchorX = clamp(anchorX, minC2, maxC2);
-        if (mode !== 'dangling' && mode !== 'airborne') lockToFloor();
-        renderAt(main, anchorX, anchorY);
-      });
-
-      startInitialState();
+    function initAfterPreload() {
+      main.src = idleSrc;
+      document.body.appendChild(main);
+      adjustScaleForScreen();
+      var w = currentSpriteWidth(main);
+      var W = window.innerWidth || 1;
+      var minC = w / 2;
+      var maxC = Math.max(minC, W - w / 2);
+      worldX = randBetween(minC, maxC);
+      y = 0;
+      setPose('idle');
+      setFacing(1);
+      setAnchorBottom();
+      updatePortalRender();
+      setupPointerEvents();
+      if (chance(1 / 5)) {
+        mode = 'idle';
+        setPose('sit');
+        setFacing(1);
+        setAnchorBottom();
+        var dur = randBetween(SIT_MIN, SIT_MAX);
+        sitTimer = setTimeout(function() {
+          sitTimer = null;
+          startIdleLoop();
+        }, dur);
+      } else {
+        startIdleLoop();
+      }
       setTimeout(function() {
-        requestAnimationFrame(rafTick);
+        requestAnimationFrame(loop);
       }, 50);
     }
 
-    let remaining = preloadImgs.length;
-    preloadImgs.forEach(function(img) {
+    var preloadSources = [idleSrc, walkSrc, sitSrc, dangleSrc];
+    var remaining = preloadSources.length;
+    preloadSources.forEach(function(src) {
+      var img = new Image();
+      img.src = src;
       if (img.complete && img.naturalWidth) {
         remaining--;
         if (remaining === 0) initAfterPreload();
@@ -571,14 +515,23 @@
         img.addEventListener('load', function() {
           remaining--;
           if (remaining === 0) initAfterPreload();
-        }, { once: true });
+        }, { once: true, passive: true });
         img.addEventListener('error', function() {
           remaining--;
           if (remaining === 0) initAfterPreload();
-        }, { once: true });
+        }, { once: true, passive: true });
       }
     });
     if (remaining === 0) initAfterPreload();
+
+    window.addEventListener('resize', function() {
+      adjustScaleForScreen();
+      if (mode !== 'dangling') {
+        updatePortalRender();
+      } else {
+        renderDangling();
+      }
+    }, { passive: true });
   }
 
   if (document.readyState === 'loading') {
