@@ -15,7 +15,6 @@
   const SLIDE_FRICTION = 600;     // px/s^2 on floor
   const MOMENTUM_THRESH = 120;    // px/s release speed threshold
   const MAX_DT = 0.05;            // s clamp
-  const PICK_OFFSET_Y = 6;        // px lift while dangling
 
   // Motion preference
   const REDUCED_MOTION = typeof matchMedia === 'function' &&
@@ -54,11 +53,10 @@
     cursor:'grab',
   });
 
-  // Debug canvas (highest, non-interactive)
+  // Debug canvas
   let debugCanvas = null, debugCtx = null;
   let debugEnabled = false;
   let lastRelease = { vx: 0, vy: 0 };
-  // URL opt-in
   try {
     const qp = new URLSearchParams(location.search);
     if (qp.get('tcdebug') === '1') debugEnabled = true;
@@ -83,23 +81,15 @@
     debugCanvas.width = window.innerWidth;
     debugCanvas.height = window.innerHeight;
   }
-
   function drawCircle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke(); }
-  function drawCross(ctx, x, y, s) {
-    ctx.beginPath(); ctx.moveTo(x-s,y); ctx.lineTo(x+s,y); ctx.moveTo(x,y-s); ctx.lineTo(x,y+s); ctx.stroke();
-  }
-
-  // Draw modular wrap helper: render X modulo viewport width to keep arcs visible
+  function drawCross(ctx, x, y, s) { ctx.beginPath(); ctx.moveTo(x-s,y); ctx.lineTo(x+s,y); ctx.moveTo(x,y-s); ctx.lineTo(x,y+s); ctx.stroke(); }
   function drawWrappedPolyline(ctx, points) {
     const W = window.innerWidth;
     if (points.length < 2) return;
     let prev = points[0];
     for (let i = 1; i < points.length; i++) {
       const cur = points[i];
-      const dx = cur.x - prev.x;
-      // segment may cross boundary; draw three images (-W, 0, +W)
-      const candidates = [-W, 0, W];
-      candidates.forEach(shift => {
+      [-W, 0, W].forEach(shift => {
         ctx.beginPath();
         ctx.moveTo(prev.x + shift, prev.y);
         ctx.lineTo(cur.x + shift, cur.y);
@@ -107,148 +97,6 @@
       });
       prev = cur;
     }
-  }
-
-  // === Debug prediction ===
-  function predictTrajectory(cx, bottomY, vx0, vy0) {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const { w: spriteW, h: spriteH } = currentSpriteSize(main);
-
-    // Time to first ground contact: y(t)=0 => bottomY + vy t + 1/2 g t^2 = 0
-    const a = 0.5 * G;
-    const b = vy0;
-    const c = bottomY;
-    let t_land = 0;
-    const disc = b*b - 4*a*c;
-    if (disc < 0) {
-      t_land = 0; // shouldn't happen
-    } else {
-      const r1 = (-b + Math.sqrt(disc)) / (2*a);
-      const r2 = (-b - Math.sqrt(disc)) / (2*a);
-      t_land = Math.max(r1, r2, 0);
-    }
-
-    // Apex height (world bottom coordinates)
-    const y_apex = vy0 > 0 ? bottomY + (vy0*vy0) / (2 * Math.abs(G)) : bottomY;
-    const h_drop = Math.max(0, y_apex); // distance to ground from apex
-    const h_bounce = 0.25 * h_drop;
-    const vy_bounce = Math.sqrt(2 * Math.abs(G) * h_bounce);
-    const t_bounce = (vy_bounce * 2) / Math.abs(G);
-
-    // Horizontal motion during arcs
-    const x_land = cx + vx0 * t_land;
-    const x_bounce_end = x_land + vx0 * t_bounce;
-
-    // Slide distance
-    const d_slide = (vx0*vx0) / (2 * SLIDE_FRICTION) * sign(vx0);
-    const x_stop = x_bounce_end + d_slide;
-
-    // Sample points for drawing (screen coords: y_screen = H - (bottomY))
-    const flight = [];
-    const N1 = Math.max(8, Math.ceil(t_land / 0.03));
-    for (let i = 0; i <= N1; i++) {
-      const t = (i / N1) * t_land;
-      const x = cx + vx0 * t;
-      const y = bottomY + vy0 * t + 0.5 * G * t * t;
-      flight.push({ x: ((x % W) + W) % W, y: H - y });
-    }
-
-    const bounce = [];
-    const N2 = Math.max(6, Math.ceil(t_bounce / 0.03));
-    for (let i = 0; i <= N2; i++) {
-      const t = (i / N2) * t_bounce;
-      const x = x_land + vx0 * t;
-      const y = 0 + vy_bounce * t + 0.5 * G * t * t;
-      bounce.push({ x: ((x % W) + W) % W, y: H - y });
-    }
-
-    // Slide segment (on ground, straight)
-    const slide = [
-      { x: ((x_bounce_end % W) + W) % W, y: H - 0 },
-      { x: ((x_stop % W) + W) % W, y: H - 0 }
-    ];
-
-    return {
-      flight, bounce, slide,
-      landPoint: { x: ((x_land % W) + W) % W, y: H - 0 },
-      stopPoint: { x: ((x_stop % W) + W) % W, y: H - 0 },
-      apexY: y_apex
-    };
-  }
-
-  function drawDebugHUD() {
-    if (!debugEnabled) return;
-    ensureDebugCanvas();
-    resizeDebugCanvas();
-    const ctx = debugCtx;
-    const W = debugCanvas.width, H = debugCanvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.save();
-
-    // Styles
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.setLineDash([]);
-
-    // Predict from current physical state
-    const pred = predictTrajectory(centerX, y, vx, vy);
-
-    // Draw flight arc
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.setLineDash([]);
-    drawWrappedPolyline(ctx, pred.flight);
-
-    // Draw bounce arc (dashed)
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-    ctx.setLineDash([6, 6]);
-    drawWrappedPolyline(ctx, pred.bounce);
-
-    // Slide vector (dot-dash)
-    ctx.setLineDash([2, 6]);
-    drawWrappedPolyline(ctx, pred.slide);
-
-    // Markers: land, stop
-    ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    drawCross(ctx, pred.landPoint.x, pred.landPoint.y, 6);
-    drawCircle(ctx, pred.stopPoint.x, pred.stopPoint.y, 5);
-
-    // Draw current AI goal (targetX) when moving
-    if (moving && targetX != null) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0,150,0,0.7)';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(targetX, 0);
-      ctx.lineTo(targetX, H);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Status panel
-    const panelX = 12, panelY = 12;
-    const lines = [
-      `mode: ${dragging ? 'drag' : airborne ? 'airborne' : sliding ? 'sliding' : sitting ? 'sitting' : moving ? 'walking' : 'idle'}`,
-      `pointerCapture: ${Boolean(activePointerId)}`,
-      `pos: x=${centerX.toFixed(1)}, y=${y.toFixed(1)}`,
-      `vel: vx=${vx.toFixed(1)}, vy=${vy.toFixed(1)}`,
-      `lastRelease: vx=${lastRelease.vx.toFixed(1)}, vy=${lastRelease.vy.toFixed(1)}`,
-      `apexHeight: ${pred.apexY.toFixed(1)}px`,
-      targetX != null ? `goalX: ${targetX.toFixed(1)}` : `goalX: -`,
-      `wrap: ${wrapActive ? 'active' : 'off'}`
-    ];
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 1;
-    const panelW = 230, panelH = 18 * (lines.length + 1);
-    ctx.fillRect(panelX - 6, panelY - 6, panelW, panelH);
-    ctx.strokeRect(panelX - 6, panelY - 6, panelW, panelH);
-    ctx.fillStyle = '#000';
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    lines.forEach((s, i) => ctx.fillText(s, panelX, panelY + 16 * (i + 1)));
-
-    ctx.restore();
   }
 
   // === Wrap clone ===
@@ -399,8 +247,7 @@
     Object.assign(overlay.style, {
       position:'fixed', inset:'0', zIndex:String(Z_INDEX+1),
       cursor:'grabbing', background:'transparent',
-      userSelect:'none',
-      pointerEvents:'auto',
+      userSelect:'none', pointerEvents:'auto',
     });
     overlay.onpointerdown = (e)=>{ e.preventDefault(); e.stopPropagation(); };
     document.body.appendChild(overlay);
@@ -413,13 +260,18 @@
     document.documentElement.style.userSelect = '';
   }
 
-  // === Pointer helpers ===
-  function cursorToCenterX(e){ return e.clientX; }
-  function cursorToBottomY_Dangling(e){
-    const { h } = currentSpriteSize(main);
-    const viewportBottom = window.innerHeight - e.clientY;
-    return viewportBottom - h + PICK_OFFSET_Y;
+  // === Pointer helpers (top-center alignment while dangling) ===
+  function topCenterAlignToCursor(e){
+    // left = cx - w/2; bottom = H - cy - h
+    const { w, h } = currentSpriteSize(main);
+    const H = window.innerHeight;
+    const left = e.clientX - w / 2;
+    const bottom = (H - e.clientY) - h;
+    // Apply directly to style for exact pixel match
+    main.style.left = `${left}px`;
+    main.style.bottom = `${bottom}px`;
   }
+
   function samplePointer(e){
     const now = performance.now();
     samples.push({ t: now, x: e.clientX, y: e.clientY });
@@ -439,14 +291,13 @@
   // === Velocity caps ===
   function capSpeeds() {
     const spriteW = currentSpriteSize(main).w || 50;
-    const MAX_VX = 4.0 * spriteW;   // max ~4 sprite-widths per second
-    const MAX_VY = 5.0 * spriteW;   // cap vertical too
+    const MAX_VX = 4.0 * spriteW;   // ~4 sprite-widths/s
+    const MAX_VY = 5.0 * spriteW;   // vertical cap
     vx = clamp(vx, -MAX_VX, MAX_VX);
     vy = clamp(vy, -MAX_VY, MAX_VY);
   }
 
   // === Pointer event handlers (unified) ===
-  let activePointerId = null;
   function onPointerDown(e){
     if (e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -459,7 +310,7 @@
     bounced=false; maxYThisAir=0;
 
     main.src = dangleSrc;
-    main.style.transformOrigin = 'center top';
+    main.style.transformOrigin = 'center top'; // crucial for top-anchor feel
     main.style.cursor = 'grabbing';
 
     ensureOverlay();
@@ -467,10 +318,13 @@
     samples.length = 0;
     samplePointer(e);
 
-    centerX = clamp(cursorToCenterX(e), currentSpriteSize().w/2, window.innerWidth - currentSpriteSize().w/2);
-    y = Math.max(0, cursorToBottomY_Dangling(e));
-    renderFromCenter(main, centerX);
-    renderBottom(main, y);
+    // Exact top-center lock under cursor
+    topCenterAlignToCursor(e);
+
+    // Update internal centers (for physics after release)
+    const { w, h } = currentSpriteSize(main);
+    centerX = e.clientX;
+    y = Math.max(0, (window.innerHeight - e.clientY) - h);
   }
   function onPointerMove(e){
     if (!dragging || (activePointerId != null && e.pointerId !== activePointerId)) return;
@@ -478,13 +332,17 @@
 
     samplePointer(e);
 
-    centerX = clamp(cursorToCenterX(e), currentSpriteSize().w/2, window.innerWidth - currentSpriteSize().w/2);
-    y = Math.max(0, cursorToBottomY_Dangling(e));
+    // Exact top-center lock under cursor (no clamping)
+    topCenterAlignToCursor(e);
 
-    renderFromCenter(main, centerX);
-    renderBottom(main, y);
+    const { w, h } = currentSpriteSize(main);
+    centerX = e.clientX;
+    y = Math.max(0, (window.innerHeight - e.clientY) - h);
 
-    if (clone){ renderFromCenter(clone, centerX - projectedOffset); renderBottom(clone, y); }
+    if (clone){ // keep clone visually in sync if it exists
+      clone.style.left = (e.clientX - w/2 - projectedOffset) + 'px';
+      clone.style.bottom = y + 'px';
+    }
   }
   function endDragAndRelease(e){
     if (!dragging) return;
@@ -502,7 +360,6 @@
 
     const out = computeReleaseVelocity();
     vx = out.vx; vy = out.vy;
-    // Cap NOW
     capSpeeds();
     lastRelease = { vx, vy };
 
@@ -514,10 +371,130 @@
     bounced = false;
     maxYThisAir = y;
 
-    main.src = dangleSrc; // stays dangle until first ground touch
+    main.src = dangleSrc; // stays dangle until ground touch
   }
   function onPointerUp(e){ endDragAndRelease(e); }
   function onPointerCancel(e){ endDragAndRelease(e); }
+
+  // === Debug prediction/overlay ===
+  function predictTrajectory(cx, bottomY, vx0, vy0) {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    const a = 0.5 * G, b = vy0, c = bottomY;
+    let t_land = 0;
+    const disc = b*b - 4*a*c;
+    if (disc >= 0) {
+      const r1 = (-b + Math.sqrt(disc)) / (2*a);
+      const r2 = (-b - Math.sqrt(disc)) / (2*a);
+      t_land = Math.max(r1, r2, 0);
+    }
+
+    const y_apex = vy0 > 0 ? bottomY + (vy0*vy0) / (2 * Math.abs(G)) : bottomY;
+    const h_drop = Math.max(0, y_apex);
+    const h_bounce = 0.25 * h_drop;
+    const vy_bounce = Math.sqrt(2 * Math.abs(G) * h_bounce);
+    const t_bounce = (vy_bounce * 2) / Math.abs(G);
+
+    const x_land = cx + vx0 * t_land;
+    const x_bounce_end = x_land + vx0 * t_bounce;
+    const d_slide = (vx0*vx0) / (2 * SLIDE_FRICTION) * sign(vx0);
+    const x_stop = x_bounce_end + d_slide;
+
+    const flight = [];
+    const N1 = Math.max(8, Math.ceil(t_land / 0.03));
+    for (let i = 0; i <= N1; i++) {
+      const t = (i / N1) * t_land;
+      const x = cx + vx0 * t;
+      const y = bottomY + vy0 * t + 0.5 * G * t * t;
+      flight.push({ x: ((x % W) + W) % W, y: H - y });
+    }
+
+    const bounce = [];
+    const N2 = Math.max(6, Math.ceil(t_bounce / 0.03));
+    for (let i = 0; i <= N2; i++) {
+      const t = (i / N2) * t_bounce;
+      const x = x_land + vx0 * t;
+      const y = 0 + vy_bounce * t + 0.5 * G * t * t;
+      bounce.push({ x: ((x % W) + W) % W, y: H - y });
+    }
+
+    const slide = [
+      { x: ((x_bounce_end % W) + W) % W, y: H - 0 },
+      { x: ((x_stop % W) + W) % W, y: H - 0 }
+    ];
+
+    return {
+      flight, bounce, slide,
+      landPoint: { x: ((x_land % W) + W) % W, y: H - 0 },
+      stopPoint: { x: ((x_stop % W) + W) % W, y: H - 0 },
+      apexY: y_apex
+    };
+  }
+
+  function drawDebugHUD() {
+    if (!debugEnabled) return;
+    ensureDebugCanvas();
+    resizeDebugCanvas();
+    const ctx = debugCtx;
+    const W = debugCanvas.width, H = debugCanvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.setLineDash([]);
+
+    const pred = predictTrajectory(centerX, y, vx, vy);
+
+    drawWrappedPolyline(ctx, pred.flight);
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.setLineDash([6, 6]);
+    drawWrappedPolyline(ctx, pred.bounce);
+
+    ctx.setLineDash([2, 6]);
+    drawWrappedPolyline(ctx, pred.slide);
+
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    drawCross(ctx, pred.landPoint.x, pred.landPoint.y, 6);
+    drawCircle(ctx, pred.stopPoint.x, pred.stopPoint.y, 5);
+
+    if (moving && targetX != null) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,150,0,0.7)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(targetX, 0);
+      ctx.lineTo(targetX, H);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const panelX = 12, panelY = 12;
+    const lines = [
+      `mode: ${dragging ? 'drag' : airborne ? 'airborne' : sliding ? 'sliding' : sitting ? 'sitting' : moving ? 'walking' : 'idle'}`,
+      `pointerCapture: ${Boolean(activePointerId)}`,
+      `pos: x=${centerX.toFixed(1)}, y=${y.toFixed(1)}`,
+      `vel: vx=${vx.toFixed(1)}, vy=${vy.toFixed(1)}`,
+      `lastRelease: vx=${lastRelease.vx.toFixed(1)}, vy=${lastRelease.vy.toFixed(1)}`,
+      `apexHeight: ${pred.apexY.toFixed(1)}px`,
+      targetX != null ? `goalX: ${targetX.toFixed(1)}` : `goalX: -`,
+      `wrap: ${wrapActive ? 'active' : 'off'}`
+    ];
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    const panelW = 230, panelH = 18 * (lines.length + 1);
+    ctx.fillRect(panelX - 6, panelY - 6, panelW, panelH);
+    ctx.strokeRect(panelX - 6, panelY - 6, panelW, panelH);
+    ctx.fillStyle = '#000';
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    lines.forEach((s, i) => ctx.fillText(s, panelX, panelY + 16 * (i + 1)));
+
+    ctx.restore();
+  }
 
   // === RAF ===
   function rafTick(ts){
@@ -544,7 +521,6 @@
       return;
     }
 
-    // Legacy ground AI (only when not in physics states)
     if (!airborne && !sliding && !sitting){
       if (moving && direction !== 0 && targetX !== null){
         const speed = currentSpriteSize(main).w;
@@ -598,7 +574,6 @@
     // === Airborne ===
     if (airborne){
       vy += G * dt;
-      // Cap continuous velocities (why: keep physics sane if dt spikes)
       capSpeeds();
 
       let nextX = centerX + vx * dt;
@@ -606,7 +581,6 @@
 
       if (nextY > maxYThisAir) maxYThisAir = nextY;
 
-      // Horizontal wrap while in air
       const W = window.innerWidth;
       const leftEdge = nextX - w/2, rightEdge = nextX + w/2;
       if (!wrapActive && (leftEdge < 0 || rightEdge > W)){
@@ -635,7 +609,7 @@
           vy = vBounce;
           y = 0;
           bounced = true;
-          main.src = sitSrc; // switch to sit during/after bounce
+          main.src = sitSrc;
         } else {
           y = 0; vy = 0; airborne = false; sliding = Math.abs(vx) > 1;
           main.src = sitSrc;
@@ -656,7 +630,6 @@
         startIdleState();
       } else {
         vx = nextVx;
-        // Cap while sliding too
         capSpeeds();
         centerX = centerX + vx * dt;
         const W = window.innerWidth;
@@ -687,7 +660,7 @@
 
     setTimeout(()=>{ if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(rafTick); }, 50);
 
-    // Pointer Events (single path)
+    // Pointer Events
     main.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove, { passive:false });
     window.addEventListener('pointerup', onPointerUp, { passive:false });
@@ -712,8 +685,7 @@
       if (clone && wrapDirection !== 0){
         projectedOffset = window.innerWidth * wrapDirection;
         applyScaleAndFacing(clone);
-        renderFromCenter(clone, centerX - projectedOffset);
-        renderBottom(clone, y);
+        // clone follows main; y is kept as-is
       }
       renderFromCenter(main, centerX); renderBottom(main, Math.max(0,y));
       resizeDebugCanvas();
@@ -726,7 +698,6 @@
       else if (!rafId){ lastTime=null; rafId=requestAnimationFrame(rafTick); }
     });
 
-    // Enable debug from URL on boot
     if (debugEnabled) ensureDebugCanvas();
   }
 
