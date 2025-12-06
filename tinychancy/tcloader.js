@@ -1,93 +1,66 @@
-(function () {
-  // --- CONFIG ---------------------------------------------------------
+(function() {
   const BASE_SCALE = 0.36;
-  const IDLE_MIN = 5000;       // idle min wait
-  const IDLE_MAX = 10000;      // idle max wait
-  const SIT_MIN = 10000;       // random sit min duration
-  const SIT_MAX = 60000;       // random sit max duration
-  const GRAVITY = 300;         // px/s^2 downward
-  const FRICTION = 500;        // ground friction for sliding
-  const DROP_SPEED_THRESHOLD = 40;  // below this = simple drop
+  const IDLE_MIN = 5000;
+  const IDLE_MAX = 10000;
+  const SIT_MIN = 10000;
+  const SIT_MAX = 60000;
+  const GRAVITY = 300;
+  const DROP_SPEED_THRESHOLD = 40;
+  const THROW_SPEED_THRESHOLD = 60;
+  const FRICTION = 500;
   const Z_INDEX = 9999;
 
-  const idleSrc   = '/tinychancy/tinychancy_idle.gif';
-  const walkSrc   = '/tinychancy/tinychancy_walk.gif';
-  const sitSrc    = '/tinychancy/tinychancy_sit.gif';
+  const idleSrc = '/tinychancy/tinychancy_idle.gif';
+  const walkSrc = '/tinychancy/tinychancy_walk.gif';
+  const sitSrc = '/tinychancy/tinychancy_sit.gif';
   const dangleSrc = '/tinychancy/tinychancy_dangle.gif';
 
-  // Preload all animations first
   const preloadImgs = [idleSrc, walkSrc, sitSrc, dangleSrc].map(src => {
     const img = new Image();
     img.src = src;
     return img;
   });
 
-  function clamp(v, a, b) {
-    return Math.min(Math.max(v, a), b);
-  }
-
-  function randBetween(a, b) {
-    return Math.random() * (b - a) + a;
-  }
-
-  function chance(p) {
-    return Math.random() < p;
-  }
-
   function loadTinyChancy() {
-    // --- MAIN ELEMENT (real TinyChancy) ------------------------------
     const main = document.createElement('img');
     main.id = 'tinychancy';
     main.style.position = 'fixed';
     main.style.top = '0';
     main.style.left = '0';
+    main.style.transformOrigin = 'center bottom';
+    main.style.transform = 'scale(' + BASE_SCALE + ') scaleX(1)';
     main.style.zIndex = String(Z_INDEX);
-    main.style.willChange = 'transform, left, top';
-    main.style.pointerEvents = 'auto';
-    main.style.touchAction = 'none'; // helps dragging on mobile
+    main.style.willChange = 'transform,left,top';
 
-    // --- CLONE ELEMENT (for Balloon Fight walking wrap) --------------
     let clone = null;
 
-    // --- STATE --------------------------------------------------------
-    // anchor = pivot point in screen coords
-    // pivotMode: 'bottom' for ground states, 'top' for dangling/airborne
     let anchorX = null;
     let anchorY = null;
-    let pivotMode = 'bottom';
-
-    let facing = 1;          // 1 = right, -1 = left
+    let facing = 1;
     let currentScale = BASE_SCALE;
 
-    // Modes: 'idle', 'walk', 'sit', 'dangling', 'airborne'
     let mode = 'idle';
-    // sitMode: 'random' (timed sit) or 'postFall' (after physics)
     let sitMode = null;
 
-    // Walking / wandering
-    let direction = 0; // -1 or 1
+    let moving = false;
+    let direction = 0;
     let targetX = null;
 
-    // Wrap clone for walking
     let wrapActive = false;
     let wrapDirection = 0;
     let projectedOffset = 0;
 
-    // Physics (airborne and sliding)
     let velX = 0;
     let velY = 0;
-    let groundContacts = 0; // 0 = no impact yet, 1 = after first bounce, 2+ = fully landed
+    let groundContacts = 0;
     let sliding = false;
 
-    // Timers
     let chooseTimer = null;
     let flipBackTimer = null;
     let sitTimer = null;
 
-    // RAF timing
     let lastTime = null;
 
-    // Drag / dangle
     let dragging = false;
     let dragPointerId = null;
     let lastDragX = 0;
@@ -96,7 +69,18 @@
     let dragVX = 0;
     let dragVY = 0;
 
-    // --- BASIC HELPERS -----------------------------------------------
+    function clamp(v, a, b) {
+      return Math.min(Math.max(v, a), b);
+    }
+
+    function randBetween(a, b) {
+      return Math.random() * (b - a) + a;
+    }
+
+    function chance(p) {
+      return Math.random() < p;
+    }
+
     function spriteRect(el) {
       return el.getBoundingClientRect();
     }
@@ -111,28 +95,15 @@
       return r.height || 50;
     }
 
-    function floorY() {
-      return window.innerHeight;
-    }
-
-    function applyTransform(el) {
-      const origin = pivotMode === 'top' ? 'center top' : 'center bottom';
-      el.style.transformOrigin = origin;
+    function applyTransform(el, originTop) {
+      el.style.transformOrigin = originTop ? 'center top' : 'center bottom';
       el.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
     }
 
     function renderAt(el, ax, ay) {
       const w = spriteWidth(el);
-      const h = spriteHeight(el);
-      let top;
-      if (pivotMode === 'top') {
-        top = ay;
-      } else {
-        top = ay - h; // pivot is bottom, so top is bottom - height
-      }
-      const left = ax - w / 2;
-      el.style.left = left + 'px';
-      el.style.top = top + 'px';
+      el.style.left = (ax - w / 2) + 'px';
+      el.style.top = ay + 'px';
     }
 
     function applyScaleForScreen() {
@@ -140,18 +111,32 @@
       if (w < 400) currentScale = BASE_SCALE * 0.6;
       else if (w < 700) currentScale = BASE_SCALE * 0.8;
       else currentScale = BASE_SCALE;
-      applyTransform(main);
-      if (clone) applyTransform(clone);
+      applyTransform(main, mode === 'dangling' || mode === 'airborne');
+      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
     }
 
-    function ensureAnchorsInitialized() {
+    function floorY() {
+      return window.innerHeight;
+    }
+
+    function ensureAnchors() {
       if (anchorX == null || anchorY == null) {
         const r = spriteRect(main);
         anchorX = r.left + r.width / 2;
-        if (pivotMode === 'top') {
-          anchorY = r.top;
-        } else {
-          anchorY = r.top + r.height; // bottom pivot
+        anchorY = r.top;
+      }
+    }
+
+    function setFacing(newFacing) {
+      if (facing === newFacing) return;
+      facing = newFacing;
+      applyTransform(main, mode === 'dangling' || mode === 'airborne');
+      if (clone) applyTransform(clone, mode === 'dangling' || mode === 'airborne');
+      if (anchorX != null && anchorY != null) {
+        renderAt(main, anchorX, anchorY);
+        if (clone && wrapActive) {
+          const cloneCenter = anchorX - projectedOffset;
+          renderAt(clone, cloneCenter, anchorY);
         }
       }
     }
@@ -171,52 +156,25 @@
       }
     }
 
-    function resetPhysics() {
+    function resetMotion() {
       velX = 0;
       velY = 0;
       groundContacts = 0;
       sliding = false;
     }
 
-    function setPivot(modeStr) {
-      pivotMode = modeStr;
-      applyTransform(main);
-      if (clone) applyTransform(clone);
-      if (anchorX != null && anchorY != null) {
-        renderAt(main, anchorX, anchorY);
-        if (clone && wrapActive) {
-          const cloneCenter = anchorX - projectedOffset;
-          renderAt(clone, cloneCenter, anchorY);
-        }
+    function removeClone() {
+      if (clone) {
+        try {
+          clone.remove();
+        } catch (e) {}
+        clone = null;
       }
+      wrapActive = false;
+      wrapDirection = 0;
+      projectedOffset = 0;
     }
 
-    function setFacing(newFacing) {
-      if (facing === newFacing) return;
-      facing = newFacing;
-      applyTransform(main);
-      if (clone) applyTransform(clone);
-      if (anchorX != null && anchorY != null) {
-        renderAt(main, anchorX, anchorY);
-        if (clone && wrapActive) {
-          const cloneCenter = anchorX - projectedOffset;
-          renderAt(clone, cloneCenter, anchorY);
-        }
-      }
-    }
-
-    function lockToFloorBottomPivot() {
-      const h = spriteHeight(main);
-      anchorY = floorY(); // bottom pivot at floor
-      const top = anchorY - h;
-      const r = spriteRect(main);
-      const currentTop = r.top;
-      if (Math.abs(currentTop - top) > 1) {
-        renderAt(main, anchorX, anchorY);
-      }
-    }
-
-    // --- CLONE HELPERS (walking wrap) -------------------------------
     function createCloneIfNeeded() {
       if (clone) return;
       clone = document.createElement('img');
@@ -225,73 +183,63 @@
       clone.style.top = '0';
       clone.style.left = '0';
       clone.style.zIndex = String(Z_INDEX);
-      clone.style.willChange = 'transform, left, top';
+      clone.style.willChange = 'transform,left,top';
       clone.src = main.src;
-      applyTransform(clone);
+      applyTransform(clone, mode === 'dangling' || mode === 'airborne');
       document.body.appendChild(clone);
     }
 
-    function removeClone() {
-      if (clone) {
-        try { clone.remove(); } catch (e) {}
-        clone = null;
-      }
-      wrapActive = false;
-      wrapDirection = 0;
-      projectedOffset = 0;
+    function lockToFloor() {
+      const h = spriteHeight(main);
+      anchorY = floorY() - h;
     }
 
-    // --- SITTING STATES ---------------------------------------------
-    function startRandomSit(durationMs) {
+    function startRandomSit(duration) {
       clearTimers();
-      resetPhysics();
-      removeClone();
+      resetMotion();
       mode = 'sit';
       sitMode = 'random';
-      pivotMode = 'bottom';
-      applyTransform(main);
-      lockToFloorBottomPivot();
+      lockToFloor();
       setFacing(1);
+      applyTransform(main, false);
       main.src = sitSrc;
       renderAt(main, anchorX, anchorY);
-      sitTimer = setTimeout(function () {
+      sitTimer = setTimeout(function() {
         sitTimer = null;
         startIdle();
-      }, durationMs);
+      }, duration);
     }
 
     function startPostFallSit() {
       clearTimers();
+      resetMotion();
       mode = 'sit';
       sitMode = 'postFall';
-      pivotMode = 'bottom';
-      applyTransform(main);
-      lockToFloorBottomPivot();
+      lockToFloor();
+      setFacing(1);
+      applyTransform(main, false);
       main.src = sitSrc;
       renderAt(main, anchorX, anchorY);
     }
 
-    // --- IDLE & WALK -------------------------------------------------
     function startIdle() {
       clearTimers();
-      resetPhysics();
+      resetMotion();
       removeClone();
       mode = 'idle';
       sitMode = null;
-      pivotMode = 'bottom';
-      applyTransform(main);
-      lockToFloorBottomPivot();
+      lockToFloor();
       main.src = idleSrc;
       if (facing === -1) {
-        flipBackTimer = setTimeout(function () {
+        flipBackTimer = setTimeout(function() {
           setFacing(1);
           flipBackTimer = null;
-          lockToFloorBottomPivot();
+          lockToFloor();
           renderAt(main, anchorX, anchorY);
         }, 1000);
       }
       const wait = randBetween(IDLE_MIN, IDLE_MAX);
-      chooseTimer = setTimeout(function () {
+      chooseTimer = setTimeout(function() {
         chooseTimer = null;
         if (chance(0.1)) {
           const dur = randBetween(SIT_MIN, SIT_MAX);
@@ -305,14 +253,10 @@
 
     function startWalk() {
       clearTimers();
-      resetPhysics();
-      removeClone();
+      resetMotion();
       mode = 'walk';
       sitMode = null;
-      pivotMode = 'bottom';
-      applyTransform(main);
-      lockToFloorBottomPivot();
-      main.src = walkSrc;
+      lockToFloor();
       const w = spriteWidth(main);
       const minC = w / 2;
       const maxC = Math.max(minC, window.innerWidth - w / 2);
@@ -322,9 +266,11 @@
         t = randBetween(minC, maxC);
         attempts++;
       }
-      targetX = clamp(t, minC, maxC);
+      t = clamp(t, minC, maxC);
+      targetX = t;
       direction = targetX > anchorX ? 1 : -1;
       setFacing(direction === 1 ? 1 : -1);
+      main.src = walkSrc;
       renderAt(main, anchorX, anchorY);
     }
 
@@ -333,10 +279,13 @@
       startIdle();
     }
 
+    function startSittingFromIdleChoice() {
+      const dur = randBetween(SIT_MIN, SIT_MAX);
+      startRandomSit(dur);
+    }
+
     function startInitialState() {
-      pivotMode = 'bottom';
-      applyTransform(main);
-      lockToFloorBottomPivot();
+      lockToFloor();
       if (chance(0.2)) {
         const dur = randBetween(SIT_MIN, SIT_MAX);
         startRandomSit(dur);
@@ -345,20 +294,17 @@
       }
     }
 
-    // --- DANGLING / PICKUP ------------------------------------------
     function startDangling(pointerX, pointerY) {
       clearTimers();
-      resetPhysics();
+      resetMotion();
       removeClone();
       mode = 'dangling';
       sitMode = null;
       dragging = true;
-      pivotMode = 'top';
-      applyTransform(main);
       anchorX = pointerX;
       anchorY = pointerY;
       facing = 1;
-      applyTransform(main);
+      applyTransform(main, true);
       main.src = dangleSrc;
       renderAt(main, anchorX, anchorY);
     }
@@ -367,143 +313,111 @@
       dragging = false;
       dragPointerId = null;
       const speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
-      resetPhysics();
-      pivotMode = 'top';
-      applyTransform(main);
       if (speed < DROP_SPEED_THRESHOLD) {
         velX = 0;
         velY = 0;
+        mode = 'airborne';
+        groundContacts = 0;
+        sliding = false;
       } else {
         velX = dragVX;
         velY = dragVY;
+        mode = 'airborne';
+        groundContacts = 0;
+        sliding = false;
       }
-      mode = 'airborne';
-      groundContacts = 0;
-      sliding = false;
-      main.src = dangleSrc;
     }
 
-    // --- AIRBORNE PHYSICS (freefall + bounce) -----------------------
     function updateAirborne(dt) {
       const w = spriteWidth(main);
       const h = spriteHeight(main);
-      const W = window.innerWidth;
-      const F = floorY();
-
-      // gravity
       velY += GRAVITY * dt;
-
-      // move in air
       anchorX += velX * dt;
       anchorY += velY * dt;
-
-      // horizontal wrap while airborne
-      if (anchorX > W + w / 2) anchorX -= (W + w);
-      if (anchorX < -w / 2) anchorX += (W + w);
-
-      // collision with floor
+      const W = window.innerWidth;
+      const left = anchorX - w / 2;
+      const right = anchorX + w / 2;
+      if (right < 0) {
+        anchorX += W + w;
+      } else if (left > W) {
+        anchorX -= W + w;
+      }
+      const fy = floorY();
       const bottom = anchorY + h;
-      if (bottom >= F) {
-        anchorY = F - h;
-
-        if (groundContacts === 0) {
-          // first collision -> bounce
+      if (bottom >= fy) {
+        anchorY = fy - h;
+        if (groundContacts === 0 && velY > 0) {
           velY = -Math.abs(velY) * 0.5;
           groundContacts = 1;
+          startPostFallSit();
         } else {
-          // second collision or more -> end airborne, go to sit w/slide
           velY = 0;
           groundContacts = 2;
-          startPostFallSit();
-          return;
+          if (!sliding && Math.abs(velX) > 0) {
+            sliding = true;
+          }
         }
       }
-
-      // airborne uses dangle animation with top pivot
-      pivotMode = 'top';
-      applyTransform(main);
-      main.src = dangleSrc;
+      if (mode === 'airborne') {
+        applyTransform(main, true);
+        main.src = dangleSrc;
+      } else if (mode === 'sit' && sitMode === 'postFall') {
+        applyTransform(main, false);
+        main.src = sitSrc;
+      }
+      if (mode === 'sit' && sitMode === 'postFall') {
+        if (Math.abs(velX) > 0) {
+          const sign = velX > 0 ? 1 : -1;
+          velX -= sign * FRICTION * dt;
+          if (velX * sign < 0) velX = 0;
+          anchorX += velX * dt;
+          const L = anchorX - w / 2;
+          const R = anchorX + w / 2;
+          if (R < 0) {
+            anchorX += W + w;
+          } else if (L > W) {
+            anchorX -= W + w;
+          }
+        }
+        if (velX === 0 && velY === 0) {
+          startIdle();
+        }
+      } else if (mode === 'airborne' && groundContacts >= 2) {
+        startPostFallSit();
+      }
       renderAt(main, anchorX, anchorY);
     }
 
-    // --- POST-FALL SITTING + SLIDE ----------------------------------
-    function updateSitPostFall(dt) {
-      const w = spriteWidth(main);
-      const h = spriteHeight(main);
-      const W = window.innerWidth;
-      const F = floorY();
-
-      // lock Y to floor with bottom pivot
-      pivotMode = 'bottom';
-      applyTransform(main);
-      anchorY = F;
-      main.src = sitSrc;
-
-      // horizontal slide with friction
-      if (Math.abs(velX) > 0) {
-        const sign = velX > 0 ? 1 : -1;
-        velX -= sign * FRICTION * dt;
-        if (velX * sign < 0) velX = 0;
-        anchorX += velX * dt;
-
-        // wrap while sliding
-        if (anchorX > W + w / 2) anchorX -= (W + w);
-        if (anchorX < -w / 2) anchorX += (W + w);
-      }
-
-      renderAt(main, anchorX, anchorY);
-
-      // when completely stationary, return to idle
-      if (velX === 0 && velY === 0) {
-        startIdle();
-      }
-    }
-
-    // --- WALKING UPDATE + WRAP (Balloon Fight style) ----------------
     function updateWalk(dt) {
       const w = spriteWidth(main);
       const h = spriteHeight(main);
-      const W = window.innerWidth;
-
-      pivotMode = 'bottom';
-      applyTransform(main);
-      anchorY = floorY();
-      main.src = walkSrc;
-
-      const speed = w; // one width per second
+      lockToFloor();
+      const speed = w;
       anchorX += direction * speed * dt;
-
+      const W = window.innerWidth;
       const left = anchorX - w / 2;
       const right = anchorX + w / 2;
-
-      // Start wrap if leaving the screen
       if (!wrapActive && (left < 0 || right > W)) {
         wrapActive = true;
         wrapDirection = direction;
         projectedOffset = W * wrapDirection;
         createCloneIfNeeded();
         clone.src = main.src;
-        applyTransform(clone);
+        applyTransform(clone, false);
       }
-
       if (wrapActive && clone) {
         const mainCenter = anchorX;
         const cloneCenter = mainCenter - projectedOffset;
         renderAt(main, mainCenter, anchorY);
         renderAt(clone, cloneCenter, anchorY);
-
         const cloneLeft = cloneCenter - w / 2;
         const cloneRight = cloneCenter + w / 2;
-
-        // When clone fully in frame -> teleport real to clone
         if (cloneLeft >= 0 && cloneRight <= W) {
-          const dx = projectedOffset;
           anchorX = cloneCenter;
+          const dx = projectedOffset;
           if (targetX != null) targetX -= dx;
           removeClone();
-
-          const reached = (direction === 1 && anchorX >= targetX) ||
-                          (direction === -1 && anchorX <= targetX);
+          const reached = (direction === 1 && anchorX >= targetX) || (direction === -1 && anchorX <= targetX);
           if (reached) {
             stopWalkAndIdle(targetX);
           } else {
@@ -513,90 +427,66 @@
         }
         return;
       }
-
-      // No wrap active: clamp to screen edges, end walk when reaching target
-      const minC = w / 2;
-      const maxC = Math.max(minC, W - w / 2);
-      anchorX = clamp(anchorX, minC, maxC);
-
-      const reached = (direction === 1 && anchorX >= targetX) ||
-                      (direction === -1 && anchorX <= targetX);
+      anchorX = clamp(anchorX, w / 2, Math.max(w / 2, window.innerWidth - w / 2));
+      const reached = (direction === 1 && anchorX >= targetX) || (direction === -1 && anchorX <= targetX);
       if (reached) {
         stopWalkAndIdle(targetX);
         removeClone();
         return;
       }
-
       renderAt(main, anchorX, anchorY);
     }
 
-    // --- RAF LOOP ----------------------------------------------------
     function rafTick(ts) {
       if (!document.body.contains(main)) {
         requestAnimationFrame(rafTick);
         return;
       }
-
       if (lastTime == null) lastTime = ts;
       const dt = Math.min(0.05, (ts - lastTime) / 1000);
       lastTime = ts;
 
-      ensureAnchorsInitialized();
+      if (anchorX == null || anchorY == null) {
+        const r = spriteRect(main);
+        anchorX = r.left + r.width / 2;
+        anchorY = r.top;
+      }
 
       if (mode === 'dangling') {
-        // Just follow the cursor with top pivot
-        pivotMode = 'top';
-        applyTransform(main);
-        main.src = dangleSrc;
         renderAt(main, anchorX, anchorY);
         requestAnimationFrame(rafTick);
         return;
       }
 
-      if (mode === 'airborne') {
+      if (mode === 'airborne' || (mode === 'sit' && sitMode === 'postFall')) {
         updateAirborne(dt);
         requestAnimationFrame(rafTick);
         return;
       }
 
-      if (mode === 'sit' && sitMode === 'postFall') {
-        updateSitPostFall(dt);
-        requestAnimationFrame(rafTick);
-        return;
-      }
-
       if (mode === 'walk') {
+        main.src = walkSrc;
+        applyTransform(main, false);
         updateWalk(dt);
-        requestAnimationFrame(rafTick);
-        return;
-      }
-
-      if (mode === 'idle') {
-        pivotMode = 'bottom';
-        applyTransform(main);
-        lockToFloorBottomPivot();
+      } else if (mode === 'idle') {
+        lockToFloor();
         main.src = idleSrc;
+        applyTransform(main, false);
         renderAt(main, anchorX, anchorY);
-        if (clone && !wrapActive) removeClone();
-        requestAnimationFrame(rafTick);
-        return;
+      } else if (mode === 'sit' && sitMode === 'random') {
+        lockToFloor();
+        main.src = sitSrc;
+        applyTransform(main, false);
+        renderAt(main, anchorX, anchorY);
       }
 
-      if (mode === 'sit' && sitMode === 'random') {
-        pivotMode = 'bottom';
-        applyTransform(main);
-        lockToFloorBottomPivot();
-        main.src = sitSrc;
-        renderAt(main, anchorX, anchorY);
-        if (clone && !wrapActive) removeClone();
-        requestAnimationFrame(rafTick);
-        return;
+      if (clone && !wrapActive) {
+        removeClone();
       }
 
       requestAnimationFrame(rafTick);
     }
 
-    // --- POINTER / DRAG HANDLERS ------------------------------------
     function onPointerDown(e) {
       if (dragging) return;
       dragPointerId = e.pointerId;
@@ -623,48 +513,32 @@
       lastDragT = now;
       anchorX = e.clientX;
       anchorY = e.clientY;
-      pivotMode = 'top';
-      applyTransform(main);
+      applyTransform(main, true);
       main.src = dangleSrc;
       renderAt(main, anchorX, anchorY);
     }
 
-    function finishDrag() {
-      if (!dragging) return;
-      dragging = false;
-      const id = dragPointerId;
-      dragPointerId = null;
-      if (id != null) {
-        try { main.releasePointerCapture(id); } catch (e) {}
-      }
-      endDangling();
-    }
-
     function onPointerUp(e) {
       if (!dragging || e.pointerId !== dragPointerId) return;
-      finishDrag();
+      main.releasePointerCapture(dragPointerId);
+      endDangling();
     }
 
     function onPointerCancel(e) {
       if (!dragging || e.pointerId !== dragPointerId) return;
-      finishDrag();
+      main.releasePointerCapture(dragPointerId);
+      endDangling();
     }
 
-    // --- INIT AFTER PRELOAD -----------------------------------------
     function initAfterPreload() {
       document.body.appendChild(main);
       main.src = idleSrc;
-
       applyScaleForScreen();
-
-      // Random starting x on screen, bottom pivot at floor
-      pivotMode = 'bottom';
-      applyTransform(main);
       const w = spriteWidth(main);
       const minC = w / 2;
       const maxC = Math.max(minC, window.innerWidth - w / 2);
       anchorX = randBetween(minC, maxC);
-      anchorY = floorY();
+      lockToFloor();
       renderAt(main, anchorX, anchorY);
 
       main.addEventListener('pointerdown', onPointerDown);
@@ -672,37 +546,33 @@
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onPointerCancel);
 
-      window.addEventListener('resize', function () {
+      window.addEventListener('resize', function() {
         applyScaleForScreen();
         const w2 = spriteWidth(main);
         const minC2 = w2 / 2;
         const maxC2 = Math.max(minC2, window.innerWidth - w2 / 2);
         if (anchorX != null) anchorX = clamp(anchorX, minC2, maxC2);
-        if (mode !== 'dangling' && mode !== 'airborne') {
-          anchorY = floorY();
-        }
+        if (mode !== 'dangling' && mode !== 'airborne') lockToFloor();
         renderAt(main, anchorX, anchorY);
       });
 
       startInitialState();
-
-      setTimeout(function () {
+      setTimeout(function() {
         requestAnimationFrame(rafTick);
       }, 50);
     }
 
-    // Wait for all images to preload
     let remaining = preloadImgs.length;
-    preloadImgs.forEach(function (img) {
+    preloadImgs.forEach(function(img) {
       if (img.complete && img.naturalWidth) {
         remaining--;
         if (remaining === 0) initAfterPreload();
       } else {
-        img.addEventListener('load', function () {
+        img.addEventListener('load', function() {
           remaining--;
           if (remaining === 0) initAfterPreload();
         }, { once: true });
-        img.addEventListener('error', function () {
+        img.addEventListener('error', function() {
           remaining--;
           if (remaining === 0) initAfterPreload();
         }, { once: true });
