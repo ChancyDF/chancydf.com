@@ -280,6 +280,13 @@
       }
 
       // ---------- DRAG / DANGLE / THROW ----------
+      function getClientXY(e) {
+        if (e.touches && e.touches.length) {
+          return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+      }
+
       function beginDrag(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -306,8 +313,7 @@
         const h = rect.height || spriteHeight(main);
 
         // Position under cursor (dangling by sweater: top-center at cursor)
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+        const { x: mouseX, y: mouseY } = getClientXY(e);
 
         const left = mouseX - w / 2;
         const top = mouseY;
@@ -335,8 +341,7 @@
         const w = spriteWidth(main);
         const h = spriteHeight(main);
 
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+        const { x: mouseX, y: mouseY } = getClientXY(e);
 
         const left = mouseX - w / 2;
         const top = mouseY;
@@ -366,6 +371,8 @@
         state.dragging = false;
         window.removeEventListener("mousemove", onDragMove);
         window.removeEventListener("mouseup", onDragEnd);
+        window.removeEventListener("touchmove", onDragMove);
+        window.removeEventListener("touchend", onDragEnd);
 
         document.body.style.userSelect = "";
         document.body.style.webkitUserSelect = "";
@@ -392,9 +399,13 @@
       main.addEventListener("mousedown", function (e) {
         // only start drag if left-click
         if (e.button !== 0) return;
-        // don't drag if GIF not ready yet
         beginDrag(e);
       });
+      main.addEventListener("touchstart", function (e) {
+        beginDrag(e);
+        window.addEventListener("touchmove", onDragMove, { passive: false });
+        window.addEventListener("touchend", onDragEnd, { passive: false });
+      }, { passive: false });
 
       // ---------- PHYSICS UPDATE ----------
       function updatePhysics(dt) {
