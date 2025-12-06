@@ -24,9 +24,11 @@
     main.style.position = 'fixed';
     main.style.bottom = '0';
     main.style.left = '0';
+    main.style.touchAction = 'none';
+    main.style.userSelect = 'none';
+    main.style.pointerEvents = 'auto';
     main.style.transformOrigin = 'center bottom';
     main.style.transform = 'scale(' + BASE_SCALE + ') scaleX(1)';
-    main.style.pointerEvents = 'none';
     main.style.willChange = 'left,bottom';
     main.style.zIndex = String(Z_INDEX);
 
@@ -129,11 +131,14 @@
       clone.style.bottom = '0';
       clone.style.left = '0';
       clone.style.transformOrigin = main.style.transformOrigin;
-      clone.style.pointerEvents = 'none';
+      clone.style.touchAction = 'none';
+      clone.style.userSelect = 'none';
+      clone.style.pointerEvents = 'auto';
       clone.style.willChange = 'left,bottom';
       clone.style.zIndex = String(Z_INDEX);
       clone.src = main.src;
       applyScaleAndFacing(clone);
+      clone.addEventListener('pointerdown', onPointerDown);
       document.body.appendChild(clone);
     }
 
@@ -302,7 +307,6 @@
       dragging = false;
       dragPointerId = null;
       var speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
-      var w = currentSpriteWidth(main);
       var h = currentSpriteHeight(main);
       var bottom = window.innerHeight - pointerY - h;
       if (!isFinite(bottom)) bottom = 0;
