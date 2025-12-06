@@ -1,477 +1,510 @@
-<!-- tinychancy-loader.js -->
-<script>
-/*
-  TinyChancy loader — portal wrap + velocity cap + top-center dangling
-  - Seamless portal wrap (teleport after fully off-screen)
-  - Velocity cap: 1000 px/s on both axes
-  - Dangling aligns cursor to sprite top-center (optional fine-tune offset)
-  - Pointer Events + ShadowRoot isolation
-*/
-
+// /tinychancy/tcloader.js
 (function () {
-  // ---------------- CONFIG ----------------
+  if (window.__tinychancyRunning) return;
+  window.__tinychancyRunning = true;
+
+  // CONFIG
+  const BASE_PATH = '/tinychancy';
   const BASE_SCALE = 0.36;
-  const IDLE_MIN = 5000;
-  const IDLE_MAX = 10000;
-  const SIT_MIN = 10 * 1000;
-  const SIT_MAX = 60 * 1000;
-  const GRAVITY = -300;          // px/s^2
-  const Z_INDEX = 2147483647;
-  const NO_MOMENTUM_SPEED = 40;
-  const FRICTION = 400;
-  const EPS_V = 5;
-  const V_MAX = 1000;            // px/s hard cap
-  const HANG_OFFSET_Y = 0;       // px fine-tune for art; positive pulls sprite DOWN from cursor
-
-  const idleSrc   = "/tinychancy/tinychancy_idle.gif";
-  const walkSrc   = "/tinychancy/tinychancy_walk.gif";
-  const sitSrc    = "/tinychancy/tinychancy_sit.gif";
-  const dangleSrc = "/tinychancy/tinychancy_dangle.gif";
-
-  const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-  const randBetween = (a, b) => Math.random() * (b - a) + a;
-  const chance = (p) => Math.random() < p;
-
-  function loadTinyChancy() {
-    // Preload
-    const sources = [idleSrc, walkSrc, sitSrc, dangleSrc];
-    const preloadImgs = sources.map((src) => { const i = new Image(); i.src = src; return i; });
-    let remaining = preloadImgs.length;
-    const done = () => (--remaining === 0 && init());
-    preloadImgs.forEach((img) => {
-      if (img.complete && img.naturalWidth) done();
-      else { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); }
-    });
-    if (remaining === 0) init();
-
-    function init() {
-      // Shadow host isolation
-      const host = document.createElement("div");
-      host.style.position = "fixed";
-      host.style.inset = "0 auto auto 0";
-      host.style.width = "0";
-      host.style.height = "0";
-      host.style.zIndex = String(Z_INDEX);
-      document.documentElement.appendChild(host);
-
-      const shadow = host.attachShadow({ mode: "open" });
-      const style = document.createElement("style");
-      style.textContent = `
-        :host { all: initial; }
-        #tinychancy, #tinychancy_clone {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          transform-origin: center bottom;
-          will-change: left, bottom;
-          z-index: ${Z_INDEX};
-          image-rendering: pixelated;
-          user-select: none;
-          -webkit-user-drag: none;
-          touch-action: none;
-        }
-        #tinychancy { pointer-events: auto; }
-        #tinychancy_clone { pointer-events: none; } /* never steals input */
-      `;
-      shadow.appendChild(style);
-
-      const main = document.createElement("img");
-      main.id = "tinychancy";
-      main.alt = "TinyChancy";
-      main.src = idleSrc;
-      main.draggable = false;
-      shadow.appendChild(main);
-
-      const clone = document.createElement("img");
-      clone.id = "tinychancy_clone";
-      clone.style.display = "none";
-      clone.draggable = false;
-      shadow.appendChild(clone);
-
-      // ----- STATE -----
-      const state = {
-        x: 0, y: 0, vx: 0, vy: 0,
-        facing: 1, scale: BASE_SCALE, mode: "idle",
-        idleTimer: null, sitTimer: null, flipBackTimer: null,
-        maxHeight: 0, bounceCount: 0, lastTime: null, walkTargetX: null,
-        dragging: false, dragLastX: 0, dragLastY: 0, dragLastTime: 0, activePointerId: null
-      };
-
-      // ---------- HELPERS ----------
-      const sizeFrom = (el) => {
-        const r = el.getBoundingClientRect();
-        const w = r.width || el.naturalWidth || 50;
-        const h = r.height || el.naturalHeight || 50;
-        return { w, h };
-      };
-      const spriteWidth  = (el = main) => sizeFrom(el).w;
-      const spriteHeight = (el = main) => sizeFrom(el).h;
-
-      const applyScaleAndFacing = () => {
-        const tf = `scale(${state.scale}) scaleX(${state.facing})`;
-        main.style.transform = tf;
-        clone.style.transform = tf;
-      };
-
-      const adjustScaleForScreen = () => {
-        const w = window.innerWidth || 0;
-        if (w < 400) state.scale = BASE_SCALE * 0.6;
-        else if (w < 700) state.scale = BASE_SCALE * 0.8;
-        else state.scale = BASE_SCALE;
-        applyScaleAndFacing();
-      };
-
-      const setFacing = (dir) => {
-        if (state.facing === dir) return;
-        state.facing = dir;
-        applyScaleAndFacing();
-      };
-
-      // Choose world X nearest to current when pointer crosses edges (no jumps)
-      const nearestWorldX = (mouseX) => {
-        const W = window.innerWidth || 1;
-        const k = Math.round((state.x - mouseX) / W);
-        return mouseX + k * W;
-      };
-
-      // Portal teleport once fully off-screen
-      const portalWrapIfNeeded = () => {
-        const W = window.innerWidth || 1;
-        const w = spriteWidth(main);
-        const screenX = ((state.x % W) + W) % W;
-        const left = screenX - w / 2;
-        const right = left + w;
-        if (right < 0) { state.x += W; }
-        else if (left > W) { state.x -= W; }
-      };
-
-      // Render with clone for straddling
-      function renderSprites() {
-        const W = window.innerWidth || 1;
-        const w = spriteWidth(main);
-        const h = spriteHeight(main);
-
-        let screenX = state.x % W;
-        if (screenX < 0) screenX += W;
-
-        const left = screenX - w / 2;
-        const bottom = state.y;
-
-        main.style.left = left + "px";
-        main.style.bottom = bottom + "px";
-
-        // Clone on opposite edge when straddling
-        clone.style.display = "none";
-        const right = left + w;
-        if (left < 0) {
-          clone.src = main.src;
-          clone.style.bottom = bottom + "px";
-          clone.style.left = (left + W) + "px";
-          clone.style.display = "block";
-        } else if (right > W) {
-          clone.src = main.src;
-          clone.style.bottom = bottom + "px";
-          clone.style.left = (left - W) + "px";
-          clone.style.display = "block";
-        }
-      }
-
-      const clearIdle = () => { if (state.idleTimer) { clearTimeout(state.idleTimer); state.idleTimer = null; } };
-      const clearSit  = () => { if (state.sitTimer)  { clearTimeout(state.sitTimer);  state.sitTimer  = null; } };
-      const clearFlip = () => { if (state.flipBackTimer) { clearTimeout(state.flipBackTimer); state.flipBackTimer = null; } };
-      const clearAll  = () => { clearIdle(); clearSit(); clearFlip(); };
-
-      // ---------- BEHAVIOR ----------
-      const scheduleNextFromIdle = () => {
-        clearIdle();
-        const wait = randBetween(IDLE_MIN, IDLE_MAX);
-        state.idleTimer = setTimeout(() => {
-          state.idleTimer = null;
-          if (state.mode !== "idle") return;
-          if (chance(1/10)) startSitting(randBetween(SIT_MIN, SIT_MAX));
-          else startWalking();
-        }, wait);
-      };
-
-      function startIdle() {
-        clearAll();
-        state.mode = "idle";
-        state.vx = state.vy = 0; state.y = 0;
-        state.bounceCount = 0; state.maxHeight = 0;
-        main.src = idleSrc;
-        main.style.transformOrigin = "center bottom";
-        if (state.facing === -1) {
-          state.flipBackTimer = setTimeout(() => { setFacing(1); state.flipBackTimer = null; }, 1000);
-        }
-        scheduleNextFromIdle();
-      }
-
-      function startSitting(ms) {
-        clearAll();
-        state.mode = "sitting";
-        state.vx = state.vy = 0; state.y = 0;
-        state.bounceCount = 0; state.maxHeight = 0;
-        setFacing(1);
-        main.src = sitSrc;
-        main.style.transformOrigin = "center bottom";
-        state.sitTimer = setTimeout(() => { state.sitTimer = null; startIdle(); }, ms);
-      }
-
-      function startWalking() {
-        clearAll();
-        state.mode = "walking";
-        state.y = 0; state.vy = 0;
-        state.bounceCount = 0; state.maxHeight = 0;
-        main.src = walkSrc;
-        main.style.transformOrigin = "center bottom";
-
-        const W = window.innerWidth || 1;
-        const w = spriteWidth(main);
-        const minDist = 100;
-        const maxDist = Math.max(minDist, W - w);
-        const dist = randBetween(minDist, maxDist);
-        const dir = Math.random() < 0.5 ? -1 : 1;
-        state.walkTargetX = state.x + dir * dist;
-        state.vx = 0;
-        setFacing(dir);
-      }
-
-      // ---------- POINTER DRAG / DANGLE / THROW ----------
-      function beginDrag(e) {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        clearAll();
-        state.dragging = true;
-        state.mode = "dangling";
-        state.vx = 0; state.vy = 0;
-        state.bounceCount = 0; state.maxHeight = 0;
-        state.activePointerId = e.pointerId;
-
-        main.src = dangleSrc;
-        main.style.transformOrigin = "center top"; // crucial for top-center grip
-        try { main.setPointerCapture(e.pointerId); } catch (_) {}
-
-        const root = document.documentElement;
-        root.style.cursor = "grabbing";
-        root.style.userSelect = "none";
-        root.style.webkitUserSelect = "none";
-
-        const now = performance.now();
-        state.dragLastTime = now;
-
-        const { h } = sizeFrom(main);
-
-        // Align world position so top-center == cursor (with optional offset)
-        const mouseX = e.clientX;
-        const mouseY = e.clientY + HANG_OFFSET_Y;
-        const bottom = window.innerHeight - mouseY - h;
-        state.x = nearestWorldX(mouseX);
-        state.y = Math.max(0, bottom);
-
-        state.dragLastX = state.x;
-        state.dragLastY = state.y;
-
-        renderSprites();
-      }
-
-      function onDragMove(e) {
-        if (!state.dragging || e.pointerId !== state.activePointerId) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        const now = performance.now();
-        const dt = Math.max((now - state.dragLastTime) / 1000, 0.001);
-
-        const { h } = sizeFrom(main);
-
-        const mouseX = e.clientX;
-        const mouseY = e.clientY + HANG_OFFSET_Y;
-
-        const bottom = window.innerHeight - mouseY - h;
-
-        const newX = nearestWorldX(mouseX);
-        const newY = Math.max(0, bottom);
-
-        // Component-wise capped velocity
-        let vx = (newX - state.dragLastX) / dt;
-        let vy = (newY - state.dragLastY) / dt;
-        vx = clamp(vx, -V_MAX, V_MAX);
-        vy = clamp(vy, -V_MAX, V_MAX);
-
-        state.vx = vx;
-        state.vy = vy;
-
-        state.x = newX;
-        state.y = newY;
-
-        state.dragLastX = newX;
-        state.dragLastY = newY;
-        state.dragLastTime = now;
-
-        renderSprites();
-      }
-
-      function onDragEnd(e) {
-        if (!state.dragging || e.pointerId !== state.activePointerId) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        state.dragging = false;
-        state.activePointerId = null;
-
-        const root = document.documentElement;
-        root.style.cursor = "";
-        root.style.userSelect = "";
-        root.style.webkitUserSelect = "";
-
-        main.style.transformOrigin = "center bottom";
-
-        const speed = Math.hypot(state.vx, state.vy);
-        state.maxHeight = state.y;
-        state.bounceCount = 0;
-
-        if (speed < NO_MOMENTUM_SPEED) state.vx = 0;
-
-        main.src = dangleSrc;
-        state.mode = "airborne";
-      }
-
-      main.addEventListener("pointerdown", beginDrag);
-      window.addEventListener("pointermove", onDragMove, { passive: false });
-      window.addEventListener("pointerup", onDragEnd, { passive: false });
-      window.addEventListener("pointercancel", onDragEnd, { passive: false });
-      window.addEventListener("lostpointercapture", (e) => { if (state.dragging) onDragEnd(e); });
-
-      // ---------- PHYSICS ----------
-      function updatePhysics(dt) {
-        const capVel = () => {
-          state.vx = clamp(state.vx, -V_MAX, V_MAX);
-          state.vy = clamp(state.vy, -V_MAX, V_MAX);
-        };
-
-        switch (state.mode) {
-          case "idle":
-          case "sitting":
-            state.y = 0; state.vx = 0; state.vy = 0;
-            break;
-
-          case "walking": {
-            const speed = spriteWidth(main); // px/s
-            const dir = state.facing;
-            state.x += dir * speed * dt;
-            state.y = 0; state.vy = 0;
-            portalWrapIfNeeded();
-            if (state.walkTargetX != null) {
-              const reached = (dir === 1 && state.x >= state.walkTargetX) || (dir === -1 && state.x <= state.walkTargetX);
-              if (reached) startIdle();
-            }
-            break;
-          }
-
-          case "dangling":
-            state.y = Math.max(0, state.y);
-            portalWrapIfNeeded();
-            break;
-
-          case "airborne": {
-            state.vy += GRAVITY * dt;
-            capVel(); // cap after gravity
-            state.x += state.vx * dt;
-            state.y += state.vy * dt;
-            portalWrapIfNeeded();
-            if (state.y > state.maxHeight) state.maxHeight = state.y;
-
-            if (state.y <= 0 && state.vy < 0) {
-              state.y = 0;
-              if (state.bounceCount === 0) {
-                const hDrop = Math.max(0, state.maxHeight);
-                const bounceH = hDrop / 4;
-                let vyBounce = 0;
-                if (bounceH > 0) vyBounce = Math.sqrt(2 * Math.abs(GRAVITY) * bounceH);
-                state.vy = clamp(vyBounce, -V_MAX, V_MAX);
-                state.bounceCount = 1;
-                main.src = sitSrc;
-                setFacing(1);
-              } else {
-                state.y = 0; state.vy = 0; state.bounceCount = 2;
-                if (Math.abs(state.vx) > EPS_V) {
-                  state.mode = "sliding";
-                  main.src = sitSrc; setFacing(1);
-                } else {
-                  state.vx = 0; state.mode = "sitting";
-                  main.src = sitSrc; setFacing(1);
-                  clearSit();
-                  state.sitTimer = setTimeout(() => { state.sitTimer = null; startIdle(); }, randBetween(2000, 4000));
-                }
-              }
-            }
-            break;
-          }
-
-          case "sliding": {
-            state.y = 0;
-            const sign = Math.sign(state.vx);
-            const decel = FRICTION * dt;
-            const absV = Math.abs(state.vx);
-
-            if (absV <= decel || absV < EPS_V) {
-              state.vx = 0; state.mode = "sitting";
-              main.src = sitSrc; setFacing(1);
-              clearSit();
-              state.sitTimer = setTimeout(() => { state.sitTimer = null; startIdle(); }, randBetween(2000, 4000));
-            } else {
-              state.vx -= decel * sign;
-              capVel();
-              state.x += state.vx * dt;
-              portalWrapIfNeeded();
-            }
-            break;
-          }
-        }
-        if (state.mode !== "dangling" && state.y < 0) state.y = 0;
-      }
-
-      // ---------- RAF ----------
-      function rafLoop(ts) {
-        if (state.lastTime == null) state.lastTime = ts;
-        const dt = Math.min(0.05, (ts - state.lastTime) / 1000);
-        state.lastTime = ts;
-
-        if (!state.dragging) updatePhysics(dt);
-        renderSprites();
-        requestAnimationFrame(rafLoop);
-      }
-
-      // ---------- INIT ----------
-      adjustScaleForScreen();
-
-      const W = window.innerWidth || 1;
-      const initW = spriteWidth(main);
-      const minC = initW / 2;
-      const maxC = Math.max(minC, W - initW / 2);
-      state.x = randBetween(minC, maxC);
-      state.y = 0;
-
-      renderSprites();
-
-      if (chance(1/5)) startSitting(randBetween(SIT_MIN, SIT_MAX));
-      else startIdle();
-
-      setTimeout(() => requestAnimationFrame(rafLoop), 50);
-
-      window.addEventListener("resize", () => { adjustScaleForScreen(); renderSprites(); }, { passive: true });
+  const IDLE_MIN = 5000, IDLE_MAX = 10000;
+  const SIT_MIN = 10 * 1000, SIT_MAX = 60 * 1000;
+  const Z_INDEX = 9999;
+
+  // Physics
+  const G = -300;                 // px/s^2 (down)
+  const SLIDE_FRICTION = 600;     // px/s^2 on floor
+  const MOMENTUM_THRESH = 120;    // px/s release speed to consider "momentum" (tune)
+  const MAX_DT = 0.05;            // s clamp
+  const PICK_OFFSET_Y = 6;        // px visual tweak while dangling
+
+  const REDUCED_MOTION = typeof matchMedia === 'function' &&
+    matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Assets
+  const idleSrc = `${BASE_PATH}/tinychancy_idle.gif`;
+  const walkSrc = `${BASE_PATH}/tinychancy_walk.gif`;
+  const sitSrc  = `${BASE_PATH}/tinychancy_sit.gif`;
+  const dangleSrc = `${BASE_PATH}/tinychancy_dangle.gif`;
+
+  // Util
+  const clamp = (v,a,b)=>Math.min(Math.max(v,a),b);
+  const randBetween=(a,b)=>Math.random()*(b-a)+a;
+  const chance=(p)=>Math.random()<p;
+  const sign=(n)=> (n<0?-1:n>0?1:0);
+
+  // DOM
+  const main = document.createElement('img');
+  main.id = 'tinychancy';
+  main.alt = '';
+  main.setAttribute('aria-hidden','true');
+  Object.assign(main.style, {
+    position:'fixed', bottom:'0', left:'0',
+    transformOrigin:'center bottom',
+    transform:`scale(${BASE_SCALE}) scaleX(1) translateZ(0)`,
+    willChange:'transform, left, bottom',
+    zIndex:String(Z_INDEX),
+    // Allow picking the character
+    pointerEvents:'auto',
+    userSelect:'none', // prevent selecting the image itself
+  });
+
+  let clone = null;
+  let overlay = null; // drag shield
+
+  // State
+  let currentScale = BASE_SCALE;
+  let centerX = null;           // px, page coords
+  let y = 0;                    // px from floor (bottom)
+  let vx = 0, vy = 0;           // px/s
+  let facing = 1;
+  let moving = false, direction = 0;
+  let targetX = null;
+  let lastTime = null, rafId = null;
+
+  // Timers
+  let chooseTimer=null, flipBackTimer=null, sitTimer=null;
+
+  // Modes
+  let sitting=false, dragging=false, airborne=false, sliding=false;
+  let wrapActive=false, wrapDirection=0, projectedOffset=0;
+
+  // Bounce bookkeeping (one bounce max per airborne episode)
+  let bounced=false, maxYThisAir=0;
+
+  // Momentum sampler during drag
+  const samples = []; // {t, x, y}
+  const SAMPLE_WINDOW_MS = 80;
+
+  // Preload
+  const preloadList = [idleSrc,walkSrc,sitSrc,dangleSrc].map(src=>{const i=new Image(); i.src=src; return i;});
+
+  // Helpers
+  function currentSpriteSize(elRef = main) {
+    const r = elRef.getBoundingClientRect();
+    return {
+      w: (r && r.width) || preloadList[0].width || 50,
+      h: (r && r.height) || preloadList[0].height || 50,
+    };
+  }
+  function renderFromCenter(elRef, cx) {
+    const { w } = currentSpriteSize(elRef);
+    elRef.style.left = (cx - w/2) + 'px';
+  }
+  function renderBottom(elRef, bottomPx) {
+    elRef.style.bottom = bottomPx + 'px';
+  }
+  function applyScaleAndFacing(elRef) {
+    elRef.style.transform = `scale(${currentScale}) scaleX(${facing}) translateZ(0)`;
+  }
+  function setFacing(newFacing) {
+    if (facing === newFacing) return;
+    facing = newFacing;
+    applyScaleAndFacing(main);
+    if (clone) applyScaleAndFacing(clone);
+    renderFromCenter(main, centerX);
+    if (clone) renderFromCenter(clone, centerX - projectedOffset);
+  }
+  function adjustScaleForScreen() {
+    const w = window.innerWidth;
+    const prev = currentScale;
+    currentScale = w < 400 ? BASE_SCALE*0.6 : w < 700 ? BASE_SCALE*0.8 : BASE_SCALE;
+    if (currentScale !== prev) {
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
     }
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadTinyChancy, { once: true });
-  } else {
-    loadTinyChancy();
+  function clearAllTimers(){
+    if (chooseTimer){clearTimeout(chooseTimer); chooseTimer=null;}
+    if (flipBackTimer){clearTimeout(flipBackTimer); flipBackTimer=null;}
+    if (sitTimer){clearTimeout(sitTimer); sitTimer=null;}
   }
+
+  // Behaviors
+  function startSitting(durationMs){
+    clearAllTimers();
+    sitting = true; moving=false; direction=0; targetX=null;
+    airborne=false; sliding=false; vx=0; vy=0; y=0;
+    setFacing(1);
+    main.src = sitSrc;
+    sitTimer = setTimeout(()=>{ sitTimer=null; sitting=false; startIdleState(); }, durationMs);
+  }
+  function startIdleState(){
+    clearAllTimers();
+    sitting=false; moving=false; direction=0; targetX=null;
+    airborne=false; sliding=false; vx=0; vy=0; y=0;
+    main.style.transformOrigin = 'center bottom';
+    if (facing===-1) flipBackTimer = setTimeout(()=>{ setFacing(1); flipBackTimer=null; }, 1000);
+    const wait = randBetween(IDLE_MIN, IDLE_MAX);
+    chooseTimer = setTimeout(()=>{
+      chooseTimer=null;
+      if (!REDUCED_MOTION && chance(1/10)) startSitting(randBetween(SIT_MIN,SIT_MAX));
+      else if (!REDUCED_MOTION) prepareAndStartMove();
+      else startIdleState();
+    }, wait);
+    main.src = idleSrc;
+  }
+  function prepareAndStartMove(){
+    const { w } = currentSpriteSize();
+    const minC = w/2, maxC = Math.max(minC, window.innerWidth - w/2);
+    targetX = pickTargetWithin(minC, maxC);
+    direction = targetX > centerX ? 1 : -1;
+    setFacing(direction === 1 ? 1 : -1);
+    moving = true; sliding=false; airborne=false; y=0; vy=0; vx=0;
+    main.src = walkSrc;
+  }
+  function stopAndIdleAt(x){
+    moving=false; direction=0; targetX=null; centerX=x; y=0; vx=0; vy=0;
+    renderFromCenter(main, centerX);
+    main.src = idleSrc;
+    startIdleState();
+  }
+  function pickTargetWithin(minC, maxC){
+    let t=centerX, tries=0;
+    while ((Math.abs(t-centerX)<100 || t<=minC || t>=maxC) && tries<2000){ t=randBetween(minC,maxC); tries++; }
+    return clamp(t, minC, maxC);
+  }
+
+  // Clone for horizontal wrap
+  function createCloneIfNeeded(){
+    if (clone) return;
+    clone = document.createElement('img');
+    clone.id='tinychancy_clone'; clone.alt=''; clone.setAttribute('aria-hidden','true');
+    Object.assign(clone.style, {
+      position:'fixed', bottom:'0', transformOrigin: main.style.transformOrigin,
+      pointerEvents:'none', willChange:'transform, left, bottom',
+      zIndex:String(Z_INDEX),
+    });
+    clone.src = main.src;
+    applyScaleAndFacing(clone);
+    document.body.appendChild(clone);
+  }
+  function removeClone(){
+    if (!clone) return;
+    try{ clone.remove(); }catch(_){}
+    clone=null; wrapActive=false; wrapDirection=0; projectedOffset=0;
+  }
+
+  // Drag overlay
+  function ensureOverlay(){
+    if (overlay) return;
+    overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+      position:'fixed', inset:'0', zIndex:String(Z_INDEX+1),
+      cursor:'grabbing', background:'transparent',
+      // block interactions + selection
+      userSelect:'none',
+    });
+    overlay.onmousedown = (e)=> e.preventDefault();
+    document.body.appendChild(overlay);
+    document.documentElement.style.userSelect = 'none';
+  }
+  function removeOverlay(){
+    if (!overlay) return;
+    try{ overlay.remove(); }catch(_){}
+    overlay=null;
+    document.documentElement.style.userSelect = '';
+  }
+
+  // Mouse <-> world conversions (use center for X; top for dangling Y)
+  function cursorToCenterX(e){
+    const { w } = currentSpriteSize(main);
+    return e.clientX;
+  }
+  function cursorToBottomY_Dangling(e){
+    const { h } = currentSpriteSize(main);
+    // Cursor pinches the top-center; convert to bottom coordinate
+    const viewportBottom = window.innerHeight - e.clientY;
+    return viewportBottom - (h) + PICK_OFFSET_Y;
+  }
+
+  // Drag handlers
+  function onPointerDown(e){
+    if (dragging) return;
+    e.preventDefault();
+    main.setPointerCapture?.(e.pointerId || 1);
+    dragging = true; moving=false; sitting=false; sliding=false; airborne=false;
+    clearAllTimers();
+    bounced=false; maxYThisAir=0;
+    main.src = dangleSrc;
+    main.style.transformOrigin = 'center top';
+    ensureOverlay();
+    samples.length = 0;
+    sampleMouse(e);
+  }
+  function onPointerMove(e){
+    if (!dragging) return;
+    e.preventDefault();
+    sampleMouse(e);
+    centerX = clamp(cursorToCenterX(e), currentSpriteSize().w/2, window.innerWidth - currentSpriteSize().w/2);
+    y = Math.max(0, cursorToBottomY_Dangling(e));
+    renderFromCenter(main, centerX);
+    renderBottom(main, y);
+    if (clone) { // keep clone in sync if exists for any reason
+      clone.src = main.src;
+      renderFromCenter(clone, centerX - projectedOffset);
+      renderBottom(clone, y);
+    }
+  }
+  function onPointerUp(e){
+    if (!dragging) return;
+    e.preventDefault();
+    dragging = false;
+    removeOverlay();
+    main.style.transformOrigin = 'center bottom';
+    // Compute release momentum
+    const { vx: rvx, vy: rvy } = computeReleaseVelocity();
+    vx = rvx; vy = rvy;
+    // If below threshold, drop straight down
+    const speed = Math.hypot(vx, vy);
+    if (speed < MOMENTUM_THRESH) { vx = 0; vy = 0; }
+    // Enter airborne if not on floor
+    airborne = (y > 0) || vy !== 0;
+    sliding = false;
+    bounced = false;
+    maxYThisAir = y; // starting height
+    // Keep dangle sprite while falling/flying until first floor contact
+    main.src = dangleSrc;
+  }
+
+  function sampleMouse(e){
+    const now = performance.now();
+    samples.push({ t: now, x: e.clientX, y: e.clientY });
+    // prune
+    while (samples.length && now - samples[0].t > SAMPLE_WINDOW_MS) samples.shift();
+  }
+  function computeReleaseVelocity(){
+    if (samples.length < 2) return { vx: 0, vy: 0 };
+    const a = samples[0], b = samples[samples.length-1];
+    const dt = (b.t - a.t) / 1000;
+    if (dt <= 0) return { vx: 0, vy: 0 };
+    // Convert screen deltas to our world: +y up (bottom grows up), mouse y increases down
+    const dx = b.x - a.x;
+    const dy_screen = b.y - a.y;
+    const vy_world = -dy_screen / dt;
+    return { vx: dx/dt, vy: vy_world };
+  }
+
+  // RAF
+  function rafTick(ts){
+    if (lastTime === null) lastTime = ts;
+    const dt = Math.min(MAX_DT, (ts - lastTime) / 1000);
+    lastTime = ts;
+
+    const { w } = currentSpriteSize(main);
+    const minCenter = w/2, maxCenter = Math.max(minCenter, window.innerWidth - w/2);
+
+    if (centerX === null || !isFinite(centerX)) centerX = randBetween(minCenter, maxCenter);
+
+    // Dragging: render and loop
+    if (dragging){
+      requestAnimationFrame(rafTick);
+      return;
+    }
+
+    // Reduce motion: lock to idle on floor
+    if (REDUCED_MOTION){
+      y = 0; vx=0; vy=0; airborne=false; sliding=false;
+      renderBottom(main, y); renderFromCenter(main, centerX);
+      if (clone) removeClone();
+      requestAnimationFrame(rafTick); return;
+    }
+
+    // Legacy walking AI only when not airborne/sliding/sitting
+    if (!airborne && !sliding && !sitting){
+      // Movement along X with possible wrap (as before)
+      if (moving && direction !== 0 && targetX !== null){
+        const speed = currentSpriteSize(main).w;
+        let nextCenter = centerX + direction * speed * dt;
+
+        const W = window.innerWidth;
+        const leftEdge = nextCenter - w/2, rightEdge = nextCenter + w/2;
+
+        if (!wrapActive && (leftEdge < 0 || rightEdge > W)){
+          wrapActive = true; wrapDirection = direction; projectedOffset = W * wrapDirection;
+          createCloneIfNeeded(); clone.src = main.src; applyScaleAndFacing(clone);
+        }
+        if (wrapActive && clone){
+          const cloneCenter = nextCenter - projectedOffset;
+          renderFromCenter(main, nextCenter); renderBottom(main, 0);
+          renderFromCenter(clone, cloneCenter); renderBottom(clone, 0);
+          const cloneLeft = cloneCenter - w/2, cloneRight = cloneCenter + w/2;
+          if (cloneLeft >= 0 && cloneRight <= W){
+            const captured = projectedOffset;
+            centerX = cloneCenter;
+            if (targetX !== null) targetX = clamp(targetX - captured, w/2, Math.max(w/2, W - w/2));
+            removeClone();
+          } else {
+            centerX = nextCenter;
+          }
+        } else {
+          const clamped = clamp(nextCenter, minCenter, maxCenter);
+          if (clamped !== nextCenter){
+            centerX = clamped; stopAndIdleAt(centerX);
+            if (clone) removeClone();
+            renderBottom(main, 0);
+            requestAnimationFrame(rafTick); return;
+          }
+          centerX = nextCenter;
+        }
+
+        renderFromCenter(main, centerX); renderBottom(main, 0);
+
+        const reached = (direction===1 && centerX >= targetX) || (direction===-1 && centerX <= targetX);
+        if (reached){ stopAndIdleAt(targetX); if (clone) removeClone(); }
+      } else {
+        renderFromCenter(main, centerX); renderBottom(main, 0);
+        if (main.src.indexOf(idleSrc) === -1) main.src = idleSrc;
+        if (clone) removeClone();
+      }
+      requestAnimationFrame(rafTick); return;
+    }
+
+    // Airborne / sliding physics
+    if (airborne){
+      // Integrate velocities
+      vy += G * dt;
+      let nextX = centerX + vx * dt;
+      let nextY = y + vy * dt; // y grows up, floor at 0
+
+      // Track apex height for bounce
+      if (nextY > maxYThisAir) maxYThisAir = nextY;
+
+      // Horizontal wrap while in air
+      const W = window.innerWidth;
+      const leftEdge = nextX - w/2, rightEdge = nextX + w/2;
+      if (!wrapActive && (leftEdge < 0 || rightEdge > W)){
+        wrapActive = true; wrapDirection = vx>=0 ? 1 : -1; projectedOffset = W * wrapDirection;
+        createCloneIfNeeded(); clone.src = main.src; applyScaleAndFacing(clone);
+      }
+      if (wrapActive && clone){
+        const cloneCenter = nextX - projectedOffset;
+        renderFromCenter(main, nextX); renderBottom(main, nextY);
+        renderFromCenter(clone, cloneCenter); renderBottom(clone, nextY);
+        const cloneLeft = cloneCenter - w/2, cloneRight = cloneCenter + w/2;
+        if (cloneLeft >= 0 && cloneRight <= W){
+          const captured = projectedOffset;
+          centerX = cloneCenter;
+          removeClone();
+          // nextX already applied via centerX
+        } else {
+          centerX = nextX;
+        }
+      } else {
+        // Clamp horizontally if no wrap
+        centerX = clamp(nextX, minCenter, maxCenter);
+      }
+
+      // Ground collision
+      if (nextY <= 0){
+        // First contact: decide bounce
+        if (!bounced){
+          const hBounce = Math.max(0, 0.25 * Math.max(0, maxYThisAir)); // target height
+          const vBounce = Math.sqrt(2 * Math.abs(G) * hBounce);
+          vy = vBounce; // up
+          y = 0;
+          bounced = true;
+          main.src = sitSrc; // sit while bouncing/landing
+        } else {
+          // After first bounce → stick to ground, begin sliding if vx != 0
+          y = 0; vy = 0; airborne = false; sliding = Math.abs(vx) > 1;
+          main.src = sitSrc;
+        }
+      } else {
+        y = nextY;
+      }
+
+      // Face direction while flying
+      if (Math.abs(vx) > 1) setFacing(vx > 0 ? 1 : -1);
+
+      renderFromCenter(main, centerX);
+      renderBottom(main, y);
+    } else if (sliding){
+      // Ground friction until stop
+      const ax = -SLIDE_FRICTION * sign(vx);
+      const nextVx = vx + ax * dt;
+      // Discrete stop when crossing zero
+      if (sign(vx) !== sign(nextVx) || Math.abs(nextVx) < 5){
+        vx = 0; sliding = false; // fully stationary → idle
+        startIdleState();
+      } else {
+        vx = nextVx;
+        centerX = centerX + vx * dt;
+        // Horizontal wrap while sliding
+        const W = window.innerWidth;
+        if (centerX - w/2 < 0){ centerX += W; }
+        else if (centerX + w/2 > W){ centerX -= W; }
+        renderFromCenter(main, centerX); renderBottom(main, 0);
+      }
+    }
+
+    requestAnimationFrame(rafTick);
+  }
+
+  // Init after preload
+  function initAfterPreload(){
+    document.body.appendChild(main);
+    adjustScaleForScreen();
+
+    const { w } = currentSpriteSize(main);
+    const minC = w/2, maxC = Math.max(minC, window.innerWidth - w/2);
+    centerX = randBetween(minC, maxC);
+    y = 0;
+
+    main.src = idleSrc;
+
+    if (!REDUCED_MOTION && chance(1/5)) startSitting(randBetween(SIT_MIN,SIT_MAX));
+    else startIdleState();
+
+    setTimeout(()=>{ if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(rafTick); }, 50);
+
+    // Pointer events
+    main.addEventListener('mousedown', (e)=> onPointerDown(e));
+    main.addEventListener('mousemove', (e)=> onPointerMove(e));
+    window.addEventListener('mousemove', (e)=> dragging && onPointerMove(e));
+    window.addEventListener('mouseup', (e)=> onPointerUp(e));
+    // Touch support → map to mouse semantics
+    main.addEventListener('touchstart', (e)=>{ const t=e.touches[0]; onPointerDown({ ...e, clientX:t.clientX, clientY:t.clientY, preventDefault:()=>e.preventDefault() }); }, { passive:false });
+    window.addEventListener('touchmove', (e)=>{ if(!dragging) return; const t=e.touches[0]; onPointerMove({ ...e, clientX:t.clientX, clientY:t.clientY, preventDefault:()=>e.preventDefault() }); }, { passive:false });
+    window.addEventListener('touchend', (e)=> onPointerUp({ ...e, clientX:0, clientY:0, preventDefault:()=>e.preventDefault() }), { passive:false });
+
+    // Resize
+    window.addEventListener('resize', ()=>{
+      adjustScaleForScreen();
+      const { w } = currentSpriteSize(main);
+      const minC = w/2, maxC = Math.max(minC, window.innerWidth - w/2);
+      centerX = clamp(centerX, minC, maxC);
+      if (targetX !== null) targetX = clamp(targetX, minC, maxC);
+      if (clone && wrapDirection !== 0){
+        projectedOffset = window.innerWidth * wrapDirection;
+        applyScaleAndFacing(clone);
+        renderFromCenter(clone, centerX - projectedOffset);
+        renderBottom(clone, y);
+      }
+      renderFromCenter(main, centerX); renderBottom(main, Math.max(0,y));
+    }, { passive:true });
+
+    // Visibility pause to save CPU (no behavior change)
+    document.addEventListener('visibilitychange', ()=>{ if (document.hidden){ if (rafId) cancelAnimationFrame(rafId); rafId=null; } else if (!rafId){ lastTime=null; rafId=requestAnimationFrame(rafTick); } });
+  }
+
+  // Robust preload
+  let remaining = preloadList.length;
+  const tryInit = ()=>{ if (remaining===0) initAfterPreload(); };
+  preloadList.forEach(img=>{
+    if (img.complete && img.naturalWidth){ remaining--; tryInit(); }
+    else {
+      img.addEventListener('load', ()=>{ remaining--; tryInit(); }, { once:true, passive:true });
+      img.addEventListener('error', ()=>{ remaining--; tryInit(); }, { once:true, passive:true });
+    }
+  });
+  if (remaining===0) tryInit();
+
+  // Public cleanup
+  window.tinychancyDestroy = function(){
+    clearAllTimers();
+    if (rafId) cancelAnimationFrame(rafId); rafId=null;
+    removeClone(); removeOverlay();
+    try{ main.remove(); }catch(_){}
+    window.__tinychancyRunning = false;
+  };
 })();
-</script>
