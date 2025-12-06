@@ -12,10 +12,11 @@
 
   // Physics
   const G = -300;                 // px/s^2 (down)
-  const SLIDE_FRICTION = 600;     // px/s^2 on floor
-  const MOMENTUM_THRESH = 120;    // px/s release speed threshold
+  const SLIDE_FRICTION = 600;     // px/s^2 (ground)
+  const MOMENTUM_THRESH = 120;    // px/s (speed)
+  const MAX_THROW_SPEED = 1400;   // px/s (cap throw; tune)
+  const MAX_RUNAWAY_SPEED = 2000; // px/s (safety cap during sim)
   const MAX_DT = 0.05;            // s clamp
-  const PICK_OFFSET_Y = 6;        // px lift while dangling
 
   // Motion preference
   const REDUCED_MOTION = typeof matchMedia === 'function' &&
@@ -32,7 +33,14 @@
   const randBetween=(a,b)=>Math.random()*(b-a)+a;
   const chance=(p)=>Math.random()<p;
   const sign=(n)=> (n<0?-1:n>0?1:0);
-  const hypot=(x,y)=>Math.hypot(x,y);
+  function capVec(vx, vy, max) {
+    const s = Math.hypot(vx, vy);
+    if (s > max && s > 0) {
+      const k = max / s;
+      return { vx: vx * k, vy: vy * k };
+    }
+    return { vx, vy };
+  }
 
   // === DOM: main sprite ===
   const main = document.createElement('img');
@@ -54,204 +62,20 @@
     cursor:'grab',
   });
 
-  // Debug canvas (highest, non-interactive)
-  let debugCanvas = null, debugCtx = null;
-  let debugEnabled = false;
-  let lastRelease = { vx: 0, vy: 0 };
-  // URL opt-in
-  try {
-    const qp = new URLSearchParams(location.search);
-    if (qp.get('tcdebug') === '1') debugEnabled = true;
-  } catch (_) {}
+  // Debug canvas (hidden by default)
+  const dbg = document.createElement('canvas');
+  Object.assign(dbg.style, {
+    position:'fixed', inset:'0', zIndex:String(Z_INDEX+1),
+    pointerEvents:'none',
+    display:'none',
+  });
+  document.body.appendChild(dbg);
+  const debug = {
+    enabled: false,
+    lastRelease: { vx: 0, vy: 0, speed: 0 },
+    seq: [],
+  };
 
-  function ensureDebugCanvas() {
-    if (debugCanvas) return;
-    debugCanvas = document.createElement('canvas');
-    debugCanvas.width = window.innerWidth;
-    debugCanvas.height = window.innerHeight;
-    Object.assign(debugCanvas.style, {
-      position: 'fixed',
-      inset: '0',
-      zIndex: String(Z_INDEX + 2),
-      pointerEvents: 'none',
-    });
-    document.body.appendChild(debugCanvas);
-    debugCtx = debugCanvas.getContext('2d');
-  }
-  function resizeDebugCanvas() {
-    if (!debugCanvas) return;
-    debugCanvas.width = window.innerWidth;
-    debugCanvas.height = window.innerHeight;
-  }
-
-  function drawCircle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke(); }
-  function drawCross(ctx, x, y, s) {
-    ctx.beginPath(); ctx.moveTo(x-s,y); ctx.lineTo(x+s,y); ctx.moveTo(x,y-s); ctx.lineTo(x,y+s); ctx.stroke();
-  }
-
-  // Draw modular wrap helper: render X modulo viewport width to keep arcs visible
-  function drawWrappedPolyline(ctx, points) {
-    const W = window.innerWidth;
-    if (points.length < 2) return;
-    let prev = points[0];
-    for (let i = 1; i < points.length; i++) {
-      const cur = points[i];
-      const dx = cur.x - prev.x;
-      // segment may cross boundary; draw three images (-W, 0, +W)
-      const candidates = [-W, 0, W];
-      candidates.forEach(shift => {
-        ctx.beginPath();
-        ctx.moveTo(prev.x + shift, prev.y);
-        ctx.lineTo(cur.x + shift, cur.y);
-        ctx.stroke();
-      });
-      prev = cur;
-    }
-  }
-
-  // === Debug prediction ===
-  function predictTrajectory(cx, bottomY, vx0, vy0) {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const { w: spriteW, h: spriteH } = currentSpriteSize(main);
-
-    // Time to first ground contact: y(t)=0 => bottomY + vy t + 1/2 g t^2 = 0
-    const a = 0.5 * G;
-    const b = vy0;
-    const c = bottomY;
-    let t_land = 0;
-    const disc = b*b - 4*a*c;
-    if (disc < 0) {
-      t_land = 0; // shouldn't happen
-    } else {
-      const r1 = (-b + Math.sqrt(disc)) / (2*a);
-      const r2 = (-b - Math.sqrt(disc)) / (2*a);
-      t_land = Math.max(r1, r2, 0);
-    }
-
-    // Apex height (world bottom coordinates)
-    const y_apex = vy0 > 0 ? bottomY + (vy0*vy0) / (2 * Math.abs(G)) : bottomY;
-    const h_drop = Math.max(0, y_apex); // distance to ground from apex
-    const h_bounce = 0.25 * h_drop;
-    const vy_bounce = Math.sqrt(2 * Math.abs(G) * h_bounce);
-    const t_bounce = (vy_bounce * 2) / Math.abs(G);
-
-    // Horizontal motion during arcs
-    const x_land = cx + vx0 * t_land;
-    const x_bounce_end = x_land + vx0 * t_bounce;
-
-    // Slide distance
-    const d_slide = (vx0*vx0) / (2 * SLIDE_FRICTION) * sign(vx0);
-    const x_stop = x_bounce_end + d_slide;
-
-    // Sample points for drawing (screen coords: y_screen = H - (bottomY))
-    const flight = [];
-    const N1 = Math.max(8, Math.ceil(t_land / 0.03));
-    for (let i = 0; i <= N1; i++) {
-      const t = (i / N1) * t_land;
-      const x = cx + vx0 * t;
-      const y = bottomY + vy0 * t + 0.5 * G * t * t;
-      flight.push({ x: ((x % W) + W) % W, y: H - y });
-    }
-
-    const bounce = [];
-    const N2 = Math.max(6, Math.ceil(t_bounce / 0.03));
-    for (let i = 0; i <= N2; i++) {
-      const t = (i / N2) * t_bounce;
-      const x = x_land + vx0 * t;
-      const y = 0 + vy_bounce * t + 0.5 * G * t * t;
-      bounce.push({ x: ((x % W) + W) % W, y: H - y });
-    }
-
-    // Slide segment (on ground, straight)
-    const slide = [
-      { x: ((x_bounce_end % W) + W) % W, y: H - 0 },
-      { x: ((x_stop % W) + W) % W, y: H - 0 }
-    ];
-
-    return {
-      flight, bounce, slide,
-      landPoint: { x: ((x_land % W) + W) % W, y: H - 0 },
-      stopPoint: { x: ((x_stop % W) + W) % W, y: H - 0 },
-      apexY: y_apex
-    };
-  }
-
-  function drawDebugHUD() {
-    if (!debugEnabled) return;
-    ensureDebugCanvas();
-    resizeDebugCanvas();
-    const ctx = debugCtx;
-    const W = debugCanvas.width, H = debugCanvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.save();
-
-    // Styles
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.setLineDash([]);
-
-    // Predict from current physical state
-    const pred = predictTrajectory(centerX, y, vx, vy);
-
-    // Draw flight arc
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.setLineDash([]);
-    drawWrappedPolyline(ctx, pred.flight);
-
-    // Draw bounce arc (dashed)
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-    ctx.setLineDash([6, 6]);
-    drawWrappedPolyline(ctx, pred.bounce);
-
-    // Slide vector (dot-dash)
-    ctx.setLineDash([2, 6]);
-    drawWrappedPolyline(ctx, pred.slide);
-
-    // Markers: land, stop
-    ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    drawCross(ctx, pred.landPoint.x, pred.landPoint.y, 6);
-    drawCircle(ctx, pred.stopPoint.x, pred.stopPoint.y, 5);
-
-    // Draw current AI goal (targetX) when moving
-    if (moving && targetX != null) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0,150,0,0.7)';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(targetX, 0);
-      ctx.lineTo(targetX, H);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Status panel
-    const panelX = 12, panelY = 12;
-    const lines = [
-      `mode: ${dragging ? 'drag' : airborne ? 'airborne' : sliding ? 'sliding' : sitting ? 'sitting' : moving ? 'walking' : 'idle'}`,
-      `pointerCapture: ${Boolean(activePointerId)}`,
-      `pos: x=${centerX.toFixed(1)}, y=${y.toFixed(1)}`,
-      `vel: vx=${vx.toFixed(1)}, vy=${vy.toFixed(1)}`,
-      `lastRelease: vx=${lastRelease.vx.toFixed(1)}, vy=${lastRelease.vy.toFixed(1)}`,
-      `apexHeight: ${pred.apexY.toFixed(1)}px`,
-      targetX != null ? `goalX: ${targetX.toFixed(1)}` : `goalX: -`,
-      `wrap: ${wrapActive ? 'active' : 'off'}`
-    ];
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 1;
-    const panelW = 230, panelH = 18 * (lines.length + 1);
-    ctx.fillRect(panelX - 6, panelY - 6, panelW, panelH);
-    ctx.strokeRect(panelX - 6, panelY - 6, panelW, panelH);
-    ctx.fillStyle = '#000';
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    lines.forEach((s, i) => ctx.fillText(s, panelX, panelY + 16 * (i + 1)));
-
-    ctx.restore();
-  }
-
-  // === Wrap clone ===
   let clone = null;     // wrap clone (never interactive)
   let overlay = null;   // drag shield
 
@@ -297,8 +121,12 @@
     const { w } = currentSpriteSize(elRef);
     elRef.style.left = (cx - w/2) + 'px';
   }
-  function renderBottom(elRef, bottomPx) { elRef.style.bottom = bottomPx + 'px'; }
-  function applyScaleAndFacing(elRef) { elRef.style.transform = `scale(${currentScale}) scaleX(${facing}) translateZ(0)`; }
+  function renderBottom(elRef, bottomPx) {
+    elRef.style.bottom = bottomPx + 'px';
+  }
+  function applyScaleAndFacing(elRef) {
+    elRef.style.transform = `scale(${currentScale}) scaleX(${facing}) translateZ(0)`;
+  }
   function setFacing(newFacing) {
     if (facing === newFacing) return;
     facing = newFacing;
@@ -315,6 +143,7 @@
       applyScaleAndFacing(main);
       if (clone) applyScaleAndFacing(clone);
     }
+    resizeDebugCanvas();
   }
   function clearAllTimers(){
     if (chooseTimer){clearTimeout(chooseTimer); chooseTimer=null;}
@@ -397,10 +226,9 @@
     if (overlay) return;
     overlay = document.createElement('div');
     Object.assign(overlay.style, {
-      position:'fixed', inset:'0', zIndex:String(Z_INDEX+1),
+      position:'fixed', inset:'0', zIndex:String(Z_INDEX+2),
       cursor:'grabbing', background:'transparent',
-      userSelect:'none',
-      pointerEvents:'auto',
+      userSelect:'none', pointerEvents:'auto',
     });
     overlay.onpointerdown = (e)=>{ e.preventDefault(); e.stopPropagation(); };
     document.body.appendChild(overlay);
@@ -416,9 +244,10 @@
   // === Pointer helpers ===
   function cursorToCenterX(e){ return e.clientX; }
   function cursorToBottomY_Dangling(e){
+    // Top-center of GIF must align with cursor: bottom = viewportBottom - spriteHeight
     const { h } = currentSpriteSize(main);
     const viewportBottom = window.innerHeight - e.clientY;
-    return viewportBottom - h + PICK_OFFSET_Y;
+    return viewportBottom - h;
   }
   function samplePointer(e){
     const now = performance.now();
@@ -433,26 +262,20 @@
     const dx = b.x - a.x;
     const dy_screen = b.y - a.y;
     const vy_world = -dy_screen / dt;
-    return { vx: dx/dt, vy: vy_world };
-  }
-
-  // === Velocity caps ===
-  function capSpeeds() {
-    const spriteW = currentSpriteSize(main).w || 50;
-    const MAX_VX = 4.0 * spriteW;   // max ~4 sprite-widths per second
-    const MAX_VY = 5.0 * spriteW;   // cap vertical too
-    vx = clamp(vx, -MAX_VX, MAX_VX);
-    vy = clamp(vy, -MAX_VY, MAX_VY);
+    let { vx, vy } = { vx: dx/dt, vy: vy_world };
+    // Cap throw magnitude
+    ({ vx, vy } = capVec(vx, vy, MAX_THROW_SPEED));
+    return { vx, vy };
   }
 
   // === Pointer event handlers (unified) ===
-  let activePointerId = null;
+  let hasCapture = false;
   function onPointerDown(e){
     if (e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
 
     activePointerId = e.pointerId;
-    main.setPointerCapture?.(activePointerId);
+    try { main.setPointerCapture?.(activePointerId); hasCapture = true; } catch(_) {}
 
     dragging = true; moving=false; sitting=false; sliding=false; airborne=false;
     clearAllTimers();
@@ -493,6 +316,7 @@
     if (activePointerId != null) {
       try { main.releasePointerCapture?.(activePointerId); } catch(_) {}
     }
+    hasCapture = false;
     activePointerId = null;
 
     dragging = false;
@@ -500,24 +324,141 @@
     main.style.transformOrigin = 'center bottom';
     main.style.cursor = 'grab';
 
-    const out = computeReleaseVelocity();
-    vx = out.vx; vy = out.vy;
-    // Cap NOW
-    capSpeeds();
-    lastRelease = { vx, vy };
-
-    const speed = hypot(vx, vy);
+    const { vx: rvx, vy: rvy } = computeReleaseVelocity();
+    vx = rvx; vy = rvy;
+    const speed = Math.hypot(vx, vy);
     if (speed < MOMENTUM_THRESH) { vx = 0; vy = 0; }
+    debug.lastRelease = { vx, vy, speed: Math.hypot(vx, vy) };
 
     airborne = (y > 0) || vy !== 0;
     sliding = false;
     bounced = false;
     maxYThisAir = y;
 
-    main.src = dangleSrc; // stays dangle until first ground touch
+    main.src = dangleSrc; // stays until first ground contact
   }
   function onPointerUp(e){ endDragAndRelease(e); }
   function onPointerCancel(e){ endDragAndRelease(e); }
+
+  // === Debug toggling (type "DEBUG") ===
+  function onKeyDown(e){
+    const ch = (e.key || '').toUpperCase();
+    if (!ch || ch.length !== 1) return;
+    debug.seq.push(ch);
+    if (debug.seq.length > 5) debug.seq.shift();
+    if (debug.seq.join('') === 'DEBUG') {
+      debug.enabled = !debug.enabled;
+      dbg.style.display = debug.enabled ? 'block' : 'none';
+      debug.seq.length = 0;
+      resizeDebugCanvas();
+      drawDebug(); // immediate
+    }
+  }
+
+  // === Debug canvas drawing ===
+  function resizeDebugCanvas(){
+    if (!dbg) return;
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    dbg.width = Math.floor(window.innerWidth * dpr);
+    dbg.height = Math.floor(window.innerHeight * dpr);
+    dbg.style.width = window.innerWidth + 'px';
+    dbg.style.height = window.innerHeight + 'px';
+  }
+
+  function drawDebug(){
+    if (!debug.enabled) return;
+    const ctx = dbg.getContext('2d');
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,dbg.width/dpr,dbg.height/dpr);
+
+    // HUD
+    const mode =
+      dragging ? 'dragging' :
+      airborne ? (bounced ? 'airborne (post-bounce)' : 'airborne') :
+      sliding ? 'sliding' :
+      sitting ? 'sitting' :
+      moving ? 'walking' : 'idle';
+
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(10,10,310,80);
+    ctx.fillStyle = 'white';
+    ctx.fillText(`mode: ${mode}`, 20, 30);
+    ctx.fillText(`vx, vy: ${vx.toFixed(1)}, ${vy.toFixed(1)} (|v|=${Math.hypot(vx,vy).toFixed(1)})`, 20, 48);
+    ctx.fillText(`capture: ${hasCapture ? 'yes' : 'no'}  y=${y.toFixed(1)}  bounced=${bounced}`, 20, 66);
+    ctx.fillText(`last release: vx=${debug.lastRelease.vx.toFixed(0)} vy=${debug.lastRelease.vy.toFixed(0)}`, 20, 84);
+
+    // Target marker when walking
+    if (moving && targetX != null) {
+      ctx.strokeStyle = 'rgba(0,128,255,0.9)';
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(targetX, 0);
+      ctx.lineTo(targetX, window.innerHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Arc prediction (landing + one bounce)
+    // Frame origin: bottom=0 at page floor; convert to canvas coords (yCanvas = H - bottom)
+    const H = window.innerHeight;
+    const px = centerX;
+    const py = y;
+    const vxc = vx;
+    const vyc = vy;
+
+    // Predict time to impact solving py + vy*t + 0.5*G*t^2 = 0
+    function impactTime(y0, vy0) {
+      // t = (-vy - sqrt(vy^2 - 2*G*y)) / G   (choose positive root)
+      const a = 0.5*G, b = vy0, c = y0;
+      const disc = b*b - 4*a*c;
+      if (disc < 0) return 0;
+      const t1 = (-b - Math.sqrt(disc)) / (2*a);
+      const t2 = (-b + Math.sqrt(disc)) / (2*a);
+      const t = Math.max(t1, t2);
+      return t > 0 ? t : 0;
+    }
+
+    // Path draw helper
+    function drawParabola(x0, y0, vx0, vy0, tEnd, color){
+      const steps = 40;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      for (let i=0;i<=steps;i++){
+        const t = (i/steps) * tEnd;
+        const x = x0 + vx0 * t;
+        const yb = y0 + vy0 * t + 0.5 * G * t * t; // bottom coords
+        const yCanvas = H - Math.max(0, yb);
+        if (i===0) ctx.moveTo(x, yCanvas);
+        else ctx.lineTo(x, yCanvas);
+      }
+      ctx.stroke();
+    }
+
+    // First arc until ground
+    const tHit = impactTime(py, vyc);
+    if (tHit > 0) {
+      drawParabola(px, py, vxc, vyc, tHit, 'rgba(255,0,0,0.9)');
+
+      // One-bounce prediction
+      const yPeak = vyc > 0 ? (py + (vyc*vyc)/(2*Math.abs(G))) : py;
+      const hBounce = Math.max(0, 0.25 * Math.max(0, yPeak));
+      const vyBounce = Math.sqrt(2 * Math.abs(G) * hBounce);
+      const tBounce = (2 * vyBounce) / Math.abs(G);
+      // After impact, x continues with same vx
+      drawParabola(px + vxc * tHit, 0, vxc, vyBounce, tBounce, 'rgba(255,165,0,0.9)');
+    }
+
+    // Wrap hint if crossing edges in current frame
+    ctx.setLineDash([6,4]);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(0,0); ctx.lineTo(0,H);
+    ctx.moveTo(window.innerWidth,0); ctx.lineTo(window.innerWidth,H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   // === RAF ===
   function rafTick(ts){
@@ -534,17 +475,16 @@
       y = 0; vx=0; vy=0; airborne=false; sliding=false;
       renderBottom(main, y); renderFromCenter(main, centerX);
       if (clone) removeClone();
-      drawDebugHUD();
+      if (debug.enabled) drawDebug();
       requestAnimationFrame(rafTick); return;
     }
 
     if (dragging){
-      drawDebugHUD();
+      if (debug.enabled) drawDebug();
       requestAnimationFrame(rafTick);
       return;
     }
 
-    // Legacy ground AI (only when not in physics states)
     if (!airborne && !sliding && !sitting){
       if (moving && direction !== 0 && targetX !== null){
         const speed = currentSpriteSize(main).w;
@@ -576,7 +516,7 @@
             centerX = clamped; stopAndIdleAt(centerX);
             if (clone) removeClone();
             renderBottom(main, 0);
-            drawDebugHUD();
+            if (debug.enabled) drawDebug();
             requestAnimationFrame(rafTick); return;
           }
           centerX = nextCenter;
@@ -591,22 +531,19 @@
         if (main.src.indexOf(idleSrc) === -1) main.src = idleSrc;
         if (clone) removeClone();
       }
-      drawDebugHUD();
+      if (debug.enabled) drawDebug();
       requestAnimationFrame(rafTick); return;
     }
 
-    // === Airborne ===
+    // Airborne
     if (airborne){
+      ({ vx, vy } = capVec(vx, vy, MAX_RUNAWAY_SPEED)); // safety cap
       vy += G * dt;
-      // Cap continuous velocities (why: keep physics sane if dt spikes)
-      capSpeeds();
-
       let nextX = centerX + vx * dt;
       let nextY = y + vy * dt;
 
       if (nextY > maxYThisAir) maxYThisAir = nextY;
 
-      // Horizontal wrap while in air
       const W = window.innerWidth;
       const leftEdge = nextX - w/2, rightEdge = nextX + w/2;
       if (!wrapActive && (leftEdge < 0 || rightEdge > W)){
@@ -635,7 +572,7 @@
           vy = vBounce;
           y = 0;
           bounced = true;
-          main.src = sitSrc; // switch to sit during/after bounce
+          main.src = sitSrc;
         } else {
           y = 0; vy = 0; airborne = false; sliding = Math.abs(vx) > 1;
           main.src = sitSrc;
@@ -655,9 +592,7 @@
         vx = 0; sliding = false;
         startIdleState();
       } else {
-        vx = nextVx;
-        // Cap while sliding too
-        capSpeeds();
+        vx = clamp(nextVx, -MAX_RUNAWAY_SPEED, MAX_RUNAWAY_SPEED);
         centerX = centerX + vx * dt;
         const W = window.innerWidth;
         if (centerX - w/2 < 0){ centerX += W; }
@@ -666,7 +601,7 @@
       }
     }
 
-    drawDebugHUD();
+    if (debug.enabled) drawDebug();
     requestAnimationFrame(rafTick);
   }
 
@@ -693,14 +628,8 @@
     window.addEventListener('pointerup', onPointerUp, { passive:false });
     window.addEventListener('pointercancel', onPointerCancel, { passive:false });
 
-    // Debug toggle
-    window.addEventListener('keydown', (e)=>{
-      if (e.key.toLowerCase() === 'd'){
-        debugEnabled = !debugEnabled;
-        if (debugEnabled) ensureDebugCanvas();
-        else if (debugCanvas) debugCtx.clearRect(0,0,debugCanvas.width, debugCanvas.height);
-      }
-    });
+    // Keyboard for debug
+    window.addEventListener('keydown', onKeyDown, { passive:true });
 
     // Resize
     window.addEventListener('resize', ()=>{
@@ -717,7 +646,7 @@
       }
       renderFromCenter(main, centerX); renderBottom(main, Math.max(0,y));
       resizeDebugCanvas();
-      drawDebugHUD();
+      if (debug.enabled) drawDebug();
     }, { passive:true });
 
     // Visibility pause
@@ -725,9 +654,6 @@
       if (document.hidden){ if (rafId) cancelAnimationFrame(rafId), rafId=null; }
       else if (!rafId){ lastTime=null; rafId=requestAnimationFrame(rafTick); }
     });
-
-    // Enable debug from URL on boot
-    if (debugEnabled) ensureDebugCanvas();
   }
 
   // === Robust preload ===
@@ -748,10 +674,11 @@
     if (rafId) cancelAnimationFrame(rafId); rafId=null;
     removeClone(); removeOverlay();
     try{ main.remove(); }catch(_){}
-    if (debugCanvas){ try{ debugCanvas.remove(); }catch(_){ } debugCanvas=null; debugCtx=null; }
+    try{ dbg.remove(); }catch(_){}
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointercancel', onPointerCancel);
+    window.removeEventListener('keydown', onKeyDown);
     window.__tinychancyRunning = false;
   }
   window.tinychancyDestroy = tinychancyDestroy;
