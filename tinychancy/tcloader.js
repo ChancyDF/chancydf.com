@@ -1,93 +1,83 @@
+/*
+  TinyChancy loader (Option A — Balloon Fight style wrap + sitting)
+
+  Place this file at: /tinychancy/tcloader.js
+  GIFs expected at:
+    /tinychancy/tinychancy_idle.gif
+    /tinychancy/tinychancy_walk.gif
+    /tinychancy/tinychancy_sit.gif
+*/
+
 (function() {
+  // CONFIG
+  const BASE_SCALE = 0.36;
+  const IDLE_MIN = 5000;
+  const IDLE_MAX = 10000;
+  const SIT_MIN = 10 * 1000; // 10s
+  const SIT_MAX = 60 * 1000; // 60s
+  const Z_INDEX = 9999;
+
+  // Utility
+  const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+  const randBetween = (a, b) => Math.random() * (b - a) + a;
+  const chance = (p) => Math.random() < p;
+
   function loadTinyChancy() {
-    var idleSrc = '/tinychancy/tinychancy_idle.gif';
-    var walkSrc = '/tinychancy/tinychancy_walk.gif';
-    var sitSrc = '/tinychancy/tinychancy_sit.gif';
-    var dangleSrc = '/tinychancy/tinychancy_dangle.gif';
+    // Preload GIFs first to avoid flashes
+    const idleSrc = '/tinychancy/tinychancy_idle.gif';
+    const walkSrc = '/tinychancy/tinychancy_walk.gif';
+    const sitSrc  = '/tinychancy/tinychancy_sit.gif';
 
-    var BASE_SCALE = 0.36;
-    var IDLE_MIN = 5000;
-    var IDLE_MAX = 10000;
-    var SIT_MIN = 10000;
-    var SIT_MAX = 60000;
-    var GRAVITY = -300;
-    var SLIDE_FRICTION = 600;
-    var THROW_SPEED_THRESHOLD = 80;
-    var Z_INDEX = 9999;
+    const preloadList = [idleSrc, walkSrc, sitSrc].map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
 
-    function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
-    function randBetween(a, b) { return Math.random() * (b - a) + a; }
-    function chance(p) { return Math.random() < p; }
-
-    var main = document.createElement('img');
+    // Create main element (but don't append until preload done)
+    const main = document.createElement('img');
     main.id = 'tinychancy';
     main.style.position = 'fixed';
     main.style.bottom = '0';
     main.style.left = '0';
-    main.style.touchAction = 'none';
-    main.style.userSelect = 'none';
-    main.style.pointerEvents = 'auto';
     main.style.transformOrigin = 'center bottom';
-    main.style.transform = 'scale(' + BASE_SCALE + ') scaleX(1)';
-    main.style.willChange = 'left,bottom';
+    main.style.transform = `scale(${BASE_SCALE}) scaleX(1)`;
+    main.style.pointerEvents = 'none';
+    main.style.willChange = 'left';
     main.style.zIndex = String(Z_INDEX);
 
-    var clone = null;
+    // Clone element used during wrap transitions (created lazily)
+    let clone = null;
 
-    var worldX = 0;
-    var y = 0;
-    var vx = 0;
-    var vy = 0;
+    // State
+    let centerX = null;               // authoritative centerX in page coords
+    let facing = 1;                   // 1=right, -1=left
+    let currentScale = BASE_SCALE;
+    let moving = false;
+    let direction = 0;
+    let targetX = null;
+    let lastTime = null;
+    let chooseTimer = null;
+    let flipBackTimer = null;
+    let sitTimer = null;
+    let sitting = false;
+    let wrapActive = false;           // true while clone exists / in wrap
+    let wrapDirection = 0;            // 1 or -1 for wrap
+    let projectedOffset = 0;          // windowWidth * sign used for clone center
 
-    var mode = 'idle';
-    var pose = 'idle';
-    var physicsKind = null;
-    var hasBounced = false;
-    var dropStartHeight = 0;
-
-    var facing = 1;
-    var currentScale = BASE_SCALE;
-
-    var chooseTimer = null;
-    var sitTimer = null;
-    var flipBackTimer = null;
-
-    var lastTime = null;
-
-    var dragging = false;
-    var dragPointerId = null;
-    var pointerX = 0;
-    var pointerY = 0;
-    var lastPX = 0;
-    var lastPY = 0;
-    var lastPTime = 0;
-    var dragVX = 0;
-    var dragVY = 0;
-
-    function currentSpriteWidth(elRef) {
-      if (!elRef) elRef = main;
-      var r = elRef.getBoundingClientRect();
-      return (r && r.width) || 50;
+    // Helpers to measure & render
+    function currentSpriteWidth(elRef = main) {
+      const r = elRef.getBoundingClientRect();
+      return (r && r.width) || (preloadList[0] && preloadList[0].width) || 50;
     }
 
-    function currentSpriteHeight(elRef) {
-      if (!elRef) elRef = main;
-      var r = elRef.getBoundingClientRect();
-      return (r && r.height) || 50;
+    function renderFromCenter(elRef, center) {
+      const width = currentSpriteWidth(elRef);
+      elRef.style.left = (center - width / 2) + 'px';
     }
 
     function applyScaleAndFacing(elRef) {
-      if (!elRef) elRef = main;
-      elRef.style.transform = 'scale(' + currentScale + ') scaleX(' + facing + ')';
-    }
-
-    function adjustScaleForScreen() {
-      var w = window.innerWidth;
-      if (w < 400) currentScale = BASE_SCALE * 0.6;
-      else if (w < 700) currentScale = BASE_SCALE * 0.8;
-      else currentScale = BASE_SCALE;
-      applyScaleAndFacing(main);
-      if (clone) applyScaleAndFacing(clone);
+      elRef.style.transform = `scale(${currentScale}) scaleX(${facing})`;
     }
 
     function setFacing(newFacing) {
@@ -95,452 +85,323 @@
       facing = newFacing;
       applyScaleAndFacing(main);
       if (clone) applyScaleAndFacing(clone);
+      // Re-render positions so centerX remains visually stable
+      if (centerX !== null) {
+        renderFromCenter(main, centerX);
+        if (clone) renderFromCenter(clone, centerX - projectedOffset);
+      }
     }
 
-    function setPose(newPose) {
-      if (pose === newPose) return;
-      pose = newPose;
-      if (pose === 'idle') main.src = idleSrc;
-      else if (pose === 'walk') main.src = walkSrc;
-      else if (pose === 'sit') main.src = sitSrc;
-      else if (pose === 'dangle') main.src = dangleSrc;
-      if (clone) clone.src = main.src;
+    function adjustScaleForScreen() {
+      const w = window.innerWidth;
+      if (w < 400) currentScale = BASE_SCALE * 0.6;
+      else if (w < 700) currentScale = BASE_SCALE * 0.8;
+      else currentScale = BASE_SCALE;
+      applyScaleAndFacing(main);
+      if (clone) applyScaleAndFacing(clone);
     }
 
-    function setAnchorBottom() {
-      main.style.transformOrigin = 'center bottom';
-      if (clone) clone.style.transformOrigin = 'center bottom';
+    // Sitting logic
+    function startSitting(durationMs) {
+      clearAllTimers();
+      sitting = true;
+      moving = false;
+      direction = 0;
+      targetX = null;
+      // Always face right while sitting
+      setFacing(1);
+      main.src = sitSrc;
+
+      sitTimer = setTimeout(() => {
+        sitTimer = null;
+        sitting = false;
+        // After sitting, go to idle as requested
+        startIdleState();
+      }, durationMs);
     }
 
-    function setAnchorTop() {
-      main.style.transformOrigin = 'center top';
-      if (clone) clone.style.transformOrigin = 'center top';
+    // Idle/walk logic
+    function startIdleState() {
+      clearAllTimers();
+      moving = false;
+      direction = 0;
+      targetX = null;
+
+      // If facing left when idle begins, flip back to right after 1s
+      if (facing === -1) {
+        flipBackTimer = setTimeout(() => { setFacing(1); flipBackTimer = null; }, 1000);
+      }
+
+      // Decide next action after 5-10s
+      const wait = randBetween(IDLE_MIN, IDLE_MAX);
+      chooseTimer = setTimeout(() => {
+        chooseTimer = null;
+        // 1/10 chance to sit instead of walk
+        if (chance(1/10)) {
+          const sitDur = randBetween(SIT_MIN, SIT_MAX);
+          startSitting(sitDur);
+        } else {
+          prepareAndStartMove();
+        }
+      }, wait);
+
+      main.src = idleSrc;
     }
 
-    function clearTimers() {
-      if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
-      if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
-      if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
+    function prepareAndStartMove() {
+      // pick a target at least 100px away within bounds
+      const w = currentSpriteWidth();
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      targetX = pickTargetWithin(minC, maxC);
+      direction = targetX > centerX ? 1 : -1;
+      setFacing(direction === 1 ? 1 : -1);
+      moving = true;
+      main.src = walkSrc;
     }
 
-    function createClone() {
+    function stopAndIdleAt(x) {
+      moving = false;
+      direction = 0;
+      targetX = null;
+      centerX = x;
+      renderFromCenter(main, centerX);
+      main.src = idleSrc;
+      startIdleState();
+    }
+
+    function pickTargetWithin(minCenter, maxCenter) {
+      let t = centerX;
+      let attempts = 0;
+      while ((Math.abs(t - centerX) < 100 || t <= minCenter || t >= maxCenter) && attempts < 2000) {
+        t = randBetween(minCenter, maxCenter);
+        attempts++;
+      }
+      return clamp(t, minCenter, maxCenter);
+    }
+
+    // Wrap/clone helpers
+    function createCloneIfNeeded() {
       if (clone) return;
       clone = document.createElement('img');
       clone.id = 'tinychancy_clone';
       clone.style.position = 'fixed';
       clone.style.bottom = '0';
-      clone.style.left = '0';
-      clone.style.transformOrigin = main.style.transformOrigin;
-      clone.style.touchAction = 'none';
-      clone.style.userSelect = 'none';
-      clone.style.pointerEvents = 'auto';
-      clone.style.willChange = 'left,bottom';
+      clone.style.transformOrigin = 'center bottom';
+      clone.style.pointerEvents = 'none';
+      clone.style.willChange = 'left';
       clone.style.zIndex = String(Z_INDEX);
+      // Use same visual state
       clone.src = main.src;
       applyScaleAndFacing(clone);
-      clone.addEventListener('pointerdown', onPointerDown);
       document.body.appendChild(clone);
     }
 
-    function hideClone() {
+    function removeClone() {
       if (!clone) return;
-      clone.style.display = 'none';
+      try { clone.remove(); } catch(e) {}
+      clone = null;
+      wrapActive = false;
+      wrapDirection = 0;
+      projectedOffset = 0;
     }
 
-    function showClone() {
-      if (!clone) return;
-      clone.style.display = 'block';
-    }
+    // Main RAF loop
+    function rafTick(ts) {
+      if (lastTime === null) lastTime = ts;
+      const dt = Math.min(0.05, (ts - lastTime) / 1000);
+      lastTime = ts;
 
-    function updatePortalRender() {
-      var W = window.innerWidth || 1;
-      var spriteW = currentSpriteWidth(main);
-      var displayCenter = ((worldX % W) + W) % W;
-      var bottom = y;
-      main.style.bottom = bottom + 'px';
-      main.style.left = (displayCenter - spriteW / 2) + 'px';
-      var needClone = false;
-      var cloneCenter = 0;
-      if (mode === 'walk' || mode === 'air' || mode === 'slide') {
-        if (displayCenter - spriteW / 2 < 0) {
-          needClone = true;
-          cloneCenter = displayCenter + W;
-        } else if (displayCenter + spriteW / 2 > W) {
-          needClone = true;
-          cloneCenter = displayCenter - W;
+      const spriteW = currentSpriteWidth(main);
+      const minCenter = spriteW / 2;
+      const maxCenter = Math.max(minCenter, window.innerWidth - spriteW / 2);
+
+      // Safety: if centerX invalid, reinitialize
+      if (centerX === null || !isFinite(centerX)) {
+        centerX = randBetween(minCenter, maxCenter);
+      }
+
+      // Sitting: do nothing but render
+      if (sitting) {
+        renderFromCenter(main, centerX);
+        if (clone) removeClone();
+        requestAnimationFrame(rafTick);
+        return;
+      }
+
+      // Movement
+      if (moving && direction !== 0 && targetX !== null) {
+        // speed = one sprite width per second
+        const speed = spriteW;
+        let nextCenter = centerX + direction * speed * dt;
+
+        // When wrap is allowed, we DO NOT clamp nextCenter to min/max.
+        // Instead, detect crossing and create a clone projection.
+        const W = window.innerWidth;
+        const leftEdge = nextCenter - spriteW/2;
+        const rightEdge = nextCenter + spriteW/2;
+
+        // detect if we should start wrap (partially offscreen)
+        if (!wrapActive && (leftEdge < 0 || rightEdge > W)) {
+          // Start wrap: create clone
+          wrapActive = true;
+          wrapDirection = direction; // 1 or -1
+          projectedOffset = W * wrapDirection; // for clone center
+          createCloneIfNeeded();
+          // sync clone src/frame by setting same src (GIFs can't be frame-synced but this is the best we can do)
+          clone.src = main.src;
+          applyScaleAndFacing(clone);
         }
-      }
-      if (needClone) {
-        createClone();
-        var cloneW = currentSpriteWidth(clone);
-        clone.style.bottom = bottom + 'px';
-        clone.style.left = (cloneCenter - cloneW / 2) + 'px';
-        showClone();
-      } else {
-        hideClone();
-      }
-    }
 
-    function renderDangling() {
-      var w = currentSpriteWidth(main);
-      var h = currentSpriteHeight(main);
-      var left = pointerX - w / 2;
-      var bottom = window.innerHeight - pointerY - h;
-      if (!isFinite(bottom)) bottom = 0;
-      main.style.left = left + 'px';
-      main.style.bottom = bottom + 'px';
-      worldX = pointerX;
-      y = Math.max(bottom, 0);
-      hideClone();
-    }
+        // If wrap active, compute clone center (mirror across viewport)
+        if (wrapActive && clone) {
+          const cloneCenter = nextCenter - projectedOffset;
+          // render both main and clone
+          renderFromCenter(main, nextCenter);
+          renderFromCenter(clone, cloneCenter);
 
-    function normalizeWorldXToScreen() {
-      var W = window.innerWidth || 1;
-      var spriteW = currentSpriteWidth(main);
-      var displayCenter = ((worldX % W) + W) % W;
-      displayCenter = clamp(displayCenter, spriteW / 2, Math.max(spriteW / 2, W - spriteW / 2));
-      worldX = displayCenter;
-    }
-
-    function pickWalkTarget() {
-      var spriteW = currentSpriteWidth(main);
-      var W = window.innerWidth || 1;
-      var minC = spriteW / 2;
-      var maxC = Math.max(minC, W - spriteW / 2);
-      var target = worldX;
-      var attempts = 0;
-      while ((Math.abs(target - worldX) < 100 || target <= minC || target >= maxC) && attempts < 2000) {
-        target = randBetween(minC, maxC);
-        attempts++;
-      }
-      return clamp(target, minC, maxC);
-    }
-
-    function startIdleLoop() {
-      clearTimers();
-      mode = 'idle';
-      setPose('idle');
-      setAnchorBottom();
-      if (facing === -1) {
-        flipBackTimer = setTimeout(function() {
-          setFacing(1);
-          flipBackTimer = null;
-        }, 1000);
-      }
-      var wait = randBetween(IDLE_MIN, IDLE_MAX);
-      chooseTimer = setTimeout(function() {
-        chooseTimer = null;
-        if (chance(1 / 10)) {
-          startRandomSit();
-        } else {
-          startWalk();
-        }
-      }, wait);
-    }
-
-    function startRandomSit() {
-      clearTimers();
-      mode = 'idle';
-      setPose('sit');
-      setFacing(1);
-      setAnchorBottom();
-      var dur = randBetween(SIT_MIN, SIT_MAX);
-      sitTimer = setTimeout(function() {
-        sitTimer = null;
-        startIdleLoop();
-      }, dur);
-    }
-
-    function startWalk() {
-      clearTimers();
-      mode = 'walk';
-      setPose('walk');
-      setAnchorBottom();
-      normalizeWorldXToScreen();
-      var target = pickWalkTarget();
-      var dir = target > worldX ? 1 : -1;
-      setFacing(dir === 1 ? 1 : -1);
-      var speed = currentSpriteWidth(main);
-      vx = speed * dir;
-      vy = 0;
-      physicsKind = 'walk';
-      hasBounced = false;
-      dropStartHeight = 0;
-      var walkTarget = target;
-      function updateWalk(dt) {
-        worldX += vx * dt;
-        if ((dir === 1 && worldX >= walkTarget) || (dir === -1 && worldX <= walkTarget)) {
-          worldX = walkTarget;
-          mode = 'idle';
-          vx = 0;
-          startIdleLoop();
-        }
-      }
-      modeWalkUpdate = updateWalk;
-    }
-
-    var modeWalkUpdate = null;
-
-    function startDangling(pointerId, x, yScreen) {
-      clearTimers();
-      dragging = true;
-      dragPointerId = pointerId;
-      pointerX = x;
-      pointerY = yScreen;
-      lastPX = x;
-      lastPY = yScreen;
-      lastPTime = performance.now();
-      dragVX = 0;
-      dragVY = 0;
-      mode = 'dangling';
-      physicsKind = null;
-      hasBounced = false;
-      vx = 0;
-      vy = 0;
-      setPose('dangle');
-      setFacing(1);
-      setAnchorTop();
-      renderDangling();
-    }
-
-    function releaseDangling() {
-      dragging = false;
-      dragPointerId = null;
-      var speed = Math.sqrt(dragVX * dragVX + dragVY * dragVY);
-      var h = currentSpriteHeight(main);
-      var bottom = window.innerHeight - pointerY - h;
-      if (!isFinite(bottom)) bottom = 0;
-      y = Math.max(bottom, 0);
-      worldX = pointerX;
-      dropStartHeight = y;
-      hasBounced = false;
-      setAnchorTop();
-      setPose('dangle');
-      if (speed < THROW_SPEED_THRESHOLD) {
-        mode = 'air';
-        physicsKind = 'drop';
-        vx = 0;
-        vy = 0;
-      } else {
-        mode = 'air';
-        physicsKind = 'throw';
-        vx = dragVX;
-        vy = -dragVY;
-      }
-    }
-
-    function handleFloorCollision() {
-      if (y <= 0) {
-        y = 0;
-        if (physicsKind === 'drop') {
-          if (!hasBounced) {
-            hasBounced = true;
-            var dropH = dropStartHeight;
-            var bounceH = dropH / 4;
-            if (bounceH > 2) {
-              var vUp = Math.sqrt(Math.max(0, 2 * Math.abs(GRAVITY) * bounceH));
-              vy = vUp;
-              setPose('sit');
-              setFacing(1);
-              setAnchorBottom();
+          // Check if clone is fully in frame -> swap
+          const cloneLeft = cloneCenter - spriteW/2;
+          const cloneRight = cloneCenter + spriteW/2;
+          if (cloneLeft >= 0 && cloneRight <= W) {
+            // clone fully visible -> teleport real to clone spot and remove clone
+            // The "real" centerX becomes cloneCenter (which is inside bounds),
+            // but we want the real to continue walking smoothly from there.
+            centerX = cloneCenter;
+            // remove clone and continue (leave main.src as walk)
+            removeClone();
+            // if targetX was outside previously, recompute target relative to new center
+            // clamp target to allow final arrival
+            const minC = spriteW/2;
+            const maxC = Math.max(minC, W - spriteW/2);
+            if (targetX !== null) targetX = clamp(targetX - projectedOffset, minC, maxC);
+            // If cloned and passed target due to wrap, handle stop
+            const passedTarget = (direction === 1 && centerX >= targetX) || (direction === -1 && centerX <= targetX);
+            if (targetX !== null && passedTarget) {
+              stopAndIdleAt(targetX);
+              requestAnimationFrame(rafTick);
               return;
             }
+            // continue
+            renderFromCenter(main, centerX);
+            requestAnimationFrame(rafTick);
+            return;
           }
-          vy = 0;
-          vx = 0;
-          physicsKind = null;
-          mode = 'idle';
-          setPose('idle');
-          setAnchorBottom();
-          startIdleLoop();
-        } else if (physicsKind === 'throw') {
-          if (!hasBounced) {
-            hasBounced = true;
-            var dropH2 = dropStartHeight;
-            var bounceH2 = dropH2 / 4;
-            if (bounceH2 > 2) {
-              var vUp2 = Math.sqrt(Math.max(0, 2 * Math.abs(GRAVITY) * bounceH2));
-              vy = vUp2;
-              setPose('sit');
-              setFacing(1);
-              setAnchorBottom();
-              return;
-            }
-          }
-          vy = 0;
-          physicsKind = null;
-          mode = 'slide';
-          setPose('sit');
-          setAnchorBottom();
-        } else {
-          vy = 0;
-          vx = 0;
-          mode = 'idle';
-          setPose('idle');
-          setAnchorBottom();
-          startIdleLoop();
+
+          // Not yet fully in frame: update centerX and continue
+          centerX = nextCenter;
+          requestAnimationFrame(rafTick);
+          return;
         }
-      }
-    }
 
-    function updateAir(dt) {
-      vy += GRAVITY * dt;
-      worldX += vx * dt;
-      y += vy * dt;
-      if (y <= 0) {
-        handleFloorCollision();
-      }
-    }
+        // Normal non-wrap path (not crossing edges)
+        // Clamp nextCenter so he doesn't get stuck offscreen (unless wrapActive)
+        const clamped = clamp(nextCenter, minCenter, maxCenter);
+        // If clamped and differs from nextCenter, we've hit the wall:
+        if (clamped !== nextCenter) {
+          centerX = clamped;
+          // stop and idle
+          stopAndIdleAt(centerX);
+          // Clean any clone if present
+          if (clone) removeClone();
+          requestAnimationFrame(rafTick);
+          return;
+        }
 
-    function updateSlide(dt) {
-      worldX += vx * dt;
-      if (vx > 0) {
-        vx -= SLIDE_FRICTION * dt;
-        if (vx < 0) vx = 0;
-      } else if (vx < 0) {
-        vx += SLIDE_FRICTION * dt;
-        if (vx > 0) vx = 0;
-      }
-      y = 0;
-      if (Math.abs(vx) < 5) {
-        vx = 0;
-        mode = 'idle';
-        setPose('idle');
-        setAnchorBottom();
-        startIdleLoop();
-      }
-    }
+        // Apply movement
+        centerX = nextCenter;
+        renderFromCenter(main, centerX);
 
-    function loop(timestamp) {
-      if (lastTime === null) lastTime = timestamp;
-      var dt = (timestamp - lastTime) / 1000;
-      if (dt > 0.05) dt = 0.05;
-      lastTime = timestamp;
+        // Check reached or passed target
+        const reached = (direction === 1 && centerX >= targetX) || (direction === -1 && centerX <= targetX);
+        if (reached) {
+          stopAndIdleAt(targetX);
+          if (clone) removeClone();
+          requestAnimationFrame(rafTick);
+          return;
+        }
 
-      if (mode === 'walk' && modeWalkUpdate) {
-        modeWalkUpdate(dt);
-      } else if (mode === 'air') {
-        updateAir(dt);
-      } else if (mode === 'slide') {
-        updateSlide(dt);
-      }
-
-      if (mode === 'dangling') {
-        renderDangling();
       } else {
-        if (y < 0) y = 0;
-        updatePortalRender();
+        // Not moving: ensure idle sprite & render main (no clone)
+        renderFromCenter(main, centerX);
+        if (main.src.indexOf(idleSrc) === -1) main.src = idleSrc;
+        if (clone) removeClone();
       }
 
-      requestAnimationFrame(loop);
+      requestAnimationFrame(rafTick);
     }
 
-    function onPointerDown(e) {
-      if (e.button !== undefined && e.button !== 0) return;
-      var rect = main.getBoundingClientRect();
-      var x = e.clientX;
-      var yScreen = e.clientY;
-      if (x < rect.left || x > rect.right || yScreen < rect.top || yScreen > rect.bottom) return;
-      e.preventDefault();
-      main.setPointerCapture(e.pointerId);
-      startDangling(e.pointerId, x, yScreen);
-    }
-
-    function onPointerMove(e) {
-      if (!dragging || e.pointerId !== dragPointerId) return;
-      var now = performance.now();
-      var dt = (now - lastPTime) / 1000;
-      pointerX = e.clientX;
-      pointerY = e.clientY;
-      if (dt > 0) {
-        dragVX = (pointerX - lastPX) / dt;
-        dragVY = (pointerY - lastPY) / dt;
-      }
-      lastPX = pointerX;
-      lastPY = pointerY;
-      lastPTime = now;
-    }
-
-    function onPointerUp(e) {
-      if (!dragging || e.pointerId !== dragPointerId) return;
-      main.releasePointerCapture(e.pointerId);
-      releaseDangling();
-    }
-
-    function setupPointerEvents() {
-      main.addEventListener('pointerdown', onPointerDown);
-      window.addEventListener('pointermove', onPointerMove);
-      window.addEventListener('pointerup', onPointerUp);
-      window.addEventListener('pointercancel', onPointerUp);
-    }
-
+    // Initialize after preload
     function initAfterPreload() {
-      main.src = idleSrc;
+      // append main to DOM now that images are ready
       document.body.appendChild(main);
+
       adjustScaleForScreen();
-      var w = currentSpriteWidth(main);
-      var W = window.innerWidth || 1;
-      var minC = w / 2;
-      var maxC = Math.max(minC, W - w / 2);
-      worldX = randBetween(minC, maxC);
-      y = 0;
-      setPose('idle');
-      setFacing(1);
-      setAnchorBottom();
-      updatePortalRender();
-      setupPointerEvents();
-      if (chance(1 / 5)) {
-        mode = 'idle';
-        setPose('sit');
-        setFacing(1);
-        setAnchorBottom();
-        var dur = randBetween(SIT_MIN, SIT_MAX);
-        sitTimer = setTimeout(function() {
-          sitTimer = null;
-          startIdleLoop();
-        }, dur);
+
+      // compute initial centerX randomly on-screen
+      const w = currentSpriteWidth(main);
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      centerX = randBetween(minC, maxC);
+
+      // Starting state: 1/5 chance to start sitting for 10-60s
+      if (chance(1/5)) {
+        const sitDur = randBetween(SIT_MIN, SIT_MAX);
+        startSitting(sitDur);
       } else {
-        startIdleLoop();
+        // start idle loop
+        startIdleState();
       }
-      setTimeout(function() {
-        requestAnimationFrame(loop);
+
+      // Slight delay to ensure browser painted the image before RAF
+      setTimeout(() => {
+        requestAnimationFrame(rafTick);
       }, 50);
     }
 
-    var preloadSources = [idleSrc, walkSrc, sitSrc, dangleSrc];
-    var remaining = preloadSources.length;
-    preloadSources.forEach(function(src) {
-      var img = new Image();
-      img.src = src;
+    function clearAllTimers() {
+      if (chooseTimer) { clearTimeout(chooseTimer); chooseTimer = null; }
+      if (flipBackTimer) { clearTimeout(flipBackTimer); flipBackTimer = null; }
+      if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
+    }
+
+    // Robust preload: wait until all three images have loaded (or errored)
+    let remaining = preloadList.length;
+    preloadList.forEach(img => {
       if (img.complete && img.naturalWidth) {
         remaining--;
-        if (remaining === 0) initAfterPreload();
       } else {
-        img.addEventListener('load', function() {
-          remaining--;
-          if (remaining === 0) initAfterPreload();
-        }, { once: true, passive: true });
-        img.addEventListener('error', function() {
-          remaining--;
-          if (remaining === 0) initAfterPreload();
-        }, { once: true, passive: true });
+        img.addEventListener('load', () => { remaining--; if (remaining === 0) initAfterPreload(); }, { once: true, passive: true });
+        img.addEventListener('error', () => { remaining--; if (remaining === 0) initAfterPreload(); }, { once: true, passive: true });
       }
     });
     if (remaining === 0) initAfterPreload();
 
-    window.addEventListener('resize', function() {
+    // Resize handler: adjust scale and clamp positions
+    window.addEventListener('resize', () => {
       adjustScaleForScreen();
-      if (mode !== 'dangling') {
-        updatePortalRender();
-      } else {
-        renderDangling();
+      const w = currentSpriteWidth(main);
+      const minC = w/2;
+      const maxC = Math.max(minC, window.innerWidth - w/2);
+      if (centerX !== null) centerX = clamp(centerX, minC, maxC);
+      if (targetX !== null) targetX = clamp(targetX, minC, maxC);
+      // If clone exists, update projectedOffset and reposition it
+      if (clone && wrapDirection !== 0) {
+        projectedOffset = window.innerWidth * wrapDirection;
+        applyScaleAndFacing(clone);
+        renderFromCenter(clone, centerX - projectedOffset);
       }
+      renderFromCenter(main, centerX);
     }, { passive: true });
-  }
+
+    // Ensure loader runs after DOM ready
+    // (we already appended main in initAfterPreload)
+  } // end loadTinyChancy
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadTinyChancy);
   } else {
     loadTinyChancy();
   }
+
 })();
