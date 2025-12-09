@@ -242,13 +242,6 @@
   }
 
   // === Pointer helpers ===
-  function cursorToCenterX(e){ return e.clientX; }
-  function cursorToBottomY_Dangling(e){
-    // Top-center of GIF must align with cursor: bottom = viewportBottom - spriteHeight
-    const { h } = currentSpriteSize(main);
-    const viewportBottom = window.innerHeight - e.clientY;
-    return viewportBottom - h;
-  }
   function samplePointer(e){
     const now = performance.now();
     samples.push({ t: now, x: e.clientX, y: e.clientY });
