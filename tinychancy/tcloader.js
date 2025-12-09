@@ -283,10 +283,6 @@
     samples.length = 0;
     samplePointer(e);
 
-    centerX = clamp(cursorToCenterX(e), currentSpriteSize().w/2, window.innerWidth - currentSpriteSize().w/2);
-    y = Math.max(0, cursorToBottomY_Dangling(e));
-    renderFromCenter(main, centerX);
-    renderBottom(main, y);
   }
   function onPointerMove(e){
     if (!dragging || (activePointerId != null && e.pointerId !== activePointerId)) return;
