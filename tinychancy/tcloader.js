@@ -282,7 +282,7 @@
     bounced=false; maxYThisAir=0;
 
     main.src = dangleSrc;
-    main.style.transformOrigin = 'center top';
+    main.style.transformOrigin = 'center bottom';
     main.style.cursor = 'grabbing';
 
     ensureOverlay();
