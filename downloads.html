@@ -7,74 +7,237 @@
   <style>
     @font-face{font-family:'Pixel';src:local('Courier New');}
     :root{
-      --bg:#d7ecff;
-      --panel:#e9f5ff;
-      --text:#111;
-      --shadow:rgba(0,0,0,.25);
+      --bg: #d7ecff;
+      --panel: #e9f5ff;
+      --text: #111;
+      --shadow: rgba(0,0,0,.25);
+      --accent-blue: #3a86ff;
+      --accent-pink: #ff7eb9;
+      --accent-yellow: #fff35c;
     }
-    html,body{margin:0;min-height:100%;font-family:Pixel,'Arial',sans-serif;color:var(--text);background:linear-gradient(180deg,var(--bg),#fff) fixed;}
-    body{display:flex;flex-direction:column;min-height:100vh;}
+
+    html,body{
+      margin: 0;
+      min-height: 100%;
+      font-family: Pixel, 'Arial', sans-serif;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.4) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.4) 2px, transparent 2px);
+      background-size: 30px 30px;
+      background-attachment: fixed;
+    }
+
+    body::before {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.04) 50%);
+      z-index: 9999;
+      pointer-events: none;
+      background-size: 100% 3px;
+    }
+
+    body{display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
+
+    .header-wrapper {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      z-index: 1000;
+      box-shadow: 0 6px 0 var(--shadow);
+    }
+
     .topbar{
-      width:100%;background:#fff;border-bottom:4px solid #000;padding:10px;
-      display:flex;justify-content:center;align-items:center;
-      box-shadow:0 4px 0 var(--shadow);
-      position:fixed;top:0;left:0;z-index:1000;
+      width:100%;
+      background:#fff;
+      border-bottom:4px solid #000;
+      padding:10px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      box-sizing: border-box;
     }
-    .topbar img{max-width:240px;height:auto;cursor:pointer;}
+    .topbar img{
+      max-width:240px;height:auto;
+      image-rendering:pixelated;cursor:pointer;
+      transition: filter 0.3s;
+    }
+    .topbar img:hover { filter: brightness(1.1); }
+
+    .marquee-bar {
+      background: var(--accent-pink);
+      border-bottom: 4px solid #000;
+      padding: 6px 0;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #000;
+      overflow: hidden;
+      white-space: nowrap;
+      font-size: 14px;
+      position: relative;
+    }
+    .marquee-content {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll 15s linear infinite;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+
     .wrap{
-      flex:1;width:95%;max-width:980px;margin:120px auto 20px;
-      padding:18px;border:4px solid #000;background:var(--panel);
-      box-shadow:8px 8px 0 var(--shadow);
+      flex:1;
+      width:95%;max-width:980px;
+      margin:160px auto 34px;
+      padding:25px;
+      border:4px solid #000;
+      background:var(--panel);
+      box-shadow:10px 10px 0 var(--shadow);
+      text-align:center;
+      position:relative;
     }
-    header{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
-    header h1{margin:0;font-size:26px;letter-spacing:1px}
-    .controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center}
-    .controls select,.controls button{background:#fff;border:2px solid #000;padding:6px 10px;cursor:pointer}
-    .search{border:2px solid #000;padding:6px;width:180px;max-width:70vw;}
-    .tracks{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-    .card{display:flex;flex-direction:column;gap:10px;align-items:center;padding:10px;border:2px solid #000;background:linear-gradient(180deg,#fff,#f3faff);}
-    .logo{width:100%;aspect-ratio:1175/447;border:2px dotted #000;padding:4px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;position:relative;}
-    .logo img{width:100%;height:auto;display:block}
+
+    header{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px; margin-bottom: 25px;}
+
+    .highlight-yellow {
+      background-color: var(--accent-yellow);
+      padding: 5px 15px; display: inline-block;
+      border: 2px solid #000; box-shadow: 4px 4px 0 #000;
+      margin-bottom: 15px; transform: rotate(-1deg);
+    }
+    
+    .wave {
+      display:inline-block; font-size:32px; font-weight:bold; color: #000; margin: 0;
+      text-shadow: 2px 2px 0px #fff;
+    }
+    .wave span { display:inline-block; animation: wave 1.5s infinite ease-in-out; }
+    @keyframes wave {0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+    .wave span:nth-child(odd){animation-delay:0s}
+    .wave span:nth-child(even){animation-delay:0.1s}
+
+    .controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center; margin-top: 10px;}
+    .controls select, .controls button, .search{
+      background:#fff; border:3px solid #000; padding:8px 12px;
+      font-family: inherit; font-weight: bold;
+      box-shadow: 3px 3px 0 #000; cursor:pointer; outline: none;
+    }
+    .controls select:hover, .controls button:hover, .search:focus {
+      background: var(--accent-yellow);
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0 var(--accent-pink);
+    }
+    .controls button:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0 0 0 #000;
+    }
+
+    .search{width:220px;max-width:70vw; cursor: text;}
+
+    .tracks{margin-top:25px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+    
+    .card{
+      display:flex;flex-direction:column;gap:10px;align-items:center;padding:15px;
+      border:3px solid #000; background:#fff;
+      box-shadow: 6px 6px 0 rgba(0,0,0,0.15);
+      transition: transform 0.1s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 8px 8px 0 var(--shadow);
+      border-color: #000;
+    }
+
+    .logo{
+      width:100%;aspect-ratio:1175/447;
+      border:3px solid #000; padding:4px;
+      display:flex;align-items:center;justify-content:center;
+      background:#fff; overflow:hidden;position:relative;
+      box-shadow: 3px 3px 0 #000;
+      transition: 0.1s;
+    }
+    .logo:hover {
+      transform: scale(1.02);
+      box-shadow: 5px 5px 0 var(--accent-pink);
+    }
+    .logo img{width:100%;height:auto;display:block; image-rendering: pixelated;}
+
     .meta{width:100%}
-    .meta h3{margin:4px 0;font-size:16px;text-align:center}
-    .meta p{margin:2px 0;font-size:13px;text-align:center}
-    .actions{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px}
-    .btn{display:inline-block;padding:6px 10px;border:2px solid #000;background:linear-gradient(180deg,#fff,#e0f2ff);text-decoration:none;color:var(--text);cursor:pointer;border-radius:4px}
-    .btn:active{transform:translateY(1px)}
-    audio{width:90%;max-width:350px;border:2px solid #000;border-radius:6px;background:#fff}
-    .retro{background-image:repeating-linear-gradient(90deg,rgba(0,0,0,0.02)0 1px,transparent 1px 10px);padding:6px}
+    .meta h3{margin:8px 0;font-size:18px;text-align:center; background: var(--accent-yellow); border: 2px solid #000; display: inline-block; padding: 2px 8px; transform: rotate(-1deg);}
+    .meta p{margin:4px 0;font-size:13px;text-align:center; font-weight: bold;}
+
+    .actions{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:10px; width: 100%;}
+    
+    .dl-btn{
+      display:inline-block;padding:10px 18px;
+      border:3px solid #000; background: #fff;
+      text-decoration:none;color:var(--text);font-weight:bold;
+      cursor:pointer; box-shadow:4px 4px 0 #000;
+      transition: all .1s; font-family:Pixel,'Courier New',monospace;
+    }
+    .dl-btn:hover{
+      transform:translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--accent-pink);
+      background: var(--accent-yellow);
+    }
+    .dl-btn:active{
+      transform:translate(2px, 2px); box-shadow: 0px 0px 0 #000;
+    }
+
+    audio{
+      width:95%; max-width:350px; height: 40px;
+      border:3px solid #000; border-radius:0;
+      background:#fff;
+    }
+
     .retro-tooltip{
       position:fixed;pointer-events:none;display:none;
-      background:#f7f7f7;border:2px solid #000;
-      padding:6px 8px;font-family:'Courier New',monospace;font-size:13px;
-      z-index:9999;white-space:nowrap;box-shadow:3px 3px 0 rgba(0,0,0,0.12);
+      background:var(--accent-yellow);border:2px solid #000;
+      padding:6px 8px;font-family:'Courier New',monospace;font-size:13px; font-weight: bold;
+      z-index:9999;white-space:nowrap;box-shadow:4px 4px 0 #000;
     }
+
     @media (max-width:600px){
-      header h1{font-size:22px;}
-      .controls{flex-direction:column;}
-      .wrap{padding:10px;}
-      .card{padding:8px;}
+      .wrap{margin-top: 150px; padding:10px;}
+      .controls{flex-direction:column; width: 100%;}
+      .controls input, .controls select, .controls button { width: 100%; box-sizing: border-box; }
+      .card{padding:10px;}
+      .wave { font-size: 22px; }
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" onclick="location.href='/'" />
+  
+  <div class="header-wrapper">
+    <div class="topbar">
+      <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" onclick="location.href='/'" />
+    </div>
+    <div class="marquee-bar">
+      <div id="dynamicMarquee" class="marquee-content">Loading updates...</div>
+    </div>
   </div>
 
-  <div class="wrap retro">
+  <div class="wrap">
     <header>
-      <h1>Royalty-Free Tracks</h1>
+      <div class="highlight-yellow">
+        <h1 class="wave">
+          <span>R</span><span>o</span><span>y</span><span>a</span><span>l</span><span>t</span><span>y</span><span>-</span><span>F</span><span>r</span><span>e</span><span>e</span> <span>T</span><span>r</span><span>a</span><span>c</span><span>k</span><span>s</span>
+        </h1>
+      </div>
       <div class="controls">
         <input class="search" id="q" placeholder="search title or file name" />
-        <label for="sort">Sort:</label>
-        <select id="sort">
-          <option value="date">Date Published</option>
-          <option value="title">Title</option>
-          <option value="length">Length</option>
-          <option value="volume">Volume</option>
-        </select>
-        <button id="toggleDir">Asc</button>
+        <div style="display:flex; gap:10px; align-items: center;">
+          <label for="sort" style="font-weight:bold;">Sort:</label>
+          <select id="sort">
+            <option value="date">Date Published</option>
+            <option value="title">Title</option>
+            <option value="length">Length</option>
+            <option value="volume">Volume</option>
+          </select>
+          <button id="toggleDir">Desc</button>
+        </div>
       </div>
     </header>
     <div id="tracks" class="tracks"></div>
@@ -109,9 +272,28 @@
       {file:'groovysuspense2026',title:"Groovy Suspense '26",length:'2:00',volume:'Vol. R2',date:'January 16, 2026',youtube:'https://youtu.be/tgdjyQteyzs?si=trl8cVM1646VsCBb'},
       {file:'waitwhat2026',title:"Wait, What? '26",length:'2:16',volume:'Vol. R1',date:'January 21, 2026',youtube:'https://chancydf.com/realdownlord'}
     ];
+    
+    const marqueeEl = document.getElementById('dynamicMarquee');
+    let marqueeLines = [];
+    fetch('assets/marquee.txt')
+      .then(r => r.ok?r.text():Promise.reject())
+      .then(t => {
+        marqueeLines = t.split('\n').filter(l=>l.trim()!=='');
+        setRandomText();
+      })
+      .catch(()=>{ marqueeEl.textContent = "+++ WELCOME TO CHANCYDF.COM +++"; });
+      
+    function setRandomText() {
+      if(marqueeLines.length > 0) marqueeEl.textContent = marqueeLines[Math.floor(Math.random() * marqueeLines.length)];
+    }
+    marqueeEl.addEventListener('animationiteration', setRandomText);
+
     function parseDate(s){return new Date(s);}
     function lengthToSeconds(len){const parts=len.split(':').map(Number);return parts[0]*60+(parts[1]||0);}
-    let sortKey='date';let ascending=true;
+    
+    let sortKey='date';
+    let ascending=false;
+
     const tracksRoot=document.getElementById('tracks');
     const sortSelect=document.getElementById('sort');
     const dirBtn=document.getElementById('toggleDir');
@@ -120,12 +302,12 @@
 
     function render(list){
       tracksRoot.innerHTML='';
-      if(!list.length){tracksRoot.innerHTML='<div style="grid-column:1/-1;padding:12px;border:2px dashed #000;background:#fff">No results</div>';return;}
+      if(!list.length){tracksRoot.innerHTML='<div style="grid-column:1/-1;padding:12px;border:3px dashed #000;background:#fff;text-align:center;">No results found</div>';return;}
       for(const t of list){
         const card=document.createElement('div');card.className='card';
         const logo=document.createElement('a');logo.className='logo';logo.href=t.youtube;logo.target='_blank';logo.rel='noopener';
         const img=document.createElement('img');img.alt=t.file;img.src=ASSET_BASE.logos+t.file+'.png';
-        img.onerror=()=>{img.src='data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="1175" height="447"><rect width="100%" height="100%" fill="#fff" stroke="#000"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Courier" font-size="20">${t.file}</text></svg>`);}
+        img.onerror=()=>{img.src='data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="1175" height="447"><rect width="100%" height="100%" fill="#fff" stroke="#000" stroke-width="4"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Courier" font-weight="bold" font-size="20">${t.file}</text></svg>`);}
         logo.appendChild(img);
         logo.addEventListener('mouseenter',()=>{tooltip.textContent='Go to YouTube Upload';tooltip.style.display='block';});
         logo.addEventListener('mousemove',e=>{tooltip.style.left=(e.clientX+12)+'px';tooltip.style.top=(e.clientY+12)+'px';});
@@ -133,14 +315,14 @@
 
         const meta=document.createElement('div');meta.className='meta';
         const h3=document.createElement('h3');h3.textContent=t.title;meta.appendChild(h3);
-        const p1=document.createElement('p');p1.innerHTML=`<strong>File:</strong> ${t.file}`;
-        const p2=document.createElement('p');p2.innerHTML=`<strong>Length:</strong> ${t.length} &nbsp; <strong>Volume:</strong> ${t.volume}`;
-        const p3=document.createElement('p');p3.innerHTML=`<strong>Date Published:</strong> ${t.date}`;
+        const p1=document.createElement('p');p1.innerHTML=`File: ${t.file}`;
+        const p2=document.createElement('p');p2.innerHTML=`Length: ${t.length} | Volume: ${t.volume}`;
+        const p3=document.createElement('p');p3.innerHTML=`Published: ${t.date}`;
         meta.appendChild(p1);meta.appendChild(p2);meta.appendChild(p3);
 
         const actions=document.createElement('div');actions.className='actions';
         const audio=document.createElement('audio');audio.controls=true;audio.src=ASSET_BASE.audios+t.file+'.mp3';actions.appendChild(audio);
-        const dl=document.createElement('a');dl.className='btn';dl.href=ASSET_BASE.audios+t.file+'.mp3';dl.setAttribute('download',t.file+'.mp3');dl.textContent='Download (MP3)';actions.appendChild(dl);
+        const dl=document.createElement('a');dl.className='dl-btn';dl.href=ASSET_BASE.audios+t.file+'.mp3';dl.setAttribute('download',t.file+'.mp3');dl.textContent='Download (MP3)';actions.appendChild(dl);
 
         card.appendChild(logo);card.appendChild(meta);card.appendChild(actions);
         tracksRoot.appendChild(card);
