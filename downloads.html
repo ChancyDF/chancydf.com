@@ -319,9 +319,9 @@
 
         const meta=document.createElement('div');meta.className='meta';
         const h3=document.createElement('h3');h3.textContent=t.title;meta.appendChild(h3);
-        const p1=document.createElement('p');p1.innerHTML=`File: ${t.file}`;
-        const p2=document.createElement('p');p2.innerHTML=`Length: ${t.length} | Volume: ${t.volume}`;
-        const p3=document.createElement('p');p3.innerHTML=`Published: ${t.date}`;
+        const p1=document.createElement('p');p1.innerHTML=`${t.file}`;
+        const p2=document.createElement('p');p2.innerHTML=`${t.length}  |  ${t.volume}`;
+        const p3=document.createElement('p');p3.innerHTML=`${t.date}`;
         meta.appendChild(p1);meta.appendChild(p2);meta.appendChild(p3);
 
         const actions=document.createElement('div');actions.className='actions';
