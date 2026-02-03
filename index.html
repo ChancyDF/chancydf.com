@@ -46,7 +46,7 @@
       min-height:100vh;
       overflow-x:hidden;
     }
-    
+
     .header-wrapper {
       position: fixed;
       top: 0; left: 0; width: 100%;
@@ -85,7 +85,7 @@
     }
     .marquee-content {
       display: inline-block;
-      padding-left: 100%; 
+      padding-left: 100%;
       animation: scroll 15s linear infinite;
     }
     @keyframes scroll {
@@ -154,6 +154,9 @@
       width:68px; height:68px; display:inline-flex; justify-content:center; align-items:center;
       border:3px solid #000; background:#fff; box-shadow:4px 4px 0 #000;
       transition: transform 0.2s, background 0.2s;
+    }
+    .social-links a img {
+        width: 60%; height: 60%; object-fit: contain; image-rendering: pixelated;
     }
     .social-links a:nth-child(1) { transform: rotate(-3deg); }
     .social-links a:nth-child(2) { transform: rotate(2deg); margin-top: -5px; }
@@ -253,7 +256,6 @@
       })
       .then(text => {
         marqueeLines = text.split('\n').filter(line => line.trim() !== '');
-        
         setRandomText();
       })
       .catch(err => {
@@ -307,5 +309,6 @@
       }
     });
   </script>
+  <script src="/tinychancy/tcloader.js"></script>
 </body>
 </html>
