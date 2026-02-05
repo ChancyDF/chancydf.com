@@ -74,7 +74,37 @@
       transition: filter 0.3s;
     }
     .topbar img:hover { filter: brightness(1.1); }
+    
+    .legacy-btn {
+      position: absolute;
+      right: 20px;
+      background: var(--accent-yellow);
+      border: 2px solid #000;
+      padding: 8px 12px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      text-decoration: none;
+      color: #000;
+      box-shadow: 4px 4px 0 var(--shadow);
+      transition: 0.1s;
+      z-index: 1001;
+    }
 
+    .legacy-btn:hover {
+      background: var(--accent-pink);
+      box-shadow: 6px 6px 0 #000;
+      transform: translate(-2px, -2px);
+    }
+
+    /* Adjust for mobile screens so it fits */
+    @media (max-width: 700px) {
+      .legacy-btn {
+        padding: 5px 8px;
+        font-size: 11px;
+        right: 10px;
+        box-shadow: 2px 2px 0 var(--shadow);
+      }
+    }
     .marquee-bar {
       background: var(--accent-pink);
       border-bottom: 4px solid #000;
@@ -201,6 +231,8 @@
   <div class="header-wrapper">
     <div class="topbar">
       <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf.com logo" onclick="location.href='/'" />
+      
+      <a href="retroindex.html" class="legacy-btn">Legacy Website</a>
     </div>
     
     <div class="marquee-bar">
