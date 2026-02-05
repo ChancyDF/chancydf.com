@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>~*~ CHANCYDF.COM ~*~ FREE MIDIs</title>
-
-<script src="https://cdn.jsdelivr.net/npm/midi@0.3.1/build/MIDI.min.js"></script>
-
 <style>
 body {
   background-color: #d7ecff;
@@ -26,26 +23,52 @@ table.main-layout {
 
 td.sidebar {
   width: 160px;
+  vertical-align: top;
   background-color: #a8d5ff;
   padding: 10px;
   border-right: 2px solid #3a86ff;
-  font-size: 12px;
   text-align: center;
+  font-size: 12px;
 }
 
 td.content {
+  vertical-align: top;
   padding: 20px;
 }
 
 h1 {
-  font-family: Courier New, monospace;
+  font-family: 'Courier New', monospace;
   color: #ff7eb9;
   text-shadow: 2px 2px #000;
   font-size: 28px;
-  background: #000;
+  margin: 0;
+  text-align: center;
+  background-color: #000;
   padding: 5px;
   border: 2px ridge #fff;
-  margin: 0;
+}
+
+a { color: blue; text-decoration: underline; }
+a:hover { background-color: #fff35c; }
+
+.track-list {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border: 2px groove #fff;
+}
+
+.track-list th {
+  background-color: #000080;
+  color: #fff;
+  padding: 4px;
+  font-size: 12px;
+}
+
+.track-list td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  font-size: 13px;
 }
 
 .track-img {
@@ -53,53 +76,34 @@ h1 {
   border: 1px solid #000;
 }
 
-.retro-btn {
-  display: block;
-  width: 140px;
-  margin: 4px auto;
+.midi-player {
   background: #c0c0c0;
-  border-top: 2px solid #fff;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #000;
-  border-right: 2px solid #000;
-  padding: 4px;
-  font-family: MS Sans Serif, Geneva, sans-serif;
+  border: 2px inset #fff;
+  padding: 6px;
+  font-family: "MS Sans Serif", Geneva, sans-serif;
   font-size: 12px;
-  cursor: pointer;
 }
 
-table.track-list {
+.midi-controls button {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.midi-progress {
   width: 100%;
-  border-collapse: collapse;
-  background: #fff;
 }
 
-table.track-list th {
-  background: #000080;
-  color: white;
-  padding: 4px;
-  font-size: 12px;
-}
-
-table.track-list td {
-  border: 1px solid #ccc;
-  padding: 5px;
-  font-size: 13px;
-}
-
-.track-meta {
+.midi-time {
+  font-family: monospace;
   font-size: 11px;
-  color: #444;
-  margin-top: 6px;
 }
 </style>
 </head>
-
 <body>
 
 <table class="main-layout">
 <tr>
-<td colspan="2" style="background:#000;padding:10px;text-align:center;">
+<td colspan="2" style="background:#000;text-align:center;padding:10px">
 <img src="/graphics/chancydfcomlogoblue.png" width="300">
 </td>
 </tr>
@@ -107,21 +111,11 @@ table.track-list td {
 <tr>
 <td class="sidebar">
 <b>:: MENU ::</b><br><br>
-<a href="retroindex.html" class="retro-btn">&lt;&lt; HOME</a>
-<hr>
-<b>Stats</b><br>
-3 Files<br>
-100% Free
+<a href="retroindex.html"><< HOME</a>
 </td>
 
 <td class="content">
-
-<center>
 <h1>ROYALTY FREE MIDIs</h1>
-<br>
-Download and preview MIDI compositions
-</center>
-
 <br>
 
 <div id="tracksArea"></div>
@@ -130,103 +124,130 @@ Download and preview MIDI compositions
 </tr>
 </table>
 
-<script>
-fetch('assets/marquee.txt').then(r=>r.text()).then(t=>{
-const l=t.split('\n').filter(x=>x.trim());
-document.title=l[Math.floor(Math.random()*l.length)];
-}).catch(()=>{});
+<script src="https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js"></script>
+<script src="https://surikov.github.io/webaudiofontdata/sound/0000_JCLive_sf2_file.js"></script>
 
-const TRACKS=[
-{file:'puzzlingproblem',title:'Puzzling Problem',length:'1:06',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/G1lb2BqG5hI?si=RPFAJgYKPikS4gWs'},
-{file:'waitwhat',title:'Wait, What?',length:'1:00',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/fIFiI2SFmBI?si=kCIsC4hUxVsw0Ujw'},
-{file:'groovysuspense',title:'Groovy Suspense',length:'1:44',volume:'Vol. 2',date:'February 27, 2025',youtube:'https://youtu.be/-r_qTER3X2A?si=CctqU1pPwym2YGcO'}
+<script>
+const player = new WebAudioFontPlayer();
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const tracks = [
+  {file:'puzzlingproblem',title:'Puzzling Problem',length:66,volume:'Vol. 1',date:'May 8, 2024'},
+  {file:'waitwhat',title:'Wait, What?',length:60,volume:'Vol. 1',date:'May 8, 2024'},
+  {file:'groovysuspense',title:'Groovy Suspense',length:104,volume:'Vol. 2',date:'February 27, 2025'}
 ];
 
-let midiReady=false;
-let currentInfo={};
-
-function loadMIDI(cb){
-if(midiReady){cb();return;}
-MIDI.loadPlugin({
-soundfontUrl:"https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/",
-instrument:"acoustic_grand_piano",
-onsuccess:function(){midiReady=true;cb();}
-});
+function formatTime(s){
+  const m=Math.floor(s/60);
+  const sec=Math.floor(s%60).toString().padStart(2,'0');
+  return m+':'+sec;
 }
 
-function playMIDI(file,metaEl){
-loadMIDI(()=>{
-fetch('/midi/'+file+'.mid')
-.then(r=>r.arrayBuffer())
-.then(b=>{
-const data=MIDI.File(b);
-let tempos=[];
-let instruments=new Set();
-data.tracks.forEach(tr=>{
-tr.forEach(e=>{
-if(e.meta && e.meta.type==='setTempo'){
-tempos.push(Math.round(60000000/e.meta.microsecondsPerBeat));
-}
-if(e.subtype==='programChange'){
-instruments.add(MIDI.GM.byId[e.programNumber].instrument);
-}
-});
-});
-metaEl.innerHTML=
-'Tempo: '+(tempos[0]||'Unknown')+' BPM<br>'+
-'Instruments: '+(Array.from(instruments).join(', ')||'Unknown');
-MIDI.Player.loadFile('/midi/'+file+'.mid',()=>MIDI.Player.start());
-});
-});
+function createPlayer(t){
+  let startedAt=0;
+  let pausedAt=0;
+  let playing=false;
+  let currentNode=null;
+  const wrap=document.createElement('div');
+  wrap.className='midi-player';
+
+  const controls=document.createElement('div');
+  controls.className='midi-controls';
+
+  const playBtn=document.createElement('button');
+  playBtn.textContent='PLAY';
+
+  const pauseBtn=document.createElement('button');
+  pauseBtn.textContent='PAUSE';
+
+  const range=document.createElement('input');
+  range.type='range';
+  range.min=0;
+  range.max=t.length;
+  range.value=0;
+  range.className='midi-progress';
+
+  const time=document.createElement('div');
+  time.className='midi-time';
+  time.textContent='0:00 / '+formatTime(t.length);
+
+  function play(start){
+    player.stop();
+    player.queueMIDIFile(audioContext, audioContext.destination, '/midi/'+t.file+'.mid', audioContext.currentTime, start||0);
+    startedAt=audioContext.currentTime-(start||0);
+    playing=true;
+  }
+
+  playBtn.onclick=()=>{
+    if(!playing) play(pausedAt);
+  };
+
+  pauseBtn.onclick=()=>{
+    if(playing){
+      pausedAt=audioContext.currentTime-startedAt;
+      player.stop();
+      playing=false;
+    }
+  };
+
+  range.oninput=()=>{
+    pausedAt=Number(range.value);
+    if(playing) play(pausedAt);
+    time.textContent=formatTime(range.value)+' / '+formatTime(t.length);
+  };
+
+  setInterval(()=>{
+    if(playing){
+      const pos=audioContext.currentTime-startedAt;
+      if(pos<=t.length){
+        range.value=pos;
+        time.textContent=formatTime(pos)+' / '+formatTime(t.length);
+      }
+    }
+  },250);
+
+  controls.appendChild(playBtn);
+  controls.appendChild(pauseBtn);
+  wrap.appendChild(controls);
+  wrap.appendChild(range);
+  wrap.appendChild(time);
+  return wrap;
 }
 
-function stopMIDI(){
-MIDI.Player.stop();
-}
-
-function render(){
 const area=document.getElementById('tracksArea');
 const table=document.createElement('table');
 table.className='track-list';
 table.innerHTML='<tr><th>PREVIEW</th><th>TRACK INFO</th><th>ACTIONS</th></tr>';
 
-TRACKS.forEach(t=>{
-const row=document.createElement('tr');
-const meta=document.createElement('div');
-meta.className='track-meta';
+for(const t of tracks){
+  const row=document.createElement('tr');
 
-row.innerHTML=`
-<td align="center">
-<a href="${t.youtube}" target="_blank">
-<img class="track-img" src="track names/${t.file}.png">
-</a>
-</td>
-<td>
-<b>${t.title}</b><br>
-Filename: ${t.file}.mid<br>
-Date: ${t.date}<br>
-Length: ${t.length} | ${t.volume}
-</td>
-<td align="center"></td>
-`;
-row.children[1].appendChild(meta);
+  const img=document.createElement('img');
+  img.src='track names/'+t.file+'.png';
+  img.className='track-img';
 
-const btns=document.createElement('div');
-btns.innerHTML=`
-<button class="retro-btn">▶ PLAY</button>
-<button class="retro-btn">■ STOP</button>
-<a class="retro-btn" href="/midi/${t.file}.mid" download>DOWNLOAD MIDI</a>
-`;
-btns.children[0].onclick=()=>playMIDI(t.file,meta);
-btns.children[1].onclick=()=>stopMIDI();
+  const imgTd=document.createElement('td');
+  imgTd.appendChild(img);
 
-row.children[2].appendChild(btns);
-table.appendChild(row);
-});
-area.appendChild(table);
+  const infoTd=document.createElement('td');
+  infoTd.innerHTML='<b>'+t.title+'</b><br>Filename: '+t.file+'.mid<br>Date: '+t.date+'<br>'+formatTime(t.length)+' | '+t.volume;
+
+  const actTd=document.createElement('td');
+  actTd.appendChild(createPlayer(t));
+  actTd.appendChild(document.createElement('br'));
+
+  const dl=document.createElement('a');
+  dl.href='/midi/'+t.file+'.mid';
+  dl.textContent='[DOWNLOAD MIDI]';
+  dl.setAttribute('download',t.file+'.mid');
+  actTd.appendChild(dl);
+
+  row.appendChild(imgTd);
+  row.appendChild(infoTd);
+  row.appendChild(actTd);
+  table.appendChild(row);
 }
 
-render();
+area.appendChild(table);
 </script>
 
 </body>
