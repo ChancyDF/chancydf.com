@@ -148,7 +148,7 @@
       <br><br>
       <a href="/downloads" class="retro-btn">Free MP3s</a>
       <a href="#" class="retro-btn" id="contactBtn">E-Mail Me</a>
-      <a href="index.html" class="retro-btn">Modern Ver.</a>
+      <a href="" class="retro-btn">Modern Ver.</a>
       
       <br><br>
       <hr size="2" width="80%">
@@ -164,9 +164,9 @@
 
     <td class="content">
       
-      <marquee class="scrolling-text" bgcolor="#fff35c" scrollamount="4" scrolldelay="100">
-        +++ WELCOME TO CHANCYDF.COM +++
-      </marquee>
+      <marquee id="retroMarquee" class="scrolling-text" bgcolor="#fff35c" scrollamount="4" scrolldelay="100">
+  GETTING THE LATEST NEWS...
+</marquee>
 
       <center>
         <h1>Welcome!</h1>
@@ -277,6 +277,22 @@
     cell.appendChild(img);
     row.appendChild(cell);
   });
+
+  fetch('assets/marquee.txt')
+    .then(response => {
+      if (!response.ok) throw new Error("File not found");
+      return response.text();
+    })
+    .then(text => {
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      if (lines.length > 0) {
+        const randomLine = lines[Math.floor(Math.random() * lines.length)];
+        document.getElementById('retroMarquee').textContent = randomLine;
+      }
+    })
+    .catch(err => {
+      document.getElementById('retroMarquee').textContent = "+++ WELCOME TO CHANCYDF.COM +++";
+    });
 </script>
 
 </body>
