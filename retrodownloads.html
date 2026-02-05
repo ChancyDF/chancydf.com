@@ -246,11 +246,11 @@ function render(list){
 
     const audio=document.createElement('audio');
     audio.controls=true;
-    audio.src = 'midi/' + t.file + '.wav'; 
-    dl.href = ASSET_BASE.midis + t.file + '.mid';
+    audio.src=ASSET_BASE.midis+t.file+'.mid';
 
     const dl=document.createElement('a');
-    dl.href=ASSET_BASE.midis+t.file+'.mid';
+    audio.src = 'midi/' + t.file + '.wav'; 
+    dl.href = ASSET_BASE.midis + t.file + '.mid';
     dl.setAttribute('download',t.file+'.mid');
     dl.innerHTML='<b>[DOWNLOAD MIDI]</b>';
 
