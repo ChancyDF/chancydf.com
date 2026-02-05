@@ -2,384 +2,231 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>~*~ CHANCYDF.COM ~*~ FREE MP3s</title>
+<title>~*~ CHANCYDF.COM ~*~ FREE MIDIs</title>
+
+<script src="https://cdn.jsdelivr.net/npm/midi@0.3.1/build/MIDI.min.js"></script>
+
 <style>
-  body {
-    background-color: #d7ecff;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
-    color: #000000;
-    font-family: "Times New Roman", Times, serif;
-    margin: 0;
-    padding: 10px;
-    background-repeat: repeat;
-  }
+body {
+  background-color: #d7ecff;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
+  color: #000;
+  font-family: "Times New Roman", Times, serif;
+  margin: 0;
+  padding: 10px;
+}
 
-  table.main-layout {
-    width: 800px;
-    background-color: #e9f5ff;
-    border: 2px solid #3a86ff;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 0 auto;
-    box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
-  }
+table.main-layout {
+  width: 800px;
+  background-color: #e9f5ff;
+  border: 2px solid #3a86ff;
+  margin: 0 auto;
+  box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+}
 
-  td.sidebar {
-    width: 160px;
-    vertical-align: top;
-    background-color: #a8d5ff;
-    padding: 10px;
-    border-right: 2px solid #3a86ff;
-    text-align: center;
-    font-size: 12px;
-  }
+td.sidebar {
+  width: 160px;
+  background-color: #a8d5ff;
+  padding: 10px;
+  border-right: 2px solid #3a86ff;
+  font-size: 12px;
+  text-align: center;
+}
 
-  td.content {
-    vertical-align: top;
-    padding: 20px;
-  }
+td.content {
+  padding: 20px;
+}
 
-  h1 {
-    font-family: 'Courier New', monospace;
-    color: #ff7eb9;
-    text-shadow: 2px 2px #000;
-    font-size: 28px;
-    margin: 0;
-    text-align: center;
-    background-color: #000;
-    padding: 5px;
-    border: 2px ridge #fff;
-  }
+h1 {
+  font-family: Courier New, monospace;
+  color: #ff7eb9;
+  text-shadow: 2px 2px #000;
+  font-size: 28px;
+  background: #000;
+  padding: 5px;
+  border: 2px ridge #fff;
+  margin: 0;
+}
 
-  h2 {
-    color: #3a86ff;
-    border-bottom: 3px double #000;
-    font-size: 18px;
-    margin-top: 15px;
-    font-family: Arial, sans-serif;
-  }
+.track-img {
+  width: 100px;
+  border: 1px solid #000;
+}
 
-  a { text-decoration: underline; color: blue; }
-  a:visited { color: purple; }
-  a:hover { background-color: #fff35c; }
+.retro-btn {
+  display: block;
+  width: 140px;
+  margin: 4px auto;
+  background: #c0c0c0;
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #000;
+  border-right: 2px solid #000;
+  padding: 4px;
+  font-family: MS Sans Serif, Geneva, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+}
 
-  .retro-btn {
-    display: block;
-    width: 130px;
-    margin: 10px auto;
-    background: #c0c0c0;
-    border-top: 2px solid #fff;
-    border-left: 2px solid #fff;
-    border-bottom: 2px solid #000;
-    border-right: 2px solid #000;
-    padding: 4px;
-    color: #000;
-    text-decoration: none;
-    font-family: 'MS Sans Serif', Geneva, sans-serif;
-    font-size: 12px;
-    cursor: pointer;
-    text-align: center;
-  }
-  .retro-btn:active {
-    border-top: 2px solid #000;
-    border-left: 2px solid #000;
-    border-bottom: 2px solid #fff;
-    border-right: 2px solid #fff;
-    transform: translate(1px, 1px);
-  }
+table.track-list {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
 
-  .scrolling-text {
-    background-color: #fff35c;
-    border: 1px solid #000;
-    color: red;
-    font-weight: bold;
-    font-family: monospace;
-    padding: 2px;
-    margin-bottom: 10px;
-  }
+table.track-list th {
+  background: #000080;
+  color: white;
+  padding: 4px;
+  font-size: 12px;
+}
 
-  .control-panel {
-    background-color: #c0c0c0;
-    border: 2px outset #fff;
-    padding: 10px;
-    text-align: center;
-    margin-bottom: 20px;
-  }
+table.track-list td {
+  border: 1px solid #ccc;
+  padding: 5px;
+  font-size: 13px;
+}
 
-  input, select, button {
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-  }
-
-  table.track-list {
-    width: 100%;
-    border-collapse: collapse;
-    border: 2px groove #fff;
-    background-color: #fff;
-  }
-  table.track-list th {
-    background-color: #000080;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    font-size: 12px;
-    padding: 4px;
-    text-align: left;
-  }
-  table.track-list td {
-    border: 1px solid #ccc;
-    padding: 5px;
-    font-size: 13px;
-    vertical-align: middle;
-  }
-  table.track-list tr:hover {
-    background-color: #ffffcc;
-  }
-
-  .track-img {
-    width: 100px;
-    border: 1px solid #000;
-    display: block;
-  }
-
-  audio {
-    width: 100%;
-    height: 30px;
-  }
+.track-meta {
+  font-size: 11px;
+  color: #444;
+  margin-top: 6px;
+}
 </style>
 </head>
+
 <body>
 
-<table class="main-layout" border="0" cellspacing="0" cellpadding="0">
-  <tr>
-    <td colspan="2" style="background-color: #000000; padding: 10px; text-align: center; border-bottom: 4px solid #fff35c;">
-       <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf logo" width="300" style="border: 2px solid #fff;">
-    </td>
-  </tr>
-  
-  <tr>
-    <td class="sidebar">
-      <br>
-      <b>:: MENU ::</b>
-      <br><br>
-      <a href="retroindex.html" class="retro-btn">&lt;&lt; HOME</a>
-      <a href="#" class="retro-btn" onclick="alert('Use the download buttons on the right!');">Help</a>
-      
-      <br><br>
-      <hr size="2" width="80%">
-      <font size="2" face="Arial">
-        <b>Stats:</b><br>
-        23 Files Found<br>
-        100% Free
-      </font>
-    </td>
+<table class="main-layout">
+<tr>
+<td colspan="2" style="background:#000;padding:10px;text-align:center;">
+<img src="/graphics/chancydfcomlogoblue.png" width="300">
+</td>
+</tr>
 
-    <td class="content">
-      
-      <marquee id="retroMarquee" class="scrolling-text" bgcolor="#fff35c" scrollamount="4" scrolldelay="100">
-        Loading updates...
-      </marquee>
+<tr>
+<td class="sidebar">
+<b>:: MENU ::</b><br><br>
+<a href="retroindex.html" class="retro-btn">&lt;&lt; HOME</a>
+<hr>
+<b>Stats</b><br>
+3 Files<br>
+100% Free
+</td>
 
-      <center>
-        <h1>ROYALTY FREE MP3s</h1>
-        <br>
-        <font size="3">Download these tracks for your multimedia projects!</font>
-      </center>
-      <br>
+<td class="content">
 
-      <div class="control-panel">
-        <form onsubmit="return false;">
-          <table border="0" align="center">
-            <tr>
-              <td><b>Search:</b></td>
-              <td><input type="text" id="q" size="20"></td>
-            </tr>
-            <tr>
-              <td><b>Sort By:</b></td>
-              <td>
-                <select id="sort">
-                  <option value="date">Date Added</option>
-                  <option value="title">Filename</option>
-                  <option value="length">Duration</option>
-                  <option value="volume">Album</option>
-                </select>
-                <button id="toggleDir">DESC</button>
-              </td>
-            </tr>
-          </table>
-        </form>
-      </div>
+<center>
+<h1>ROYALTY FREE MIDIs</h1>
+<br>
+Download and preview MIDI compositions
+</center>
 
-      <div id="tracksArea">
-        <center>Loading database...</center>
-      </div>
+<br>
 
-      <br><br>
-    </td>
-  </tr>
+<div id="tracksArea"></div>
+
+</td>
+</tr>
 </table>
 
 <script>
-    fetch('assets/marquee.txt')
-    .then(response => {
-      if (!response.ok) throw new Error("File not found");
-      return response.text();
-    })
-    .then(text => {
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      if (lines.length > 0) {
-        const randomLine = lines[Math.floor(Math.random() * lines.length)];
-        document.getElementById('retroMarquee').textContent = randomLine;
-      }
-    })
-    .catch(err => {
-      document.getElementById('retroMarquee').textContent = "+++ WELCOME TO THE DOWNLOAD ZONE +++";
-    });
+fetch('assets/marquee.txt').then(r=>r.text()).then(t=>{
+const l=t.split('\n').filter(x=>x.trim());
+document.title=l[Math.floor(Math.random()*l.length)];
+}).catch(()=>{});
 
-    const ASSET_BASE={logos:'track names/',audios:'audios/'};
-    const TRACKS=[
-      {file:'puzzlingproblem',title:'Puzzling Problem',length:'1:06',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/G1lb2BqG5hI?si=RPFAJgYKPikS4gWs'},
-      {file:'waitwhat',title:'Wait, What?',length:'1:00',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/fIFiI2SFmBI?si=kCIsC4hUxVsw0Ujw'},
-      {file:'notsosneaky',title:'Not-So-Sneaky',length:'1:21',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/rtRcsLS2ilc?si=RJCWx-AfCOoBew17'},
-      {file:'more',title:'More',length:'1:17',volume:'Vol. 1',date:'June 22, 2024',youtube:'https://youtu.be/WwvKcf9gMrM?si=FXdeT9ZMYyUvPQvz'},
-      {file:'eekitsdark',title:"Eek! It's Dark!",length:'1:05',volume:'Vol. 1',date:'July 1, 2024',youtube:'https://youtu.be/DHciaWn-QaA?si=0taS8WDhpb5UF2kR'},
-      {file:'anotherdayanothertry',title:'Another Day, Another Try',length:'1:08',volume:'Vol. 1',date:'July 20, 2024',youtube:'https://youtu.be/1zT-0-texAw?si=_SfQnQuLi3YHqkl2'},
-      {file:'feelit',title:'Feel It.',length:'1:24',volume:'Vol. 1',date:'July 31, 2024',youtube:'https://youtu.be/kAR2Kz6wU4A?si=zmxF1ihDEYCZDOSW'},
-      {file:'groovysuspense',title:'Groovy Suspense',length:'1:44',volume:'Vol. 2',date:'February 27, 2025',youtube:'https://youtu.be/-r_qTER3X2A?si=CctqU1pPwym2YGcO'},
-      {file:'wornout',title:'Worn Out',length:'1:26',volume:'Vol. 2',date:'March 13, 2025',youtube:'https://youtu.be/ZQirGnJEnPM?si=Y2qTlC_bmJtvQ7ct'},
-      {file:'bitmuch',title:'Bit Much?',length:'1:30',volume:'Vol. 2',date:'March 28, 2025',youtube:'https://youtu.be/zpVqkuFCA3o?si=qIYZ7OCZCdB5KmZH'},
-      {file:'somethingoranother',title:'Something or Another...',length:'2:05',volume:'Vol. 2',date:'June 18, 2025',youtube:'https://youtu.be/QGKX5mmZz_c?si=tamz5TiEwGZra4uk'},
-      {file:'thirdtimesthecharm',title:"Third Time's the Charm!",length:'1:56',volume:'Vol. 2',date:'June 18, 2025',youtube:'https://youtu.be/rFO4n7d1UP8?si=EH2kfeYJLXdT5x6X'},
-      {file:'landshanty',title:'Land Shanty',length:'2:11',volume:'Vol. 3',date:'August 25, 2025',youtube:'https://youtu.be/Ktid7umoGVg?si=IW_VO7Udh-KXivV_'},
-      {file:'sneakysuspense',title:'Sneaky Suspense',length:'2:04',volume:'Vol. 3',date:'September 8, 2025',youtube:'https://youtu.be/Ktid7umoGVg?si=o6IOz_kMUz93cNPL'},
-      {file:'theoreticallyhypothetical',title:'Theoretically Hypothetical',length:'2:01',volume:'Vol. 3',date:'September 16, 2025',youtube:'https://youtu.be/V1c70lQbhCs?si=Ax1jYC60-qhei_3L'},
-      {file:'walkingtonowhere',title:'Walking to Nowhere',length:'1:55',volume:'Vol. 3',date:'September 24, 2025',youtube:'https://youtu.be/1XrUI8iLEic?si=Sct1fajtCnRggmo8'},
-      {file:'funkylines',title:'Funky Lines',length:'2:01',volume:'Vol. 3',date:'October 9, 2025',youtube:'https://youtu.be/EKyUOPP8JDY?si=8uByivhFLvQx0LwL'},
-      {file:'tunedtoterrify',title:'Tuned to Terrify',length:'2:25',volume:'Vol. 3',date:'October 28, 2025',youtube:'https://youtu.be/NQd4km9jPfY'},
-      {file:'firebitz',title:'Fire Bitz!',length:'2:25',volume:'Vol. 3',date:'November 12, 2025',youtube:'https://youtu.be/1aRXFm929Po'},
-      {file:'fourleafclover',title:'Four-Leaf Clover',length:'2:57',volume:'Vol. 3',date:'November 25, 2025',youtube:'https://youtu.be/-P1TLJgloCY'},
-      {file:'whereami',title:'Where Am I?',length:'2:09',volume:'Vol. 3',date:'January 7, 2026',youtube:'https://youtu.be/UN-h0qfJCSU?si=v39wN4ON-aSgIP28'},
-      {file:'groovysuspense2026',title:"Groovy Suspense '26",length:'2:00',volume:'Vol. R2',date:'January 16, 2026',youtube:'https://youtu.be/tgdjyQteyzs?si=trl8cVM1646VsCBb'},
-      {file:'waitwhat2026',title:"Wait, What? '26",length:'2:16',volume:'Vol. R1',date:'January 21, 2026',youtube:'https://chancydf.com/realdownlord'}
-    ];
+const TRACKS=[
+{file:'puzzlingproblem',title:'Puzzling Problem',length:'1:06',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/G1lb2BqG5hI?si=RPFAJgYKPikS4gWs'},
+{file:'waitwhat',title:'Wait, What?',length:'1:00',volume:'Vol. 1',date:'May 8, 2024',youtube:'https://youtu.be/fIFiI2SFmBI?si=kCIsC4hUxVsw0Ujw'},
+{file:'groovysuspense',title:'Groovy Suspense',length:'1:44',volume:'Vol. 2',date:'February 27, 2025',youtube:'https://youtu.be/-r_qTER3X2A?si=CctqU1pPwym2YGcO'}
+];
 
-    function parseDate(s){return new Date(s);}
-    function lengthToSeconds(len){const parts=len.split(':').map(Number);return parts[0]*60+(parts[1]||0);}
-    
-    let sortKey='date';
-    let ascending=false;
+let midiReady=false;
+let currentInfo={};
 
-    const tracksArea = document.getElementById('tracksArea');
-    const sortSelect = document.getElementById('sort');
-    const dirBtn = document.getElementById('toggleDir');
-    const q = document.getElementById('q');
+function loadMIDI(cb){
+if(midiReady){cb();return;}
+MIDI.loadPlugin({
+soundfontUrl:"https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/",
+instrument:"acoustic_grand_piano",
+onsuccess:function(){midiReady=true;cb();}
+});
+}
 
-    function render(list){
-      tracksArea.innerHTML='';
-      
-      if(!list.length){
-        tracksArea.innerHTML='<center><b>No files found matching your query.</b></center>';
-        return;
-      }
+function playMIDI(file,metaEl){
+loadMIDI(()=>{
+fetch('/midi/'+file+'.mid')
+.then(r=>r.arrayBuffer())
+.then(b=>{
+const data=MIDI.File(b);
+let tempos=[];
+let instruments=new Set();
+data.tracks.forEach(tr=>{
+tr.forEach(e=>{
+if(e.meta && e.meta.type==='setTempo'){
+tempos.push(Math.round(60000000/e.meta.microsecondsPerBeat));
+}
+if(e.subtype==='programChange'){
+instruments.add(MIDI.GM.byId[e.programNumber].instrument);
+}
+});
+});
+metaEl.innerHTML=
+'Tempo: '+(tempos[0]||'Unknown')+' BPM<br>'+
+'Instruments: '+(Array.from(instruments).join(', ')||'Unknown');
+MIDI.Player.loadFile('/midi/'+file+'.mid',()=>MIDI.Player.start());
+});
+});
+}
 
-      const table = document.createElement('table');
-      table.className = 'track-list';
-      table.border = "1";
-      table.cellPadding = "4";
-      
-      const thead = document.createElement('tr');
-      thead.innerHTML = `
-        <th width="110">PREVIEW</th>
-        <th>TRACK INFO</th>
-        <th width="200" align="center">ACTIONS</th>
-      `;
-      table.appendChild(thead);
+function stopMIDI(){
+MIDI.Player.stop();
+}
 
-      for(const t of list){
-        const row = document.createElement('tr');
-        
-        const imgCell = document.createElement('td');
-        imgCell.align = "center";
-        const img = document.createElement('img');
-        img.src = ASSET_BASE.logos + t.file + '.png';
-        img.className = 'track-img';
-        img.alt = t.file;
-        img.onerror=()=>{img.src='https://placehold.co/100x40/white/black?text='+t.file;};
-        
-        const ytLink = document.createElement('a');
-        ytLink.href = t.youtube;
-        ytLink.target = "_blank";
-        ytLink.title = "View on YouTube";
-        ytLink.appendChild(img);
-        imgCell.appendChild(ytLink);
+function render(){
+const area=document.getElementById('tracksArea');
+const table=document.createElement('table');
+table.className='track-list';
+table.innerHTML='<tr><th>PREVIEW</th><th>TRACK INFO</th><th>ACTIONS</th></tr>';
 
-        const infoCell = document.createElement('td');
-        infoCell.innerHTML = `
-          <font size="3" face="Arial"><b>${t.title}</b></font><br>
-          <font size="2" color="#555">
-          Filename: ${t.file}.mp3<br>
-          Date: ${t.date}<br>
-          Length: ${t.length} | ${t.volume}
-          </font>
-        `;
+TRACKS.forEach(t=>{
+const row=document.createElement('tr');
+const meta=document.createElement('div');
+meta.className='track-meta';
 
-        const actionCell = document.createElement('td');
-        actionCell.align = "center";
-        
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.src = ASSET_BASE.audios + t.file + '.mp3';
-        
-        const dlLink = document.createElement('a');
-        dlLink.href = ASSET_BASE.audios + t.file + '.mp3';
-        dlLink.setAttribute('download', t.file + '.mp3');
-        dlLink.innerHTML = "<b>[DOWNLOAD MP3]</b>";
-        
-        actionCell.appendChild(audio);
-        actionCell.appendChild(document.createElement('br'));
-        actionCell.appendChild(dlLink);
+row.innerHTML=`
+<td align="center">
+<a href="${t.youtube}" target="_blank">
+<img class="track-img" src="track names/${t.file}.png">
+</a>
+</td>
+<td>
+<b>${t.title}</b><br>
+Filename: ${t.file}.mid<br>
+Date: ${t.date}<br>
+Length: ${t.length} | ${t.volume}
+</td>
+<td align="center"></td>
+`;
+row.children[1].appendChild(meta);
 
-        row.appendChild(imgCell);
-        row.appendChild(infoCell);
-        row.appendChild(actionCell);
-        table.appendChild(row);
-      }
-      tracksArea.appendChild(table);
-    }
+const btns=document.createElement('div');
+btns.innerHTML=`
+<button class="retro-btn">▶ PLAY</button>
+<button class="retro-btn">■ STOP</button>
+<a class="retro-btn" href="/midi/${t.file}.mid" download>DOWNLOAD MIDI</a>
+`;
+btns.children[0].onclick=()=>playMIDI(t.file,meta);
+btns.children[1].onclick=()=>stopMIDI();
 
-    function getFiltered(){
-      const term=q.value.trim().toLowerCase();
-      return TRACKS.filter(t=>!term||t.title.toLowerCase().includes(term)||t.file.toLowerCase().includes(term));
-    }
+row.children[2].appendChild(btns);
+table.appendChild(row);
+});
+area.appendChild(table);
+}
 
-    function sortList(list){
-      const sorted=list.slice();
-      sorted.sort((a,b)=>{
-        let A,B;
-        if(sortKey==='date'){A=parseDate(a.date);B=parseDate(b.date);}
-        else if(sortKey==='title'){A=a.title.toLowerCase();B=b.title.toLowerCase();}
-        else if(sortKey==='length'){A=lengthToSeconds(a.length);B=lengthToSeconds(b.length);}
-        else if(sortKey==='volume'){A=a.volume.toLowerCase();B=b.volume.toLowerCase();}
-        if(A<B)return ascending?-1:1;
-        if(A>B)return ascending?1:-1;
-        return 0;
-      });
-      return sorted;
-    }
-
-    function refresh(){
-      let list=getFiltered();
-      list=sortList(list);
-      render(list);
-    }
-
-    sortSelect.value='date';
-    dirBtn.textContent=ascending?'ASC':'DESC';
-
-    sortSelect.addEventListener('change',()=>{sortKey=sortSelect.value;refresh();});
-    dirBtn.addEventListener('click',()=>{ascending=!ascending;dirBtn.textContent=ascending?'ASC':'DESC';refresh();});
-    q.addEventListener('input',()=>{refresh();});
-
-    refresh();
+render();
 </script>
 
 </body>
