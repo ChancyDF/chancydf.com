@@ -4,250 +4,269 @@
 <meta charset="UTF-8">
 <title>~*~ CHANCYDF.COM ~*~ FREE MIDIs</title>
 <style>
-body {
-  background-color: #d7ecff;
-  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
-  color: #000;
-  font-family: "Times New Roman", Times, serif;
-  margin: 0;
-  padding: 10px;
-}
+  body {
+    background-color: #d7ecff;
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
+    color: #000000;
+    font-family: "Times New Roman", Times, serif;
+    margin: 0;
+    padding: 10px;
+    background-repeat: repeat;
+  }
 
-table.main-layout {
-  width: 800px;
-  background-color: #e9f5ff;
-  border: 2px solid #3a86ff;
-  margin: 0 auto;
-  box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
-}
+  table.main-layout {
+    width: 800px;
+    background-color: #e9f5ff;
+    border: 2px solid #3a86ff;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0 auto;
+    box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+  }
 
-td.sidebar {
-  width: 160px;
-  vertical-align: top;
-  background-color: #a8d5ff;
-  padding: 10px;
-  border-right: 2px solid #3a86ff;
-  text-align: center;
-  font-size: 12px;
-}
+  td.sidebar {
+    width: 160px;
+    vertical-align: top;
+    background-color: #a8d5ff;
+    padding: 10px;
+    border-right: 2px solid #3a86ff;
+    text-align: center;
+    font-size: 12px;
+  }
 
-td.content {
-  vertical-align: top;
-  padding: 20px;
-}
+  td.content {
+    vertical-align: top;
+    padding: 20px;
+  }
 
-h1 {
-  font-family: 'Courier New', monospace;
-  color: #ff7eb9;
-  text-shadow: 2px 2px #000;
-  font-size: 28px;
-  margin: 0;
-  text-align: center;
-  background-color: #000;
-  padding: 5px;
-  border: 2px ridge #fff;
-}
+  h1 {
+    font-family: 'Courier New', monospace;
+    color: #ff7eb9;
+    text-shadow: 2px 2px #000;
+    font-size: 28px;
+    margin: 0;
+    text-align: center;
+    background-color: #000;
+    padding: 5px;
+    border: 2px ridge #fff;
+  }
 
-a { color: blue; text-decoration: underline; }
-a:hover { background-color: #fff35c; }
+  h2 {
+    color: #3a86ff;
+    border-bottom: 3px double #000;
+    font-size: 18px;
+    margin-top: 15px;
+    font-family: Arial, sans-serif;
+  }
 
-.track-list {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #fff;
-  border: 2px groove #fff;
-}
+  a { text-decoration: underline; color: blue; }
+  a:visited { color: purple; }
+  a:hover { background-color: #fff35c; }
 
-.track-list th {
-  background-color: #000080;
-  color: #fff;
-  padding: 4px;
-  font-size: 12px;
-}
+  .retro-btn {
+    display: block;
+    width: 130px;
+    margin: 10px auto;
+    background: #c0c0c0;
+    border-top: 2px solid #fff;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #000;
+    border-right: 2px solid #000;
+    padding: 4px;
+    color: #000;
+    text-decoration: none;
+    font-family: 'MS Sans Serif', Geneva, sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .retro-btn:active {
+    border-top: 2px solid #000;
+    border-left: 2px solid #000;
+    border-bottom: 2px solid #fff;
+    border-right: 2px solid #fff;
+    transform: translate(1px, 1px);
+  }
 
-.track-list td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  font-size: 13px;
-}
+  .scrolling-text {
+    background-color: #fff35c;
+    border: 1px solid #000;
+    color: red;
+    font-weight: bold;
+    font-family: monospace;
+    padding: 2px;
+    margin-bottom: 10px;
+  }
 
-.track-img {
-  width: 100px;
-  border: 1px solid #000;
-}
+  .control-panel {
+    background-color: #c0c0c0;
+    border: 2px outset #fff;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
 
-.midi-player {
-  background: #c0c0c0;
-  border: 2px inset #fff;
-  padding: 6px;
-  font-family: "MS Sans Serif", Geneva, sans-serif;
-  font-size: 12px;
-}
+  input, select, button {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+  }
 
-.midi-controls button {
-  font-size: 12px;
-  padding: 2px 6px;
-}
+  table.track-list {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px groove #fff;
+    background-color: #fff;
+  }
+  table.track-list th {
+    background-color: #000080;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    padding: 4px;
+    text-align: left;
+  }
+  table.track-list td {
+    border: 1px solid #ccc;
+    padding: 5px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  table.track-list tr:hover {
+    background-color: #ffffcc;
+  }
 
-.midi-progress {
-  width: 100%;
-}
+  .track-img {
+    width: 100px;
+    border: 1px solid #000;
+    display: block;
+  }
 
-.midi-time {
-  font-family: monospace;
-  font-size: 11px;
-}
+  audio {
+    width: 100%;
+    height: 30px;
+  }
 </style>
 </head>
 <body>
 
 <table class="main-layout">
-<tr>
-<td colspan="2" style="background:#000;text-align:center;padding:10px">
-<img src="/graphics/chancydfcomlogoblue.png" width="300">
-</td>
-</tr>
+  <tr>
+    <td colspan="2" style="background-color:#000; padding:10px; text-align:center; border-bottom:4px solid #fff35c;">
+      <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf logo" width="300" style="border:2px solid #fff;">
+    </td>
+  </tr>
 
-<tr>
-<td class="sidebar">
-<b>:: MENU ::</b><br><br>
-<a href="retroindex.html"><< HOME</a>
-</td>
+  <tr>
+    <td class="sidebar">
+      <br>
+      <b>:: MENU ::</b><br><br>
+      <a href="retroindex.html" class="retro-btn">&lt;&lt; HOME</a>
+      <a href="#" class="retro-btn" onclick="alert('Use the download buttons on the right!');">Help</a>
+      <br><br>
+      <hr size="2" width="80%">
+      <font size="2" face="Arial">
+        <b>Stats:</b><br>
+        3 Files Found<br>
+        100% Free
+      </font>
+    </td>
 
-<td class="content">
-<h1>ROYALTY FREE MIDIs</h1>
-<br>
+    <td class="content">
 
-<div id="tracksArea"></div>
+      <marquee id="retroMarquee" class="scrolling-text" scrollamount="4" scrolldelay="100">
+        Loading updates...
+      </marquee>
 
-</td>
-</tr>
+      <center>
+        <h1>ROYALTY FREE MIDIs</h1>
+        <br>
+        <font size="3">Download these MIDI tracks for your projects!</font>
+      </center>
+
+      <br>
+
+      <div id="tracksArea"></div>
+
+    </td>
+  </tr>
 </table>
 
-<script src="https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js"></script>
-<script src="https://surikov.github.io/webaudiofontdata/sound/0000_JCLive_sf2_file.js"></script>
-
 <script>
-const player = new WebAudioFontPlayer();
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-const tracks = [
-  {file:'puzzlingproblem',title:'Puzzling Problem',length:66,volume:'Vol. 1',date:'May 8, 2024'},
-  {file:'waitwhat',title:'Wait, What?',length:60,volume:'Vol. 1',date:'May 8, 2024'},
-  {file:'groovysuspense',title:'Groovy Suspense',length:104,volume:'Vol. 2',date:'February 27, 2025'}
+fetch('assets/marquee.txt')
+.then(r=>r.ok?r.text():Promise.reject())
+.then(t=>{
+  const l=t.split('\n').filter(x=>x.trim());
+  document.getElementById('retroMarquee').textContent=l[Math.floor(Math.random()*l.length)];
+})
+.catch(()=>{document.getElementById('retroMarquee').textContent="+++ WELCOME TO THE DOWNLOAD ZONE +++";});
+
+const ASSET_BASE={logos:'track names/',midis:'/midi/'};
+
+const TRACKS=[
+  {file:'puzzlingproblem',title:'Puzzling Problem',length:'1:06',volume:'Vol. 1',date:'May 8, 2024'},
+  {file:'waitwhat',title:'Wait, What?',length:'1:00',volume:'Vol. 1',date:'May 8, 2024'},
+  {file:'groovysuspense',title:'Groovy Suspense',length:'1:44',volume:'Vol. 2',date:'February 27, 2025'}
 ];
 
-function formatTime(s){
-  const m=Math.floor(s/60);
-  const sec=Math.floor(s%60).toString().padStart(2,'0');
-  return m+':'+sec;
+function render(list){
+  const area=document.getElementById('tracksArea');
+  area.innerHTML='';
+  const table=document.createElement('table');
+  table.className='track-list';
+
+  table.innerHTML=`
+    <tr>
+      <th width="110">PREVIEW</th>
+      <th>TRACK INFO</th>
+      <th width="220">ACTIONS</th>
+    </tr>
+  `;
+
+  list.forEach(t=>{
+    const row=document.createElement('tr');
+
+    const imgCell=document.createElement('td');
+    imgCell.align='center';
+    const img=document.createElement('img');
+    img.src=ASSET_BASE.logos+t.file+'.png';
+    img.className='track-img';
+    img.onerror=()=>{img.src='https://placehold.co/100x40/white/black?text='+t.file;};
+    imgCell.appendChild(img);
+
+    const infoCell=document.createElement('td');
+    infoCell.innerHTML=`
+      <b>${t.title}</b><br>
+      Filename: ${t.file}.mid<br>
+      Date: ${t.date}<br>
+      Length: ${t.length} | ${t.volume}
+    `;
+
+    const actionCell=document.createElement('td');
+    actionCell.align='center';
+
+    const audio=document.createElement('audio');
+    audio.controls=true;
+    audio.src=ASSET_BASE.midis+t.file+'.mid';
+
+    const dl=document.createElement('a');
+    dl.href=ASSET_BASE.midis+t.file+'.mid';
+    dl.setAttribute('download',t.file+'.mid');
+    dl.innerHTML='<b>[DOWNLOAD MIDI]</b>';
+
+    actionCell.appendChild(audio);
+    actionCell.appendChild(document.createElement('br'));
+    actionCell.appendChild(dl);
+
+    row.appendChild(imgCell);
+    row.appendChild(infoCell);
+    row.appendChild(actionCell);
+    table.appendChild(row);
+  });
+
+  area.appendChild(table);
 }
 
-function createPlayer(t){
-  let startedAt=0;
-  let pausedAt=0;
-  let playing=false;
-  let currentNode=null;
-  const wrap=document.createElement('div');
-  wrap.className='midi-player';
-
-  const controls=document.createElement('div');
-  controls.className='midi-controls';
-
-  const playBtn=document.createElement('button');
-  playBtn.textContent='PLAY';
-
-  const pauseBtn=document.createElement('button');
-  pauseBtn.textContent='PAUSE';
-
-  const range=document.createElement('input');
-  range.type='range';
-  range.min=0;
-  range.max=t.length;
-  range.value=0;
-  range.className='midi-progress';
-
-  const time=document.createElement('div');
-  time.className='midi-time';
-  time.textContent='0:00 / '+formatTime(t.length);
-
-  function play(start){
-    player.stop();
-    player.queueMIDIFile(audioContext, audioContext.destination, '/midi/'+t.file+'.mid', audioContext.currentTime, start||0);
-    startedAt=audioContext.currentTime-(start||0);
-    playing=true;
-  }
-
-  playBtn.onclick=()=>{
-    if(!playing) play(pausedAt);
-  };
-
-  pauseBtn.onclick=()=>{
-    if(playing){
-      pausedAt=audioContext.currentTime-startedAt;
-      player.stop();
-      playing=false;
-    }
-  };
-
-  range.oninput=()=>{
-    pausedAt=Number(range.value);
-    if(playing) play(pausedAt);
-    time.textContent=formatTime(range.value)+' / '+formatTime(t.length);
-  };
-
-  setInterval(()=>{
-    if(playing){
-      const pos=audioContext.currentTime-startedAt;
-      if(pos<=t.length){
-        range.value=pos;
-        time.textContent=formatTime(pos)+' / '+formatTime(t.length);
-      }
-    }
-  },250);
-
-  controls.appendChild(playBtn);
-  controls.appendChild(pauseBtn);
-  wrap.appendChild(controls);
-  wrap.appendChild(range);
-  wrap.appendChild(time);
-  return wrap;
-}
-
-const area=document.getElementById('tracksArea');
-const table=document.createElement('table');
-table.className='track-list';
-table.innerHTML='<tr><th>PREVIEW</th><th>TRACK INFO</th><th>ACTIONS</th></tr>';
-
-for(const t of tracks){
-  const row=document.createElement('tr');
-
-  const img=document.createElement('img');
-  img.src='track names/'+t.file+'.png';
-  img.className='track-img';
-
-  const imgTd=document.createElement('td');
-  imgTd.appendChild(img);
-
-  const infoTd=document.createElement('td');
-  infoTd.innerHTML='<b>'+t.title+'</b><br>Filename: '+t.file+'.mid<br>Date: '+t.date+'<br>'+formatTime(t.length)+' | '+t.volume;
-
-  const actTd=document.createElement('td');
-  actTd.appendChild(createPlayer(t));
-  actTd.appendChild(document.createElement('br'));
-
-  const dl=document.createElement('a');
-  dl.href='/midi/'+t.file+'.mid';
-  dl.textContent='[DOWNLOAD MIDI]';
-  dl.setAttribute('download',t.file+'.mid');
-  actTd.appendChild(dl);
-
-  row.appendChild(imgTd);
-  row.appendChild(infoTd);
-  row.appendChild(actTd);
-  table.appendChild(row);
-}
-
-area.appendChild(table);
+render(TRACKS);
 </script>
 
 </body>
