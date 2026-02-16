@@ -1,298 +1,387 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>~*~ CHANCYDF.COM ~*~</title>
-<style>
-  body {
-    background-color: #d7ecff;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
-    color: #000000;
-    font-family: "Times New Roman", Times, serif;
-    margin: 0;
-    padding: 10px;
-    background-repeat: repeat;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>~*~ CHANCYDF.COM ~*~</title>
+    <style>
+        @keyframes flickering {
+            0% { opacity: 0.97; }
+            5% { opacity: 0.95; }
+            10% { opacity: 0.99; }
+            15% { opacity: 0.93; }
+            20% { opacity: 0.98; }
+            100% { opacity: 1; }
+        }
 
-  table.main-layout {
-    width: 800px;
-    background-color: #e9f5ff;
-    border: 2px solid #3a86ff;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 0 auto;
-    box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
-  }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
 
-  td.sidebar {
-    width: 160px;
-    vertical-align: top;
-    background-color: #a8d5ff;
-    padding: 10px;
-    border-right: 2px solid #3a86ff;
-    text-align: center;
-    font-size: 12px;
-  }
+        * {
+            box-sizing: border-box;
+            scrollbar-width: thin;
+            scrollbar-color: #ff7eb9 #e9f5ff;
+        }
 
-  td.content {
-    vertical-align: top;
-    padding: 20px;
-  }
+        *::-webkit-scrollbar {
+            width: 10px;
+        }
+        *::-webkit-scrollbar-track {
+            background: #e9f5ff;
+        }
+        *::-webkit-scrollbar-thumb {
+            background-color: #ff7eb9;
+            border: 2px solid #e9f5ff;
+        }
 
-  h1 {
-    font-family: 'Courier New', monospace;
-    color: #ff7eb9;
-    text-shadow: 2px 2px #000;
-    font-size: 32px;
-    margin: 0;
-    text-align: center;
-    background-color: #000;
-    padding: 5px;
-    border: 2px ridge #fff;
-  }
+        body {
+            background-color: #d7ecff;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhQwomJiQHEBynA5cAMAAAz1Q/z/oOaYAAAAABJRU5ErkJggg==');
+            color: #000;
+            font-family: "MS Gothic", "Courier New", monospace;
+            margin: 0;
+            padding: 20px;
+            image-rendering: pixelated;
+            overflow-x: hidden;
+        }
 
-  h2 {
-    color: #3a86ff;
-    border-bottom: 3px double #000;
-    font-size: 18px;
-    margin-top: 25px;
-    font-family: Arial, sans-serif;
-  }
+        #crt-filter {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 1000;
+            animation: flickering 0.1s infinite;
+        }
 
-  a { text-decoration: underline; color: blue; }
-  a:visited { color: purple; }
-  a:hover { background-color: #fff35c; }
+        #container {
+            max-width: 850px;
+            margin: 0 auto;
+            position: relative;
+        }
 
-  .retro-btn {
-    display: block;
-    width: 130px;
-    margin: 10px auto;
-    background: #c0c0c0;
-    border-top: 2px solid #fff;
-    border-left: 2px solid #fff;
-    border-bottom: 2px solid #000;
-    border-right: 2px solid #000;
-    padding: 4px;
-    color: #000;
-    text-decoration: none;
-    font-family: 'MS Sans Serif', Geneva, sans-serif;
-    font-size: 12px;
-    cursor: pointer;
-    text-align: center;
-  }
-  .retro-btn:active {
-    border-top: 2px solid #000;
-    border-left: 2px solid #000;
-    border-bottom: 2px solid #fff;
-    border-right: 2px solid #fff;
-    transform: translate(1px, 1px);
-  }
+        .header-area {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-  .scrolling-text {
-    background-color: #fff35c;
-    border: 1px solid #000;
-    color: red;
-    font-weight: bold;
-    font-family: monospace;
-    padding: 2px;
-    margin-bottom: 10px;
-  }
+        .header-logo {
+            border: 3px solid #fff;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.2);
+            max-width: 100%;
+            background: #000;
+        }
 
-  .blink {
-    animation: blinker 1s steps(1, end) infinite;
-    color: red;
-    font-weight: bold;
-    font-family: Courier, monospace;
-  }
-  @keyframes blinker { 50% { opacity: 0; } }
+        .layout {
+            display: flex;
+            gap: 20px;
+        }
 
-  .music-table {
-    margin-top: 10px;
-    border: 2px groove #fff;
-    background: #fff;
-  }
-  .music-table td {
-    padding: 5px;
-    border: 1px dotted #999;
-    text-align: center;
-  }
-  .music-table img {
-    width: 32px;
-    height: 32px;
-    image-rendering: pixelated;
-  }
-  
-  hr.fancy {
-    border: 0;
-    height: 1px;
-    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
-    margin: 20px 0;
-  }
-</style>
+        .sidebar {
+            width: 200px;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex-grow: 1;
+        }
+
+        .box {
+            background: #e9f5ff;
+            border: 2px solid #3a86ff;
+            padding: 15px;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .box-title {
+            background: #3a86ff;
+            color: #fff;
+            margin: -15px -15px 15px -15px;
+            padding: 5px 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'Courier New', monospace;
+            color: #ff7eb9;
+            text-shadow: 2px 2px #000;
+            font-size: 28px;
+            margin: 0;
+            text-align: center;
+            background-color: #000;
+            padding: 10px;
+            border: 2px ridge #fff;
+        }
+
+        h2 {
+            color: #3a86ff;
+            border-bottom: 3px double #3a86ff;
+            font-size: 18px;
+            margin-top: 10px;
+            padding-bottom: 4px;
+        }
+
+        .navlink {
+            display: block;
+            text-decoration: none;
+            color: #3a86ff;
+            padding: 5px 0;
+            font-weight: bold;
+            border-bottom: 1px dashed #abc;
+        }
+
+        .navlink:hover {
+            background: #fff35c;
+            color: #000;
+        }
+
+        .status-marquee {
+            background-color: #fff35c;
+            border: 2px solid #000;
+            color: #ff0000;
+            font-weight: bold;
+            padding: 5px;
+            margin-bottom: 15px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+        }
+
+        .online-indicator {
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+            font-weight: bold;
+            text-align: center;
+            display: block;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        .music-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            background: #fff;
+            padding: 10px;
+            border: 2px inset #eee;
+        }
+
+        .music-item {
+            border: 1px dotted #ccc;
+            display: flex;
+            justify-content: center;
+            padding: 5px;
+        }
+
+        .music-item img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .social-table {
+            width: 100%;
+            text-align: center;
+        }
+
+        .social-table img {
+            width: 88px;
+            border: 1px solid #3a86ff;
+        }
+
+        .banner-ads {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .banner-ads img {
+            border: 2px solid #3a86ff;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+        }
+
+        .news-item {
+            font-size: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #ff7eb9;
+            padding-left: 8px;
+        }
+
+        .news-date {
+            color: #ff7eb9;
+            font-weight: bold;
+            display: block;
+        }
+
+        @media (max-width: 650px) {
+            .layout { flex-direction: column; }
+            .sidebar { width: 100%; }
+        }
+    </style>
 </head>
 <body>
 
-<table class="main-layout" border="0" cellspacing="0" cellpadding="0">
-  <tr>
-    <td colspan="2" style="background-color: #000000; padding: 10px; text-align: center; border-bottom: 4px solid #fff35c;">
-       <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf logo" width="300" style="border: 2px solid #fff;">
-       <br>
-       <font color="#fff35c" face="Arial" size="2">Best viewed with Netscape Navigator 4.0 at 800x600 resolution</font>
-    </td>
-  </tr>
-  
-  <tr>
-    <td class="sidebar">
-      <br>
-      <b>:: MENU ::</b>
-      <br><br>
-      <a href="/retrodownloads.html" class="retro-btn">Free MIDIs</a>
-      <a href="#" class="retro-btn" id="contactBtn">E-Mail Me</a>
-      <a href="/index.html" class="retro-btn">Modern Ver.</a>
-      
-      <br><br>
-      <hr size="2" width="80%">
-      
-      <font size="2">
-        <b>News:</b><br>
-        <i>Feb 3:</i><br>Huge design overhaul!!<br><br>
-        <i>Jan 21:</i><br>"Wait What '26" now avaliable to download in its highest quality!<br><br>
-        <i>Jan 16:</i><br>"Groovy Suspense '26" becomes the first track in Vol. R to be released!<br><br>
-        <i>Jan 7:</i><br>"Where Am I" marks the end of Vol. 3 and becomes the fastest growing song in ChancyDF history!<br><br>
-      </font>
-    </td>
+<div id="crt-filter"></div>
 
-    <td class="content">
-      
-      <marquee id="retroMarquee" class="scrolling-text" bgcolor="#fff35c" scrollamount="4" scrolldelay="100">
-  GETTING THE LATEST NEWS...
-</marquee>
+<div id="container">
 
-      <center>
-        <h1>Welcome!</h1>
-        <br>
-        <font size="4">it's like we're in some kind of... <font color="#ff7eb9"><b>chancydf.com</b></font> website-!</font>
-      </center>
+    <div class="header-area">
+        <img src="/graphics/chancydfcomlogoblue.png" alt="chancydf logo" class="header-logo" width="400">
+        <div style="margin-top: 8px;">
+            <font color="#000" face="monospace" size="2"><b>It's like we're in some kind of chancydf.com website...!</b></font>
+        </div>
+    </div>
 
-      <h2>Where can you find me?</h2>
-      <p>
-        Please check out my links below. I am on the World Wide Web!
-      </p>
+    <div class="layout">
+        
+        <aside class="sidebar">
+            <div class="box">
+                <div class="box-title"><span>STARS</span><span>✩</span></div>
+                <img src="/images/warpstar.png" style="width: 30px; position: absolute; top: -15px; right: -10px; filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.2));" alt="star">
+                <a href="/retrodownloads.html" class="navlink">✩ Free MIDIs</a>
+                <a href="#" class="navlink" id="contactBtn">✩ E-Mail Me</a>
+                <a href="/index.html" class="navlink">✩ Modern Ver.</a>
+                <a href="https://www.youtube.com/@chancydf" class="navlink">✩ YouTube</a>
+                <a href="https://www.tiktok.com/@chancydf" class="navlink">✩ TikTok</a>
+            </div>
 
-      <center>
-        <table border="0" cellpadding="10">
-          <tr>
-            <td align="center">
-              <a href="https://www.youtube.com/@chancydf" target="_blank">
-                <img src="/graphics/youtubelogo.png" width="88" border="0" alt="YouTube"><br>
-                <font size="1" face="Arial">YouTube</font>
-              </a>
-            </td>
-            <td align="center">
-               <a href="https://www.tiktok.com/@chancydf" target="_blank">
-                <img src="/graphics/tiktoklogo.png" width="88" border="0" alt="TikTok"><br>
-                <font size="1" face="Arial">TikTok</font>
-              </a>
-            </td>
-            <td align="center">
-               <a href="https://www.twitch.tv/chancydf" target="_blank">
-                <img src="/graphics/twitchlogo.png" width="88" border="0" alt="Twitch"><br>
-                <font size="1" face="Arial">Twitch</font>
-              </a>
-            </td>
-          </tr>
-        </table>
-      </center>
+            <div class="box">
+                <div class="box-title"><span>STATUS</span></div>
+                <span class="online-indicator">ONLINE!</span>
+                <center><font size="1">System: OK</font></center>
+            </div>
 
-      <hr class="fancy">
+            <div class="box">
+                <div class="box-title"><span>NEWS</span></div>
+                <div class="news-item">
+                    <span class="news-date">Feb 3:</span>
+                    Huge design overhaul!!
+                </div>
+                <div class="news-item">
+                    <span class="news-date">Jan 21:</span>
+                    "Wait What '26" now avaliable!
+                </div>
+                <div class="news-item">
+                    <span class="news-date">Jan 16:</span>
+                    "Groovy Suspense '26" out now!
+                </div>
+            </div>
+        </aside>
 
-      <h2>And these...</h2>
-      <p align="center">
-        Listen to my music on these high quality audio players:
-      </p>
+        <main class="main-content">
+            <marquee class="status-marquee" id="retroMarquee" scrollamount="5">
+                +++ WELCOME TO CHANCYDF.COM +++
+            </marquee>
 
-      <center>
-        <table class="music-table" id="musicTable" cellspacing="2">
-        </table>
-      </center>
+            <div class="box">
+                <center>
+                    <h1>Welcome!</h1>
+                    <br>
+                    <font size="3">YOU ARE  ON MY WEBSITE!!!! <br><b style="color: #ff7eb9; background: #000; padding: 2px;">thank you</b> :D</font>
+                </center>
+                
+                <h2>Network Links</h2>
+                <table class="social-table">
+                    <tr>
+                        <td>
+                            <a href="https://www.youtube.com/@chancydf" target="_blank">
+                                <img src="/graphics/youtubelogo.png" alt="YT"><br>
+                                <font size="1">YouTube</font>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="https://www.tiktok.com/@chancydf" target="_blank">
+                                <img src="/graphics/tiktoklogo.png" alt="TT"><br>
+                                <font size="1">TikTok</font>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="https://www.twitch.tv/chancydf" target="_blank">
+                                <img src="/graphics/twitchlogo.png" alt="TW"><br>
+                                <font size="1">Twitch</font>
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-      <br><br>
-      
-      <center>
-        <table border="0">
-          <tr>
-            <td>
-              <a href="https://www.youtube.com/@PurpulPancakes" target="_blank">
-                 <img src="/graphics/sos_bannerad.png" border="1" alt="SOS Banner">
-              </a>
-            </td>
-            <td>
-              <a href="https://www.chancydf.com/realdownlord">
-                 <img src="/graphics/downlord_bannerad.png" border="1" alt="Downlord Banner">
-              </a>
-            </td>
-          </tr>
-        </table>
-      </center>
+            <div class="box">
+                <h2>Audio Providers</h2>
+                <p align="center" style="font-size: 11px;">Listen to high quality audio streams:</p>
+                <div class="music-grid" id="musicTable">
+                </div>
+            </div>
 
-      <br><br>
-    </td>
-  </tr>
-</table>
+            <div class="banner-ads">
+                <a href="https://www.youtube.com/@PurpulPancakes" target="_blank">
+                    <img src="/graphics/sos_bannerad.png" alt="Ad">
+                </a>
+                <a href="https://www.chancydf.com/realdownlord">
+                    <img src="/graphics/downlord_bannerad.png" alt="Ad">
+                </a>
+            </div>
+        </main>
+
+    </div>
+</div>
 
 <script>
-  const contactBtn = document.getElementById('contactBtn');
-  const EMAIL = 'chancyalt@gmail.com';
-  
-  contactBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    navigator.clipboard.writeText(EMAIL).catch(err => {});
-    alert("I have copied my e-mail address to your clipboard:\n\n" + EMAIL + "\n\nSend me a message!");
-  });
-
-  const MUSIC_PROVIDERS=["Spotify","Apple Music","YouTube Music","Amazon","Pandora","Deezer","Tidal","iHeartRadio","Claro Musica","Saavn","Boomplay","Anghami","NetEase","Tencent","Qobuz","Joox","Kuack Media","Adaptr","Flo","MediaNet"];
-  const fixMap={"iheartradio":"iheart","claromusica":"imusica","adaptr":"feedfm","medianet":"beats"};
-  
-  function dkName(n){
-    let b=n.toLowerCase().replace(/[\s\/]+/g,'').replace(/[^a-z0-9]/g,'');
-    return fixMap[b]||b;
-  }
-
-  const table = document.getElementById('musicTable');
-  let row;
-  
-  MUSIC_PROVIDERS.forEach((n, index) => {
-    if (index % 5 === 0) {
-      row = document.createElement('tr');
-      table.appendChild(row);
-    }
+    const contactBtn = document.getElementById('contactBtn');
+    const EMAIL = 'chancyalt@gmail.com';
     
-    const cell = document.createElement('td');
-    
-    const img = document.createElement('img');
-    img.src = 'https://distrokid.com/images/icons/' + dkName(n) + '.png';
-    img.title = n; 
-    img.alt = n;
-
-    cell.appendChild(img);
-    row.appendChild(cell);
-  });
-
-  fetch('assets/marquee.txt')
-    .then(response => {
-      if (!response.ok) throw new Error("File not found");
-      return response.text();
-    })
-    .then(text => {
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      if (lines.length > 0) {
-        const randomLine = lines[Math.floor(Math.random() * lines.length)];
-        document.getElementById('retroMarquee').textContent = randomLine;
-      }
-    })
-    .catch(err => {
-      document.getElementById('retroMarquee').textContent = "+++ WELCOME TO CHANCYDF.COM +++";
+    contactBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigator.clipboard.writeText(EMAIL).catch(err => {});
+        alert("I have copied my e-mail address to your clipboard:\n\n" + EMAIL + "\n\nSend me a message!");
     });
+
+    const MUSIC_PROVIDERS=["Spotify","Apple Music","YouTube Music","Amazon","Pandora","Deezer","Tidal","iHeartRadio","Claro Musica","Saavn","Boomplay","Anghami","NetEase","Tencent","Qobuz","Joox","Kuack Media","Adaptr","Flo","MediaNet"];
+    const fixMap={"iheartradio":"iheart","claromusica":"imusica","adaptr":"feedfm","medianet":"beats"};
+    
+    function dkName(n){
+        let b=n.toLowerCase().replace(/[\s\/]+/g,'').replace(/[^a-z0-9]/g,'');
+        return fixMap[b]||b;
+    }
+
+    const grid = document.getElementById('musicTable');
+    
+    MUSIC_PROVIDERS.forEach((n) => {
+        const item = document.createElement('div');
+        item.className = 'music-item';
+        
+        const img = document.createElement('img');
+        img.src = 'https://distrokid.com/images/icons/' + dkName(n) + '.png';
+        img.title = n; 
+        img.alt = n;
+
+        item.appendChild(img);
+        grid.appendChild(item);
+    });
+
+    fetch('assets/marquee.txt')
+        .then(response => {
+            if (!response.ok) throw new Error("File not found");
+            return response.text();
+        })
+        .then(text => {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length > 0) {
+                const randomLine = lines[Math.floor(Math.random() * lines.length)];
+                document.getElementById('retroMarquee').textContent = "+++ " + randomLine + " +++";
+            }
+        })
+        .catch(err => {
+            document.getElementById('retroMarquee').textContent = "+++ WELCOME TO CHANCYDF.COM +++";
+        });
 </script>
 
 </body>
