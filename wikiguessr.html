@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiGuessr</title>
+    <style>
+        @font-face {
+            font-family: 'Linux Libertine';
+            src: local('Linux Libertine O'), local('LinuxLibertineO'), url('https://upload.wikimedia.org/wikipedia/commons/e/e2/LinLibertine_R.woff') format('woff');
+        }
+
+        :root {
+            --wiki-blue: #3366cc;
+            --wiki-dark-blue: #2a4b8d;
+            --wiki-border: #eaecf0;
+            --wiki-bg: #f8f9fa;
+            --wiki-text: #202122;
+            --wiki-subtext: #54595d;
+            --wiki-green: #00af89;
+            --wiki-red: #d33;
+            --wiki-panel-bg: rgba(255, 255, 255, 0.98);
+            --wiki-iframe-bg: rgba(255, 255, 255, 0.90);
+            --wiki-icon-filter: none;
+        }
+
+        body.dark-mode {
+            --wiki-blue: #6699ff;
+            --wiki-dark-blue: #8ab4f8;
+            --wiki-border: #54595d;
+            --wiki-bg: #101418;
+            --wiki-text: #eaecf0;
+            --wiki-subtext: #c8ccd1;
+            --wiki-panel-bg: rgba(32, 33, 34, 0.95);
+            --wiki-iframe-bg: rgba(16, 20, 24, 0.90);
+            --wiki-icon-filter: invert(1);
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Lato, Helvetica, Arial, sans-serif;
+            background-color: var(--wiki-bg);
+            color: var(--wiki-text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 60;
+            gap: 15px;
+        }
+
+        .top-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .top-btn:hover {
+            background-color: rgba(128, 128, 128, 0.2);
+        }
+
+        .top-btn img {
+            width: 28px;
+            height: 28px;
+            filter: var(--wiki-icon-filter);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: var(--wiki-panel-bg);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid var(--wiki-border);
+            text-align: left;
+            position: relative;
+        }
+
+        .modal-content h2 {
+            font-family: 'Linux Libertine', serif;
+            margin-top: 0;
+            border-bottom: 1px solid var(--wiki-border);
+            padding-bottom: 10px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--wiki-text);
+            cursor: pointer;
+        }
+
+        #bg-conveyor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 40;
+            pointer-events: none;
+        }
+
+        .bg-card {
+            position: absolute;
+            width: 320px;
+            background: var(--wiki-panel-bg);
+            border: 1px solid var(--wiki-border);
+            border-radius: 8px;
+            padding: 20px;
+            opacity: 0.25;
+            filter: blur(3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            animation: scrollLeft linear forwards;
+            will-change: transform;
+        }
+
+        .bg-card h3 {
+            font-family: 'Linux Libertine', serif;
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+        }
+
+        .bg-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--wiki-subtext);
+        }
+
+        .bg-card .img-bg {
+            width: 100px;
+            height: 100px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 50%;
+            margin-top: 15px;
+        }
+
+        header {
+            background: var(--wiki-panel-bg);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--wiki-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Linux Libertine', Georgia, Times, serif;
+            z-index: 20;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: normal;
+        }
+
+        .score-board {
+            font-size: 1.1rem;
+            font-family: sans-serif;
+            display: flex;
+            gap: 15px;
+        }
+
+        .score-box {
+            background: var(--wiki-bg);
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--wiki-border);
+        }
+
+        .score-box span {
+            font-weight: bold;
+            color: var(--wiki-blue);
+        }
+
+        #title-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--wiki-bg);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .title-content-wrapper {
+            position: relative;
+            z-index: 60;
+            background: var(--wiki-panel-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border: 1px solid var(--wiki-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .title-logo {
+            font-family: 'Linux Libertine', Georgia, Times, serif;
+            font-size: 4rem;
+            margin-bottom: 0.2rem;
+            margin-top: 0;
+            color: var(--wiki-text);
+        }
+
+        .title-sub {
+            font-size: 1.2rem;
+            color: var(--wiki-subtext);
+            margin-bottom: 2.5rem;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn {
+            background: var(--wiki-bg);
+            border: 1px solid var(--wiki-border);
+            color: var(--wiki-text);
+            padding: 15px 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 10px;
+            cursor: pointer;
+            width: 320px;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .menu-btn span {
+            font-size: 0.85rem;
+            font-weight: normal;
+            color: var(--wiki-subtext);
+            margin-top: 8px;
+        }
+
+        .menu-btn .hs-badge {
+            font-size: 0.8rem;
+            background: var(--wiki-blue);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-top: 8px;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: var(--wiki-blue);
+        }
+
+        .game-container {
+            display: none;
+            flex: 1;
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .vs-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--wiki-panel-bg);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 3px solid var(--wiki-border);
+            z-index: 10;
+            color: var(--wiki-text);
+            transition: transform 0.3s ease;
+        }
+
+        .vs-pop {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .panel {
+            flex: 1;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            border-right: 2px solid var(--wiki-border);
+            overflow: hidden;
+        }
+
+        .panel:last-child {
+            border-right: none;
+        }
+
+        .wiki-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+            transition: opacity 0.3s ease;
+            background-color: transparent;
+        }
+
+        .overlay-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--wiki-panel-bg);
+            padding: 2.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 2;
+            min-width: 280px;
+            max-width: 400px;
+            border: 1px solid var(--wiki-border);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .hard-info {
+            display: none;
+            margin-bottom: 25px;
+        }
+
+        .hard-title {
+            font-family: 'Linux Libertine', serif;
+            font-size: 2.2rem;
+            margin: 0 0 15px 0;
+            border-bottom: 1px solid var(--wiki-border);
+            padding-bottom: 15px;
+            color: var(--wiki-text);
+        }
+
+        .hard-extract {
+            font-size: 1rem;
+            color: var(--wiki-subtext);
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .stat-container {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--wiki-text);
+        }
+
+        .views {
+            font-size: 3.5rem;
+            color: var(--wiki-blue);
+            margin: 10px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button.game-btn {
+            padding: 15px 24px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: 2px solid var(--wiki-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--wiki-panel-bg);
+            color: var(--wiki-blue);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button.game-btn:hover {
+            transform: scale(1.02);
+            border-color: var(--wiki-dark-blue);
+        }
+
+        button.higher {
+            background: var(--wiki-blue);
+            color: white;
+        }
+
+        button.higher:hover {
+            background: var(--wiki-dark-blue);
+        }
+
+        #game-over, .loading-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--wiki-panel-bg);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #game-over {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .new-hs-text {
+            color: var(--wiki-green);
+            font-weight: bold;
+            font-size: 1.5rem;
+            margin-top: 10px;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        .loader {
+            border: 4px solid var(--wiki-border);
+            border-top: 4px solid var(--wiki-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        .correct-flash {
+            animation: successFlash 0.8s ease-out;
+        }
+
+        .wrong-flash {
+            animation: failFlash 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, -40%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes successFlash {
+            0% { background-color: rgba(0, 175, 137, 0.2); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes failFlash {
+            0% { background-color: rgba(211, 51, 51, 0.2); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes scrollLeft {
+            from { transform: translateX(100vw); }
+            to { transform: translateX(-400px); }
+        }
+
+        @media (max-width: 768px) {
+            .game-container { flex-direction: column; }
+            .overlay-ui { padding: 1.5rem; min-width: 250px; }
+            .views { font-size: 2.5rem; }
+            .vs-circle { width: 50px; height: 50px; font-size: 1rem; }
+            .hard-title { font-size: 1.8rem; }
+            .title-content-wrapper { padding: 20px; border-radius: 0; border: none; box-shadow: none; background: transparent; }
+            .title-logo { font-size: 3rem; }
+            .menu-btn { width: 100%; max-width: 320px; }
+            .panel { border-right: none; border-bottom: 2px solid var(--wiki-border); }
+            .panel:last-child { border-bottom: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="title-screen">
+        <div class="top-bar">
+            <button class="top-btn" onclick="toggleDarkMode()">
+                <img src="https://www.svgrepo.com/show/532061/moon-stars.svg" alt="Toggle Dark Mode">
+            </button>
+            <button class="top-btn" onclick="showRules()">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e4/Infobox_info_icon.svg" alt="Rules">
+            </button>
+        </div>
+
+        <div id="bg-conveyor"></div>
+
+        <div class="title-content-wrapper">
+            <h1 class="title-logo">WikiGuessr</h1>
+            <p class="title-sub">A Game of Popularity by <a href="https://www.chancydf.com" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px solid var(--wiki-blue);">ChancyDF</a></p>
+            
+            <button class="menu-btn" onclick="startGame('easy')">
+                Easy Mode
+                <span>Common Pages & Popular Topics</span>
+                <div class="hs-badge" id="hs-badge-easy">Best: 0</div>
+            </button>
+            <button class="menu-btn" onclick="startGame('medium')">
+                Medium Mode
+                <span>Fully Random Wikipedia Articles</span>
+                <div class="hs-badge" id="hs-badge-medium">Best: 0</div>
+            </button>
+            <button class="menu-btn" onclick="startGame('hard')">
+                Hard Mode
+                <span>Random Articles. Name & Image Only.</span>
+                <div class="hs-badge" id="hs-badge-hard">Best: 0</div>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rules-modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="hideRules()">×</button>
+            <h2>How to Play</h2>
+            <p>Welcome to <strong>WikiGuessr</strong>.</p>
+            <p>The goal is simple: guess which Wikipedia article received more views over the last 30 days.</p>
+            <ul>
+                <li><strong>Easy:</strong> Top 1000 most viewed articles. High recognizability.</li>
+                <li><strong>Medium:</strong> Completely random articles. Full page viewable.</li>
+                <li><strong>Hard:</strong> Completely random articles. Only the title and a short snippet are provided.</li>
+            </ul>
+            <p>Score as high as you can before making a mistake! All credit goes to the editors and authors for Wikipedia.</p>
+        </div>
+    </div>
+
+    <header>
+        <h1>WikiGuessr</h1>
+        <div class="score-board">
+            <div class="score-box">Score: <span id="score">0</span></div>
+            <div class="score-box">Best: <span id="current-high-score">0</span></div>
+        </div>
+    </header>
+
+    <div class="game-container" id="game-board">
+        <div class="vs-circle" id="vs-circle">VS</div>
+
+        <div class="panel" id="panel-1">
+            <iframe class="wiki-frame" id="frame-1"></iframe>
+            <div class="overlay-ui" id="ui-1">
+                <div class="hard-info" id="hard-info-1">
+                    <h2 class="hard-title" id="title-1">Loading...</h2>
+                    <p class="hard-extract" id="extract-1"></p>
+                </div>
+                <div class="stat-container">
+                    <div>has</div>
+                    <div class="views" id="views-1">0</div>
+                    <div>views last month</div>
+                </div>
+            </div>
+            <div class="loading-screen" id="loading-1">
+                <div class="loader"></div>
+                <div>Fetching article...</div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-2">
+            <iframe class="wiki-frame" id="frame-2"></iframe>
+            <div class="overlay-ui" id="ui-2">
+                <div class="hard-info" id="hard-info-2">
+                    <h2 class="hard-title" id="title-2">Loading...</h2>
+                    <p class="hard-extract" id="extract-2"></p>
+                </div>
+                <div id="guessing-ui">
+                    <p style="font-weight: bold; font-size: 1.2rem; margin: 0; color: var(--wiki-text);">has</p>
+                    <div class="btn-group">
+                        <button class="game-btn higher" onclick="makeGuess('higher')">▲ Higher</button>
+                        <button class="game-btn lower" onclick="makeGuess('lower')">▼ Lower</button>
+                    </div>
+                    <p style="font-weight: bold; font-size: 1.1rem; margin: 20px 0 0 0; color: var(--wiki-text);">views than the left</p>
+                </div>
+
+                <div id="result-ui" class="stat-container" style="display: none;">
+                    <div>has</div>
+                    <div class="views" id="views-2">0</div>
+                    <div>views last month</div>
+                </div>
+            </div>
+            <div class="loading-screen" id="loading-2">
+                <div class="loader"></div>
+                <div>Fetching article...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2 style="font-family: 'Linux Libertine', serif; font-size: 3.5rem; margin: 0; color: var(--wiki-red);">Game Over</h2>
+        <p style="font-size: 1.5rem; color: var(--wiki-text); margin-top: 10px;">You scored: <span id="final-score" style="font-weight: bold;">0</span></p>
+        <div class="new-hs-text" id="new-hs-alert">New High Score!</div>
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button class="game-btn higher" onclick="startGame(gameMode)">Play Again</button>
+            <button class="game-btn" onclick="showTitleScreen()">Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let article1 = {};
+        let article2 = {};
+        let isAnimating = false;
+        let gameMode = 'medium';
+        let easyArticlesList = [];
+        let conveyorInterval;
+        let isDarkMode = localStorage.getItem('wikiGuessrDarkMode') === 'true';
+        let highScores = JSON.parse(localStorage.getItem('wikiGuessrHighScores')) || { easy: 0, medium: 0, hard: 0 };
+
+        if (isDarkMode) {
+            document.body.classList.add('dark-mode');
+        }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            localStorage.setItem('wikiGuessrDarkMode', isDarkMode);
+        }
+
+        function showRules() {
+            document.getElementById('rules-modal').style.display = 'flex';
+        }
+
+        function hideRules() {
+            document.getElementById('rules-modal').style.display = 'none';
+        }
+
+        function updateHighScoreDisplays() {
+            document.getElementById('hs-badge-easy').textContent = `Best: ${highScores.easy}`;
+            document.getElementById('hs-badge-medium').textContent = `Best: ${highScores.medium}`;
+            document.getElementById('hs-badge-hard').textContent = `Best: ${highScores.hard}`;
+        }
+        
+        updateHighScoreDisplays();
+
+        function spawnConveyorArticle() {
+            if (document.getElementById('title-screen').style.display === 'none') return;
+            fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary')
+                .then(r => r.json())
+                .then(data => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-card';
+                    card.style.top = Math.random() * (window.innerHeight - 300) + 'px';
+                    const dur = Math.random() * 5 + 15;
+                    card.style.animationDuration = dur + 's';
+                    
+                    let html = `<h3>${data.title}</h3><p>${data.description || 'Wikipedia Article'}</p>`;
+                    if (data.thumbnail) {
+                        html += `<div class="img-bg" style="background-image: url('${data.thumbnail.source}')"></div>`;
+                    }
+                    card.innerHTML = html;
+                    document.getElementById('bg-conveyor').appendChild(card);
+                    
+                    setTimeout(() => {
+                        if (card && card.parentNode) {
+                            card.parentNode.removeChild(card);
+                        }
+                    }, dur * 1000);
+                }).catch(() => {});
+        }
+
+        function startConveyor() {
+            if (conveyorInterval) clearInterval(conveyorInterval);
+            for(let i=0; i<3; i++) {
+                setTimeout(spawnConveyorArticle, i * 4000);
+            }
+            conveyorInterval = setInterval(spawnConveyorArticle, 4500);
+        }
+
+        function stopConveyor() {
+            if (conveyorInterval) {
+                clearInterval(conveyorInterval);
+                conveyorInterval = null;
+            }
+            document.getElementById('bg-conveyor').innerHTML = '';
+        }
+
+        startConveyor();
+
+        const formatNum = (num) => new Intl.NumberFormat().format(num);
+
+        function getDateRange() {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - 30);
+            const formatDate = (date) => date.toISOString().split('T')[0].replace(/-/g, '');
+            return { start: formatDate(start), end: formatDate(end) };
+        }
+
+        async function fetchTopArticlesList() {
+            if (easyArticlesList.length > 0) return;
+            const date = new Date();
+            date.setMonth(date.getMonth() - 1);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            try {
+                const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${year}/${month}/all-days`;
+                const res = await fetch(url);
+                const data = await res.json();
+                easyArticlesList = data.items[0].articles.filter(a => !a.article.includes(':') && a.article !== "Main_Page");
+            } catch (e) {}
+        }
+
+        async function fetchArticleData() {
+            try {
+                let summaryTitle = "";
+                let summary = {};
+
+                if (gameMode === 'easy' && easyArticlesList.length > 0) {
+                    const randomPick = easyArticlesList[Math.floor(Math.random() * easyArticlesList.length)];
+                    const summaryRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(randomPick.article)}`);
+                    summary = await summaryRes.json();
+                    summaryTitle = summary.title;
+                } else {
+                    const summaryRes = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+                    summary = await summaryRes.json();
+                    summaryTitle = summary.title;
+                }
+
+                const encodedTitle = encodeURIComponent(summaryTitle.replace(/ /g, '_'));
+                const dates = getDateRange();
+                const viewsUrl = `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/${encodedTitle}/daily/${dates.start}/${dates.end}`;
+                let totalViews = 0;
+                
+                try {
+                    const viewsRes = await fetch(viewsUrl);
+                    if (viewsRes.ok) {
+                        const viewsData = await viewsRes.json();
+                        totalViews = viewsData.items.reduce((sum, item) => sum + item.views, 0);
+                    }
+                } catch (e) {}
+
+                let htmlText = "";
+                if (gameMode !== 'hard') {
+                    const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/mobile-html/${encodedTitle}`;
+                    const htmlRes = await fetch(htmlUrl);
+                    htmlText = await htmlRes.text();
+                    
+                    const frameBg = getComputedStyle(document.documentElement).getPropertyValue('--wiki-iframe-bg').trim() || (isDarkMode ? 'rgba(16, 20, 24, 0.90)' : 'rgba(255, 255, 255, 0.90)');
+                    const frameText = isDarkMode ? '#eaecf0' : '#202122';
+                    const linkColor = isDarkMode ? '#8ab4f8' : '#3366cc';
+                    
+                    const customCSS = `<style>
+                        body, .pcs-collapse-table, .mw-body { background-color: ${frameBg} !important; color: ${frameText} !important; }
+                        a { color: ${linkColor} !important; }
+                    </style><base target="_blank" href="https://en.wikipedia.org/wiki/">`;
+                    htmlText = htmlText.replace('<head>', '<head>' + customCSS);
+                }
+
+                return {
+                    title: summary.title,
+                    extract: summary.description || "Wikipedia Article",
+                    views: totalViews,
+                    image: summary.thumbnail ? summary.thumbnail.source : '',
+                    html: htmlText
+                };
+            } catch (error) {
+                return fetchArticleData();
+            }
+        }
+
+        async function loadPanel(panelNum, articleData) {
+            const loadingScreen = document.getElementById(`loading-${panelNum}`);
+            const panelEl = document.getElementById(`panel-${panelNum}`);
+            const frameEl = document.getElementById(`frame-${panelNum}`);
+            const hardInfoEl = document.getElementById(`hard-info-${panelNum}`);
+            
+            loadingScreen.style.display = 'flex';
+            panelEl.style.backgroundImage = articleData.image ? `url(${articleData.image})` : 'none';
+            
+            if (gameMode === 'hard') {
+                frameEl.style.display = 'none';
+                hardInfoEl.style.display = 'block';
+                document.getElementById(`title-${panelNum}`).textContent = articleData.title;
+                document.getElementById(`extract-${panelNum}`).textContent = articleData.extract;
+                panelEl.style.boxShadow = "inset 0 0 0 2000px rgba(0,0,0,0.6)";
+            } else {
+                frameEl.style.display = 'block';
+                hardInfoEl.style.display = 'none';
+                frameEl.srcdoc = articleData.html;
+                panelEl.style.boxShadow = "none";
+            }
+            
+            document.getElementById(`views-${panelNum}`).textContent = formatNum(articleData.views);
+
+            setTimeout(() => {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                    loadingScreen.style.opacity = '1';
+                }, 300);
+            }, 600);
+        }
+
+        async function initGame() {
+            article1 = await fetchArticleData();
+            await loadPanel(1, article1);
+            article2 = await fetchArticleData();
+            await loadPanel(2, article2);
+        }
+
+        function animateCounter(elementId, targetValue, duration = 1200) {
+            const element = document.getElementById(elementId);
+            let start = 0;
+            const increment = targetValue / (duration / 16);
+            return new Promise(resolve => {
+                const timer = setInterval(() => {
+                    start += increment;
+                    if (start >= targetValue) {
+                        clearInterval(timer);
+                        element.textContent = formatNum(targetValue);
+                        resolve();
+                    } else {
+                        element.textContent = formatNum(Math.floor(start));
+                    }
+                }, 16);
+            });
+        }
+
+        async function makeGuess(guess) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const isHigher = article2.views >= article1.views;
+            const isCorrect = (guess === 'higher' && isHigher) || (guess === 'lower' && !isHigher);
+            const vsCircle = document.getElementById('vs-circle');
+
+            document.getElementById('guessing-ui').style.display = 'none';
+            document.getElementById('result-ui').style.display = 'block';
+
+            await animateCounter('views-2', article2.views);
+            
+            vsCircle.classList.remove('vs-pop');
+            void vsCircle.offsetWidth;
+            vsCircle.classList.add('vs-pop');
+
+            setTimeout(async () => {
+                if (isCorrect) {
+                    score++;
+                    document.getElementById('score').textContent = score;
+                    
+                    if (score > highScores[gameMode]) {
+                        highScores[gameMode] = score;
+                        localStorage.setItem('wikiGuessrHighScores', JSON.stringify(highScores));
+                        document.getElementById('current-high-score').textContent = highScores[gameMode];
+                        updateHighScoreDisplays();
+                    }
+
+                    document.getElementById('panel-2').classList.add('correct-flash');
+                    setTimeout(() => document.getElementById('panel-2').classList.remove('correct-flash'), 800);
+                    
+                    article1 = article2;
+                    loadPanel(1, article1);
+                    
+                    document.getElementById('guessing-ui').style.display = 'block';
+                    document.getElementById('result-ui').style.display = 'none';
+                    document.getElementById('loading-2').style.display = 'flex';
+                    
+                    article2 = await fetchArticleData();
+                    await loadPanel(2, article2);
+                    
+                    isAnimating = false;
+                } else {
+                    document.getElementById('panel-2').classList.add('wrong-flash');
+                    setTimeout(() => {
+                        document.getElementById('final-score').textContent = score;
+                        
+                        if (score > 0 && score >= highScores[gameMode]) {
+                            document.getElementById('new-hs-alert').style.display = 'block';
+                        } else {
+                            document.getElementById('new-hs-alert').style.display = 'none';
+                        }
+                        
+                        document.getElementById('game-over').style.display = 'flex';
+                        document.getElementById('panel-2').classList.remove('wrong-flash');
+                    }, 800);
+                }
+            }, 1000);
+        }
+
+        async function startGame(mode) {
+            gameMode = mode;
+            score = 0;
+            document.getElementById('score').textContent = score;
+            document.getElementById('current-high-score').textContent = highScores[mode];
+            
+            stopConveyor();
+            document.getElementById('title-screen').style.display = 'none';
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('game-board').style.display = 'flex';
+            document.getElementById('guessing-ui').style.display = 'block';
+            document.getElementById('result-ui').style.display = 'none';
+            document.getElementById('loading-1').style.display = 'flex';
+            document.getElementById('loading-2').style.display = 'flex';
+            isAnimating = false;
+
+            if (mode === 'easy') {
+                await fetchTopArticlesList();
+            }
+
+            initGame();
+        }
+
+        function showTitleScreen() {
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('game-board').style.display = 'none';
+            document.getElementById('title-screen').style.display = 'flex';
+            updateHighScoreDisplays();
+            startConveyor();
+        }
+    </script>
+</body>
+</html>
