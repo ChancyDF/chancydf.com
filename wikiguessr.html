@@ -589,6 +589,7 @@ function isSafeArticle(title, description) {
                 if (!isSafeArticle(summary.title, summary.description)) {
                     console.log("Filtered out inappropriate article. Fetching another...");
                     return fetchGuessrArticleData(); 
+                }
 
                 const encodedTitle = encodeURIComponent(summaryTitle.replace(/ /g, '_'));
                 const dates = getGuessrDateRange();
