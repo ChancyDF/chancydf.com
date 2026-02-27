@@ -454,6 +454,16 @@
         let conveyorInterval;
         let activeGame = null; 
 
+const blockedKeywords = [
+    'sexual', 'pornography', 'murder', 'gore', 'massacre', 
+    'suicide', 'nazi', 'terrorist', 'cartel'
+];
+
+function isSafeArticle(title, description) {
+    const textToCheck = (title + " " + (description || "")).toLowerCase();
+    return !blockedKeywords.some(keyword => textToCheck.includes(keyword));
+}
+
         function updateThemeIcon() {
             document.getElementById('theme-icon').src = isDarkMode 
                 ? 'https://www.svgrepo.com/show/532067/sun-dust.svg' 
@@ -516,7 +526,12 @@
                 const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${year}/${month}/all-days`;
                 const res = await fetch(url);
                 const data = await res.json();
-                topArticlesList = data.items[0].articles.filter(a => !a.article.includes(':') && a.article !== "Main_Page");
+                
+                topArticlesList = data.items[0].articles.filter(a => {
+                    const title = a.article.replace(/_/g, ' ');
+                    const isNotSystemPage = !a.article.includes(':') && a.article !== "Main_Page";
+                    return isNotSystemPage && isSafeArticle(title, ""); 
+                });
             } catch (e) {}
         }
 
@@ -570,6 +585,10 @@
                     summary = await summaryRes.json();
                     summaryTitle = summary.title;
                 }
+
+                if (!isSafeArticle(summary.title, summary.description)) {
+                    console.log("Filtered out inappropriate article. Fetching another...");
+                    return fetchGuessrArticleData(); 
 
                 const encodedTitle = encodeURIComponent(summaryTitle.replace(/ /g, '_'));
                 const dates = getGuessrDateRange();
