@@ -1,0 +1,2456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chancy Scrabble</title>
+    <style>
+        @font-face {
+            font-family: 'Linux Libertine';
+            src: local('Linux Libertine O'), local('LinuxLibertineO'), url('https://upload.wikimedia.org/wikipedia/commons/e/e2/LinLibertine_R.woff') format('woff');
+        }
+
+        :root {
+            --bg-body: #d7ecff;
+            --bg-sidebar: #e9f5ff;
+            --board-border: #000000;
+            --board-bg: #2b5a51;
+            --tile-color: #fdf0d5;
+            --tile-text: #2e2e2e;
+            --cell-bg: #f8f9fa;
+            --cell-border: rgba(0,0,0,0.1);
+            --bonus-tw: #ff7eb9;
+            --bonus-dw: #fff35c;
+            --bonus-tl: #3a86ff;
+            --bonus-dl: #b4d9ff;
+            --accent: #e76f51;
+            --text-main: #1a1b26;
+            --text-muted: #4e5165;
+            --p1-color: #ff7eb9;
+            --p2-color: #3a86ff;
+            --shadow: rgba(0,0,0,0.25);
+            --event-bg: #fff35c;
+            --scanline: rgba(0, 0, 0, 0.04);
+        }
+
+        /* DARK MODE BASE */
+        body.dark-mode {
+            --bg-body: #1a1b26;
+            --bg-sidebar: #24283b;
+            --board-border: #000000;
+            --tile-color: #2f334d;
+            --tile-text: #c0caf5;
+            --cell-bg: #24283b;
+            --cell-border: rgba(255,255,255,0.05);
+            --bonus-tw: #f7768e;
+            --bonus-dw: #e0af68;
+            --bonus-tl: #7aa2f7;
+            --bonus-dl: #7dcfff;
+            --accent: #7aa2f7;
+            --text-main: #c0caf5;
+            --text-muted: #787c99;
+            --event-bg: #e0af68;
+            --scanline: rgba(0, 0, 0, 0.2);
+            --shadow: rgba(0,0,0,0.5);
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 2px, transparent 2px);
+        }
+
+        /* LIGHT MODE TURN TINTS */
+        body.turn-p1 {
+            --bg-body: #fff0f3;
+            --bg-sidebar: #ffe4e9;
+        }
+        body.turn-p2 {
+            --bg-body: #f0f7ff;
+            --bg-sidebar: #e1efff;
+        }
+
+        /* DARK MODE TURN TINTS (The deep navy/maroon shift) */
+        body.dark-mode.turn-p1 {
+            --bg-body: #1a0a12;
+            --bg-sidebar: #240d18;
+            --text-main: #ffd1dc;
+            --text-muted: #a67c85;
+        }
+        body.dark-mode.turn-p2 {
+            --bg-body: #0a101f;
+            --bg-sidebar: #0d162a;
+            --text-main: #ccd6f6;
+            --text-muted: #8892b0;
+        }
+        
+        body { 
+            transition: background-color 0.4s ease, color 0.4s ease;
+            font-family: 'Courier New', Courier, monospace;
+            background: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-size: 30px 30px;
+            background-attachment: fixed;
+        }
+        .sidebar, .rack-container, .player-card, #board { transition: background-color 0.6s ease, border-color 0.6s ease; }
+        
+        body.encrypted #bag-count {
+            visibility: hidden;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.4) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.4) 2px, transparent 2px);
+            background-size: 30px 30px;
+            background-attachment: fixed;
+        }
+
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, var(--scanline) 50%);
+            z-index: 1;
+            pointer-events: none;
+            background-size: 100% 3px;
+        }
+
+        .master-layout {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        #launcher {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: var(--bg-body);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .setup-card {
+            background: var(--bg-sidebar);
+            border: 4px solid #000;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 10px 10px 0 var(--shadow);
+        }
+
+        .setup-card h1 {
+            font-family: 'Linux Libertine', Georgia, serif;
+            font-size: 3rem;
+            margin: 0 0 20px 0;
+            font-weight: 900;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            background: #fff;
+            padding: 10px 15px;
+            border: 2px solid #000;
+            color: var(--text-main);
+        }
+
+        select, input[type="checkbox"] {
+            padding: 5px;
+            font-family: inherit;
+            font-weight: bold;
+            border: 1px solid #444;
+            background: #fff;
+            color: #000;
+            cursor: pointer;
+        }
+
+        .play-btn {
+            width: 100%;
+            font-size: 1.5rem;
+            padding: 15px !important;
+            background: var(--bonus-dw);
+            color: #000;
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0 #000;
+            cursor: pointer;
+            font-weight: 800;
+            font-family: inherit;
+            transition: 0.1s;
+        }
+        .play-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; background: var(--bonus-tw); }
+
+        .resume-btn {
+            width: 100%;
+            font-size: 1.2rem;
+            padding: 12px !important;
+            margin-top: 15px;
+            background: var(--bonus-tl);
+            color: #fff;
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0 #000;
+            cursor: pointer;
+            font-weight: 800;
+            font-family: inherit;
+            transition: 0.1s;
+            display: none;
+        }
+        .resume-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; background: var(--bonus-dl); color: #000; }
+
+        .board-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            gap: 2px;
+            background: var(--board-bg);
+            padding: 4px;
+            border: 4px solid #000;
+            box-shadow: 10px 10px 0 var(--shadow);
+            width: min(70vh, 600px);
+            height: min(70vh, 600px);
+            aspect-ratio: 1 / 1;
+            aspect-ratio: 1 / 1;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        .cell {
+            background: var(--cell-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            color: var(--text-muted);
+            opacity: 1;
+            border: 1px solid var(--cell-border);
+            aspect-ratio: 1 / 1;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .cell:hover { background: var(--bg-sidebar); opacity: 1; }
+        
+        .cell.active { box-shadow: inset 0 0 0 3px #000; z-index: 5; position: relative; background: var(--bonus-dw) !important; opacity: 1; }
+
+        .cell.active::after {
+            content: '>';
+            position: absolute;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            font-weight: 800;
+            pointer-events: none;
+            text-shadow: 2px 2px 0 var(--board-border);
+        }
+        .cell.active.down::after { transform: rotate(90deg); }
+
+        .cell[data-bonus="TW"] { background: var(--bonus-tw); color: #fff; }
+        .cell[data-bonus="DW"] { background: var(--bonus-dw); color: #000; }
+        .cell[data-bonus="TL"] { background: var(--bonus-tl); color: #fff; }
+        .cell[data-bonus="DL"] { background: var(--bonus-dl); color: #000; }
+        .cell[data-bonus="QL"] { background: #ff00ff; color: #fff; }
+        .cell[data-bonus="QW"] { background: #ff0000; color: #fff; border: 2px solid yellow; }
+        .cell[data-bonus="ST"] { background: #fdf0d5; color: #000; }
+
+        /* MULTIMULTIPLIERS: random multiplier cells */
+        .cell[data-bonus="MM_TW"] { background: var(--bonus-tw); color: #fff; animation: mm-pulse 0.8s infinite alternate; }
+        .cell[data-bonus="MM_DW"] { background: var(--bonus-dw); color: #000; animation: mm-pulse 0.8s infinite alternate; }
+        .cell[data-bonus="MM_TL"] { background: var(--bonus-tl); color: #fff; animation: mm-pulse 0.8s infinite alternate; }
+        .cell[data-bonus="MM_DL"] { background: var(--bonus-dl); color: #000; animation: mm-pulse 0.8s infinite alternate; }
+
+        @keyframes mm-pulse {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.4) saturate(1.5); }
+        }
+
+        .tile.ghost { opacity: 0.35 !important; pointer-events: none; border: 3px dashed #ff0 !important; filter: grayscale(0.3); background: rgba(255,255,100,0.25) !important; }
+
+        .sidebar {
+            width: 340px;
+            background: var(--bg-sidebar);
+            border: 4px solid #000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 8px 8px 0 var(--shadow);
+        }
+
+        .player-card {
+            padding: 20px;
+            background: var(--bg-sidebar);
+            border-bottom: 3px solid #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-left 0.3s ease;
+        }
+
+        #card-p1.active { border-left: 8px solid var(--p1-color); background: var(--bg-sidebar); }
+        #card-p2.active { border-left: 8px solid var(--p2-color); background: var(--bg-sidebar); }
+        
+        #card-p1 .p-score { color: var(--p1-color); text-shadow: 1px 1px 0 #000; }
+        #card-p2 .p-score { color: var(--p2-color); text-shadow: 1px 1px 0 #000; }
+
+        .p-name { font-weight: 800; font-size: 1rem; color: var(--text-main); font-family: 'Linux Libertine', serif; }
+        .p-timer { font-family: monospace; font-size: 1.2rem; color: var(--text-main); font-weight: bold; }
+        .p-score { font-family: monospace; font-size: 1.6rem; font-weight: 900; }
+        .p-tiles { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-top: 5px; }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: var(--bg-sidebar);
+        }
+
+        .history-item {
+            display: grid;
+            grid-template-columns: 30px 1fr 50px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--board-border);
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .h-word { color: var(--text-main); font-weight: 800; text-transform: uppercase; }
+
+        .tile, .rack-tile {
+            position: absolute;
+            inset: 0;
+            background: var(--tile-color);
+            color: var(--tile-text);
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 900;
+            box-shadow: 3px 3px 0 #000;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .rack-tile {
+            position: relative;
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            cursor: grab;
+            transition: transform 0.1s;
+        }
+        .rack-tile:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #000; }
+
+        .tile .value, .rack-tile .value {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.6rem;
+            font-weight: 900;
+        }
+
+        .tile.temp { background: var(--bonus-dw); color: #000; border-style: dashed; }
+        .tile.temp.invalid { background: var(--bonus-tw); color: #fff; }
+
+        .tile.p1-owner { border-color: var(--p1-color); box-shadow: 3px 3px 0 var(--p1-color), 3px 3px 0 1px #000; }
+        .tile.p2-owner { border-color: var(--p2-color); box-shadow: 3px 3px 0 var(--p2-color), 3px 3px 0 1px #000; }
+
+        .controls {
+            padding: 20px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .controls button {
+            padding: 8px 12px;
+            border: 2px solid var(--board-border);
+            background: var(--bg-sidebar);
+            color: var(--text-main);
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--board-border);
+            font-family: inherit;
+            transition: 0.1s;
+        }
+        .controls button:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--bonus-tw); background: var(--bonus-dw); }
+        .btn-play { background: var(--bonus-tl) !important; color: #fff !important; flex: 100% !important; font-size: 1.1rem; padding: 12px !important; margin-bottom: 5px; }
+
+        #score-preview {
+            position: absolute;
+            z-index: 1000;
+            background: var(--bonus-dw);
+            border: 2px solid var(--board-border);
+            color: #000;
+            padding: 2px 6px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            pointer-events: none;
+            box-shadow: 3px 3px 0 var(--board-border);
+            transform: translate(-50%, -100%);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-sidebar);
+            padding: 30px;
+            border: 4px solid #000;
+            text-align: center;
+            max-width: 400px;
+            color: var(--text-main);
+            box-shadow: 10px 10px 0 #000;
+            z-index: 10001;
+        }
+
+        .tile-count-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: var(--bg-sidebar);
+            border: 2px solid #000;
+        }
+
+        .letter-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .letter-btn {
+            padding: 10px;
+            background: var(--bg-sidebar);
+            border: 2px solid #000;
+            color: var(--text-main);
+            box-shadow: 3px 3px 0 #000;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .letter-btn:hover { background: var(--bonus-dw); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #000; }
+
+        .swap-grid {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .swap-tile { cursor: pointer; transition: transform 0.2s; }
+        .swap-tile.selected { border: 3px solid var(--p1-color); background: var(--bonus-tw); transform: translateY(-10px); }
+
+        .rack-container {
+            background: var(--bg-sidebar);
+            border: 4px solid #000;
+            box-shadow: 6px 6px 0 var(--shadow);
+            padding: 15px;
+        }
+
+        .sabotage-overlay {
+            border: 4px solid var(--p1-color) !important;
+            animation: pulse 1s infinite;
+            cursor: crosshair !important;
+        }
+
+        /* Event Overlay */
+        #event-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 15000;
+            background: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .event-card {
+            background: var(--event-bg);
+            border: 6px solid #000;
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 15px 15px 0 #000;
+            animation: event-zoom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .event-slot-container {
+            height: 80px;
+            overflow: hidden;
+            border: 4px inset #000;
+            background: #fff;
+            margin: 20px 0;
+            position: relative;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        #event-reel {
+            display: flex;
+            flex-direction: column;
+            transition: transform 4s cubic-bezier(0.1, 0, 0, 1);
+            transform: translateY(0);
+        }
+
+        .reel-item {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Linux Libertine', serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #000;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+        }
+
+        .reel-letter {
+            color: var(--p1-color);
+            font-size: 3rem;
+        }
+
+        @keyframes event-zoom {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        /* MISCLICK banner */
+        #misclick-banner {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: #ff0000;
+            color: #fff;
+            font-weight: 900;
+            font-size: 1rem;
+            padding: 10px 20px;
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0 #000;
+            text-align: center;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="dark-mode">
+
+<div id="misclick-banner">⚠ MISCLICK ACTIVE — Play the ghost move shown on the board!</div>
+
+<div id="launcher">
+    <div class="setup-card">
+        <h1 style="color: #fff; margin-bottom: 40px;">Chancy Scrabble</h1>
+        <div class="config-group">
+            <div class="config-item">
+                <span>Opponent</span>
+                <select id="setting-ai">
+                    <option value="easy">AI (Easy)</option>
+                    <option value="medium">AI (Medium)</option>
+                    <option value="hard">AI (Hard)</option>
+                    <option value="local">Local Multiplayer</option>
+                </select>
+            </div>
+            <div class="config-item" id="local-names" style="display:none;">
+                <span>P1 / P2 Names</span>
+                <span style="display:flex; gap:6px;">
+                    <input type="text" id="setting-p1name" maxlength="10" value="Player 1" style="width:80px; padding:5px; font-family:inherit; font-weight:bold; border:1px solid #444; background:#fff; color:#000;">
+                    <input type="text" id="setting-p2name" maxlength="10" value="Player 2" style="width:80px; padding:5px; font-family:inherit; font-weight:bold; border:1px solid #444; background:#fff; color:#000;">
+                </span>
+            </div>
+            <div class="config-item">
+                <span>Timer (Minutes)</span>
+                <select id="setting-timer">
+                    <option value="0">None</option>
+                    <option value="15">15:00</option>
+                    <option value="25" selected>25:00</option>
+                    <option value="40">40:00</option>
+                </select>
+            </div>
+            <div class="config-item">
+                <span>Overtime Penalties</span>
+                <input type="checkbox" id="setting-overtime" checked>
+            </div>
+            <div class="config-item">
+                <span>Random Modifiers</span>
+                <input type="checkbox" id="setting-modifiers" checked>
+            </div>
+            <div class="config-item">
+                <span>Dark Mode</span>
+                <input type="checkbox" id="setting-dark" onclick="toggleDarkModeUI(this.checked)" checked>
+            </div>
+        </div>
+        <button class="play-btn" onclick="startNewGame()">NEW GAME</button>
+        <button id="resume-btn" class="resume-btn" onclick="resumeSavedGame()">RESUME PREVIOUS GAME</button>
+    </div>
+</div>
+
+<div class="master-layout" id="game-wrapper" style="display: none;">
+    <div class="board-container">
+        <div id="board"></div>
+        <div class="rack-container" id="rack" style="display:flex; gap:10px;"></div>
+        <div class="controls">
+            <button class="btn-play" onclick="submitMove()">Play Move</button>
+            <button onclick="shuffleRack()">Shuffle</button>
+            <button onclick="resetMove()">Recall</button>
+            <button onclick="showRemainingTiles()">Tiles</button>
+            <button onclick="swapTiles()">Swap</button>
+            <button onclick="toggleInGameTheme()">🌓 Theme</button>
+            <button id="recycle-btn" onclick="openRecycleModal()" style="display:none; background:#fff35c;">♻ Recycle</button>
+            <button onclick="passTurn()" style="grid-column: span 2;">Pass Turn</button>
+            <button onclick="quitToLauncher()" style="grid-column: span 2; background: #222;">Quit Game</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="player-card" id="card-p1">
+            <div class="p-info">
+                <div class="p-name" id="p1-name-display">Player 1</div>
+                <div class="p-timer" id="timer-p1">25:00</div>
+                <div class="p-tiles" id="tiles-p1">Tiles Owned: 0</div>
+            </div>
+            <div class="p-score" id="score-p1">0</div>
+        </div>
+
+        <div class="player-card" id="card-p2">
+            <div class="p-info">
+                <div class="p-name" id="p2-name-display">AI</div>
+                <div class="p-timer" id="timer-p2">25:00</div>
+                <div class="p-tiles" id="tiles-p2">Tiles Owned: 0</div>
+            </div>
+            <div class="p-score" id="score-p2">0</div>
+        </div>
+
+        <div class="history-list" id="move-history"></div>
+
+        <div style="padding: 10px; text-align: center; font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.3);">
+            <span id="bag-count">Tiles in Bag: 100</span>
+        </div>
+    </div>
+</div>
+
+<div id="event-overlay" onclick="closeEventOverlay()">
+    <div class="event-card">
+        <div style="font-size: 0.9rem; font-weight: bold; text-transform: uppercase; color: #000; opacity: 0.6;">Round Modifier Activated</div>
+        <div class="event-slot-container">
+            <div id="event-reel"></div>
+        </div>
+        <div id="letter-reel-container" style="display: none; margin-top: -10px;">
+            <div style="font-size: 0.7rem; font-weight: 800; margin-bottom: 5px; color: #000;">TARGET LETTER</div>
+            <div class="event-slot-container" style="height: 60px; border-width: 2px;">
+                <div id="letter-reel"></div>
+            </div>
+        </div>
+        <div id="event-desc" style="font-size: 1.2rem; font-weight: 800; color: #000; margin-top: 20px; border-top: 2px solid rgba(0,0,0,0.1); padding-top: 20px;">
+            Spinning...
+        </div>
+    </div>
+</div>
+
+<div id="score-preview" style="display: none;">0</div>
+
+<!-- Blank Selection Modal -->
+<div id="blankModal" class="modal">
+    <div class="modal-content">
+        <h3>Select Letter for Blank</h3>
+        <p>Type on your keyboard or click below</p>
+        <div class="letter-grid" id="letterGrid"></div>
+    </div>
+</div>
+
+<!-- Swap Modal -->
+<div id="swapModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3>Swap Tiles</h3>
+        <p>Select tiles to trade back into the bag</p>
+        <div class="swap-grid" id="swapGrid"></div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-play" onclick="confirmSwap()">Swap Selected</button>
+            <button onclick="document.getElementById('swapModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Remaining Tiles Modal -->
+<div id="tilesModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3>Remaining Tiles</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Tiles left in bag + opponent's hand</p>
+        <div class="tile-count-grid" id="tileCountGrid"></div>
+        <button onclick="document.getElementById('tilesModal').style.display='none'" style="margin-top: 20px; padding: 10px 20px;">Close</button>
+    </div>
+</div>
+
+<!-- Recycle Modal -->
+<div id="recycleModal" class="modal">
+    <div class="modal-content">
+        <h3>Recycling</h3>
+        <p>Select a tile to transform into a Blank tile</p>
+        <div class="swap-grid" id="recycleGrid"></div>
+        <button onclick="document.getElementById('recycleModal').style.display='none'" style="margin-top: 15px;">Cancel</button>
+    </div>
+</div>
+
+<!-- Sabotage UI -->
+<div id="sabotageModal" class="modal" style="pointer-events: none; background: transparent;">
+    <div class="modal-content" style="border-color: var(--p1-color); box-shadow: 10px 10px 0 var(--p1-color); transform: translateY(-100px);">
+        <h3 style="color: var(--p1-color); margin: 0;">SABOTAGE ACTIVE</h3>
+        <p>Click an opponent's tile on the board to flip it!</p>
+        <button onclick="cancelSabotage()" style="padding:6px 12px;">Cancel</button>
+    </div>
+</div>
+
+<!-- Loading delay overlay for MODIFIER -->
+<div id="loadingOverlay" class="modal">
+    <div class="modal-content">
+        <h3 style="color:var(--bonus-tw)">[!] SYSTEM LOADING</h3>
+        <p>Stability check in progress. Please wait <b id="loading-countdown">5</b>s before playing.</p>
+    </div>
+</div>
+
+<!-- Magic 8-ball ghost legend -->
+<div id="magic8Banner" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:9999; background:#7aa2f7; color:#000; font-weight:900; font-size:0.9rem; padding:8px 16px; border:3px solid #000; box-shadow:4px 4px 0 #000; pointer-events:none;">
+    🔮 MAGIC 8-BALL — best move shown as translucent ghost tiles
+</div>
+
+<script>
+    // Configuration
+    const TILE_DATA = {
+        'A': { v: 1, c: 9 }, 'B': { v: 3, c: 2 }, 'C': { v: 3, c: 2 }, 'D': { v: 2, c: 4 },
+        'E': { v: 1, c: 12 }, 'F': { v: 4, c: 2 }, 'G': { v: 2, c: 3 }, 'H': { v: 4, c: 2 },
+        'I': { v: 1, c: 9 }, 'J': { v: 8, c: 1 }, 'K': { v: 5, c: 1 }, 'L': { v: 1, c: 4 },
+        'M': { v: 3, c: 2 }, 'N': { v: 1, c: 6 }, 'O': { v: 1, c: 8 }, 'P': { v: 3, c: 2 },
+        'Q': { v: 10, c: 1 }, 'R': { v: 1, c: 6 }, 'S': { v: 1, c: 4 }, 'T': { v: 1, c: 6 },
+        'U': { v: 1, c: 4 }, 'V': { v: 4, c: 2 }, 'W': { v: 4, c: 2 }, 'X': { v: 8, c: 1 },
+        'Y': { v: 4, c: 2 }, 'Z': { v: 10, c: 1 }, '_': { v: 0, c: 2 }
+    };
+
+    const BONUSES = {
+        '0,0': 'TW', '0,7': 'TW', '0,14': 'TW', '7,0': 'TW', '7,14': 'TW', '14,0': 'TW', '14,7': 'TW', '14,14': 'TW',
+        '1,1': 'DW', '2,2': 'DW', '3,3': 'DW', '4,4': 'DW', '1,13': 'DW', '2,12': 'DW', '3,11': 'DW', '4,10': 'DW',
+        '13,1': 'DW', '12,2': 'DW', '11,3': 'DW', '10,4': 'DW', '13,13': 'DW', '12,12': 'DW', '11,11': 'DW', '10,10': 'DW', '7,7': 'ST',
+        '1,5': 'TL', '1,9': 'TL', '5,1': 'TL', '5,5': 'TL', '5,9': 'TL', '5,13': 'TL', '9,1': 'TL', '9,5': 'TL', '9,9': 'TL', '9,13': 'TL', '13,5': 'TL', '13,9': 'TL',
+        '0,3': 'DL', '0,11': 'DL', '2,6': 'DL', '2,8': 'DL', '3,0': 'DL', '3,7': 'DL', '3,14': 'DL', '6,2': 'DL', '6,6': 'DL', '6,8': 'DL', '6,12': 'DL', '7,3': 'DL', '7,11': 'DL', '8,2': 'DL', '8,6': 'DL', '8,8': 'DL', '8,12': 'DL', '11,0': 'DL', '11,7': 'DL', '11,14': 'DL', '12,6': 'DL', '12,8': 'DL', '14,3': 'DL', '14,11': 'DL'
+    };
+
+    const MODIFIER_LIST = [
+        { id: 'gravity', title: 'GRAVITY', desc: 'All tiles on the board fall to the bottom of their columns.' },
+        { id: 'solarflare', title: 'SOLAR FLARE', desc: 'TW bonuses move to random spots, destroying any tiles they land on!' },
+        { id: 'earthquake', title: 'EARTHQUAKE', desc: 'Every tile on the board shifts one square in a random direction.' },
+        { id: 'sinkhole', title: 'SINKHOLE', desc: 'The center 3x3 of the board is cleared. Tiles go back to the bag.' },
+        { id: 'migration', title: 'BONUS MIGRATION', desc: 'All bonus squares (TW, DW, TL, DL) shuffle positions.' },
+        { id: 'handshake', title: 'HANDSHAKE', desc: 'You and the AI swap entire racks.' },
+        { id: 'luckydip', title: 'LUCKY DIP', desc: 'Players discard their racks and draw 7 new tiles.' },
+        { id: 'voweldrought', title: 'VOWEL DROUGHT', desc: 'All vowels in racks are replaced with consonants.' },
+        { id: 'freeze', title: 'CONSONANT FREEZE', desc: 'Consonants worth >3 points cannot be played this round.' },
+        { id: 'golden', title: 'GOLDEN LETTER', desc: 'A random letter is worth 3x points this round.' },
+        { id: 'hotpotato', title: 'HOT POTATO', desc: 'End the turn with Q or Z for a -20 point penalty.' },
+        { id: 'inflation', title: 'INFLATION', desc: 'All points scored this round are doubled.' },
+        { id: 'deflation', title: 'DEFLATION', desc: 'All tiles are worth exactly 1 point this round.' },
+        { id: 'recycling', title: 'RECYCLING', desc: 'You can trade 1 tile for a Blank tile during your turn.' },
+        { id: 'taxseason', title: 'TAX SEASON', desc: 'Lose 10 points for every S you own on the board.' },
+        { id: 'stimulus', title: 'STIMULUS CHECK', desc: 'Gain +5 points for every vowel in your rack.' },
+        { id: 'underdog', title: 'UNDERDOG', desc: 'The trailing player gets +20 points immediately.' },
+        { id: 'bingofever', title: 'BINGO FEVER', desc: 'Using all 7 tiles is worth 100 points this round.' },
+        { id: 'reverse', title: 'REVERSE SCRABBLE', desc: 'The lowest scoring valid word wins the points this round.' },
+        { id: 'charity', title: 'CHARITY', desc: 'Your move score is divided equally between you and the AI.' },
+        { id: 'civilwar', title: 'CIVIL WAR', desc: 'All tiles on the board lose their color and become neutral.' },
+        { id: 'patrol', title: 'BORDER PATROL', desc: 'You cannot touch more than 2 opponent tiles this round.' },
+        { id: 'traitors', title: 'TRAITORS', desc: 'Tiles played on Double Word squares belong to the opponent.' },
+        { id: 'investment', title: 'INVESTMENT', desc: 'Gain 1 point for every tile you own on the board right now.' },
+        { id: 'reinforcements', title: 'REINFORCEMENTS', desc: 'Draw 2 extra tiles if you own more than 10 board tiles.' },
+        { id: 'sabotage', title: 'SABOTAGE', desc: 'Spend 5 points to flip a random opponent tile to your color.' },
+        { id: 'error404', title: '404 ERROR', desc: 'A random word on the board is corrupted and removed.' },
+        { id: 'loading', title: 'LOADING...', desc: 'There is a 5-second delay before you can submit a word.' },
+        { id: 'popup', title: 'POP-UP AD', desc: 'A random square is blocked by a popup and cannot be used.' },
+        { id: 'bandwidth', title: 'BANDWIDTH LIMIT', desc: 'Words are limited to a maximum of 4 letters this round.' },
+        { id: 'cookies', title: 'COOKIES', desc: 'Every vowel used this round grants +2 points.' },
+        { id: 'firewall', title: 'FIREWALL', desc: 'No tiles can be played on the outer edge of the board.' },
+        { id: 'encrypted', title: 'ENCRYPTED', desc: 'The "Tiles Left" count is hidden for the rest of the game.' },
+        { id: 'virus', title: 'VIRUS', desc: 'A random tile in your rack is infected. Playing it subtracts points.' },
+        { id: 'restore', title: 'SYSTEM RESTORE', desc: 'The board is cleared! Players keep their current scores.' },
+        { id: 'onhead', title: "ON IT'S HEAD", desc: 'The board is flipped upside down!' },
+        { id: 'mirrored', title: 'TURN IT AROUND', desc: 'The board is mirrored horizontally!' },
+        { id: 'backwards', title: 'TAKE IT BACK', desc: 'Words must be spelled backwards this round!' },
+        { id: 'anyway', title: 'MY WAY', desc: 'Words can be played in any orientation!' },
+        { id: 'ripoff', title: 'RIP-OFF!', desc: 'Bonuses now divide your score instead of multiplying it!' },
+        { id: 'dementia', title: 'DEMENTIA', desc: 'Every turn, a random word on the board is replaced.' },
+        { id: 'caesar', title: 'CAESAR SALAD', desc: 'All letters shift one position in the alphabet (A→B, Z→A). Board, rack, and scoring all shift.' },
+        { id: 'magic8', title: 'MAGIC 8-BALL', desc: 'Translucent peek at the best possible move revealed!' },
+        { id: 'multimult', title: 'MULTIMULTIPLIERS', desc: 'Every empty cell temporarily becomes a random multiplier!' },
+        { id: 'miracle', title: 'A MIRACLE', desc: '3 random spots become 4x multipliers!' },
+        { id: 'washmouth', title: 'WASH YOUR MOUTH OUT', desc: 'Playing curse words resets your score to 0!' },
+        { id: 'misclick', title: 'MISCLICK', desc: 'You must play the worst (lowest-scoring) valid move. It is shown in ghost tiles.' }
+    ];
+
+    // Game State
+    let bag = [];
+    let racks = [[], []];
+    let turn = 0;
+    let moveHistory = [];
+    let boardState = Array(15).fill().map(() => Array(15).fill(null));
+    let scores = [0, 0];
+    let playerNames = ["Player 1", "AI"];
+    let dictionary = new Set();
+    let dictByLength = {};
+    let bonuses = JSON.parse(JSON.stringify(BONUSES));
+    let currentMove = [];
+    let focusedCell = { row: 7, col: 7, dir: 'right' };
+    let timers = [0, 0];
+    let timerInterval;
+    let gameConfig = {};
+    let activeModifier = null;
+    let forcedMove = null; // { tiles, score } — used for MISCLICK
+    let lastModifierId = null; // To prevent duplicate modifiers
+    let eventTimeout;
+    let infectedTileIdx = -1; 
+    let sabotageActive = false;
+    let caesarShift = 0; // for caesar salad
+    let multimultBonuses = {}; // temporary bonus overrides for MULTIMULTIPLIERS
+    let blockedSquares = {}; // POP-UP blocked squares: '{r,c}' → true
+    let loadingTimer = 0; // LOADING countdown remaining seconds
+    let opponentTouchCount = 0; // BORDER PATROL — opponent tile touches this round
+    let magic8Move = null; // MAGIC 8-BALL best move ghost
+    let CURSE_WORDS = new Set(['DAMN','HELL','SHIT','FUCK','CRAP','ARSE','PISS','TWAT','BITCH','COCK','DICK']);
+
+    window.toggleDarkModeUI = toggleDarkModeUI;
+    window.startNewGame = startNewGame;
+    window.resumeSavedGame = resumeSavedGame;
+
+    // ─── CAESAR SALAD HELPERS ───────────────────────────────────────────
+    const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    function caesarShiftLetter(letter, shift) {
+        if (letter === '_') return '_';
+        const idx = ALPHA.indexOf(letter);
+        if (idx === -1) return letter;
+        return ALPHA[(idx + shift + 26) % 26];
+    }
+
+    // Shift a whole word (for dictionary lookup under Caesar)
+    function caesarShiftWord(word, shift) {
+        return word.split('').map(l => caesarShiftLetter(l, shift)).join('');
+    }
+
+    // ─── INIT ────────────────────────────────────────────────────────────
+    async function init() {
+        createBoard();
+        loadDictionary();
+        loadCurseWords();
+        setupLetterGrid();
+
+        if (localStorage.getItem('scrabble_save')) {
+            document.getElementById('resume-btn').style.display = 'block';
+        }
+
+        // Show name inputs only when local multiplayer chosen
+        const aiSelect = document.getElementById('setting-ai');
+        const localNames = document.getElementById('local-names');
+        toggleDarkModeUI(document.getElementById('setting-dark').checked);
+        aiSelect.addEventListener('change', () => {
+            localNames.style.display = aiSelect.value === 'local' ? 'flex' : 'none';
+        });
+
+        window.addEventListener('keydown', handleKeyboard);
+    }
+
+    function loadDictionary() {
+        fetch('https://raw.githubusercontent.com/redbo/scrabble/refs/heads/master/dictionary.txt')
+            .then(res => res.text())
+            .then(text => {
+                text.split('\n').forEach(word => {
+                    word = word.trim().toUpperCase();
+                    if (!word) return;
+                    dictionary.add(word);
+                    const len = word.length;
+                    if (!dictByLength[len]) dictByLength[len] = [];
+                    dictByLength[len].push(word);
+                });
+                console.log("Dictionary loaded:", dictionary.size, "words");
+            });
+    }
+
+    function loadCurseWords() {
+        const url = 'https://cdn.discordapp.com/attachments/606303414481190912/1499261746353799218/badwords.txt?ex=69f427cf&is=69f2d64f&hm=835b81c0f4bd2adeaf312c1ff06d3176e45020dd1ac6c9cf6b4af6a931fe58ef&';
+        fetch(url)
+            .then(res => res.text())
+            .then(text => {
+                text.split('\n').forEach(word => {
+                    const w = word.trim().toUpperCase();
+                    if (w) CURSE_WORDS.add(w);
+                });
+                console.log("Curse words updated. Total:", CURSE_WORDS.size);
+            })
+            .catch(err => {
+                console.warn("External curse word list unavailable (likely Discord link expiry). Using internal fallback.", err);
+            });
+    }
+
+    function createBoard() {
+        const boardEl = document.getElementById('board');
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                const bonus = bonuses[`${r},${c}`];
+                cell.setAttribute('ondragover', 'event.preventDefault()');
+                cell.setAttribute('ondrop', `handleDrop(event, ${r}, ${c})`);
+                if (blockedSquares[`${r},${c}`]) cell.style.background = '#222';
+                // Check multimult override first
+                const mmBonus = multimultBonuses[`${r},${c}`];
+                const effectiveBonus = mmBonus || bonus;
+
+                if (effectiveBonus) {
+                    cell.dataset.bonus = effectiveBonus;
+                    cell.innerText = effectiveBonus === 'ST' ? '★' : effectiveBonus.replace('MM_', '');
+                }
+                cell.onclick = () => focusCell(r, c);
+                cell.id = `cell-${r}-${c}`;
+                boardEl.appendChild(cell);
+            }
+        }
+        focusCell(7, 7);
+    }
+
+    function toggleDarkModeUI(isDark) {
+        if (isDark) document.body.classList.add('dark-mode');
+        else document.body.classList.remove('dark-mode');
+        document.getElementById('setting-dark').checked = isDark;
+    }
+
+    function toggleInGameTheme() {
+        const isNowDark = !document.body.classList.contains('dark-mode');
+        toggleDarkModeUI(isNowDark);
+        saveGame();
+    }
+
+    function startNewGame() {
+        gameConfig = {
+            ai: document.getElementById('setting-ai').value,
+            timeLimit: parseInt(document.getElementById('setting-timer').value) * 60,
+            overtime: document.getElementById('setting-overtime').checked,
+            modifiersEnabled: document.getElementById('setting-modifiers').checked
+        };
+        
+        document.getElementById('board').innerHTML = '';
+        bonuses = JSON.parse(JSON.stringify(BONUSES));
+        multimultBonuses = {};
+        caesarShift = 0;
+        createBoard();
+
+        bag = [];
+        racks = [[], []];
+        turn = 0;
+        scores = [0, 0];
+        moveHistory = [];
+        timers = [gameConfig.timeLimit, gameConfig.timeLimit];
+        boardState = Array(15).fill().map(() => Array(15).fill(null));
+        activeModifier = null;
+        forcedMove = null;
+        infectedTileIdx = -1;
+        sabotageActive = false;
+        blockedSquares = {};
+
+        if (gameConfig.ai === 'local') {
+            playerNames = [
+                document.getElementById('setting-p1name').value || "Player 1",
+                document.getElementById('setting-p2name').value || "Player 2"
+            ];
+        } else {
+            playerNames = ["Player 1", "AI"];
+        }
+        document.getElementById('p1-name-display').innerText = playerNames[0];
+        document.getElementById('p2-name-display').innerText = playerNames[1];
+        
+        initBag();
+        fillRack(0);
+        fillRack(1);
+        
+        document.getElementById('move-history').innerHTML = '';
+        launchUI();
+    }
+
+    function resumeSavedGame() {
+        const save = JSON.parse(localStorage.getItem('scrabble_save'));
+        bag = save.bag;
+        racks = save.racks;
+        turn = save.turn;
+        scores = save.scores;
+        boardState = save.boardState;
+        gameConfig = save.gameConfig;
+        timers = save.timers;
+        moveHistory = save.moveHistory || [];
+        activeModifier = save.activeModifier || null;
+        bonuses = save.bonuses || JSON.parse(JSON.stringify(BONUSES));
+        multimultBonuses = save.multimultBonuses || {};
+        caesarShift = save.caesarShift || 0;
+
+        document.getElementById('board').innerHTML = '';
+        createBoard();
+        for(let r=0; r<15; r++) {
+            for(let c=0; c<15; c++) {
+                if (boardState[r][c]) {
+                    renderTileOnBoard(r, c, boardState[r][c].letter, false, boardState[r][c].isBlank);
+                }
+            }
+        }
+        
+        renderHistory();
+        launchUI();
+    }
+
+    function launchUI() {
+        document.getElementById('launcher').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'flex';
+        updateUI();
+        startTimer();
+    }
+
+    function quitToLauncher() {
+        if (confirm("Quit game? Progress is saved.")) {
+            clearInterval(timerInterval);
+            location.reload();
+        }
+    }
+
+    function saveGame() {
+        const state = { bag, racks, turn, scores, boardState, gameConfig, timers, moveHistory, bonuses, activeModifier, multimultBonuses, caesarShift };
+        localStorage.setItem('scrabble_save', JSON.stringify(state));
+    }
+
+    function startTimer() {
+        if (gameConfig.timeLimit === 0) return;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (timers[turn] > 0) timers[turn]--;
+            else if (gameConfig.overtime) timers[turn]--;
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const t = timers[turn];
+        const sign = t < 0 ? '-' : '';
+        const absT = Math.abs(t);
+        const m = Math.floor(absT / 60);
+        const s = absT % 60;
+        const str = `${sign}${m}:${s.toString().padStart(2, '0')}`;
+        if (turn === 0) document.getElementById('timer-p1').innerText = str;
+        else document.getElementById('timer-p2').innerText = str;
+    }
+
+    function initBag() {
+        bag = [];
+        for (let char in TILE_DATA) {
+            for (let i = 0; i < TILE_DATA[char].c; i++) bag.push(char);
+        }
+        shuffle(bag);
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+
+    function fillRack(pIdx) {
+        while (racks[pIdx].length < 7 && bag.length > 0) {
+            racks[pIdx].push(bag.pop());
+        }
+    }
+
+    // ─── FIX: TILES OWNED ────────────────────────────────────────────────
+    function updateTilesOwned() {
+        let p1count = 0, p2count = 0;
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                if (boardState[r][c]) {
+                    if (boardState[r][c].owner === 0) p1count++;
+                    else if (boardState[r][c].owner === 1) p2count++;
+                }
+            }
+        }
+        document.getElementById('tiles-p1').innerText = `Tiles Owned: ${p1count}`;
+        document.getElementById('tiles-p2').innerText = `Tiles Owned: ${p2count}`;
+    }
+
+    function updateUI() {
+        document.getElementById('score-p1').innerText = scores[0];
+        document.getElementById('score-p2').innerText = scores[1];
+        document.getElementById('card-p1').classList.toggle('active', turn === 0);
+        document.getElementById('card-p2').classList.toggle('active', turn === 1);
+        document.getElementById('bag-count').innerText = `Tiles in Bag: ${bag.length}`;
+        
+        document.body.classList.toggle('turn-p1', turn === 0);
+        document.body.classList.toggle('turn-p2', turn === 1);
+        
+        renderRack();
+        renderHistory();
+        updateTimerDisplay();
+        updateTilesOwned();
+        saveGame();
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('move-history');
+        list.innerHTML = '';
+        moveHistory.forEach((m, i) => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            
+            if (m.isModifier) {
+                div.innerHTML = `
+                    <div style="color: #888; font-size: 0.7rem; grid-column: 1/-1;">MODIFIER: ${m.word}</div>
+                `;
+                list.appendChild(div);
+                return;
+            }
+
+            const color = m.player === 0 ? 'var(--p1-color)' : (m.player === 1 ? 'var(--p2-color)' : 'var(--text-muted)');
+            div.innerHTML = `
+                <span class="h-num">${i + 1}</span>
+                <span class="h-word" style="color: ${color}">${m.word}</span>
+                <span class="h-pts" style="color: ${color}">${m.score >= 0 ? '+' : ''}${m.score}</span>
+            `;
+            list.appendChild(div);
+        });
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function showRemainingTiles() {
+        const grid = document.getElementById('tileCountGrid');
+        grid.innerHTML = '';
+        const remaining = [...bag, ...racks[1 - turn]];
+        const counts = {};
+        remaining.forEach(l => counts[l] = (counts[l] || 0) + 1);
+        Object.keys(TILE_DATA).sort().forEach(letter => {
+            const count = counts[letter] || 0;
+            const item = document.createElement('div');
+            item.style.cssText = `padding:10px;background:${count > 0 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)'};border-radius:4px;text-align:center;color:${count > 0 ? 'white' : 'var(--text-muted)'}`;
+            item.innerHTML = `<div style="font-size:1.2rem;font-weight:bold">${letter === '_' ? '☐' : letter}</div><div>x${count}</div>`;
+            grid.appendChild(item);
+        });
+        document.getElementById('tilesModal').style.display = 'flex';
+    }
+
+    let draggedTileIdx = -1;
+    let draggedFromBoard = false;
+    let selectedSwapIndices = new Set();
+
+    function renderRack() {
+        const rackEl = document.getElementById('rack');
+        rackEl.innerHTML = '';
+        const userRack = racks[turn];
+        userRack.forEach((letter, idx) => {
+            const div = document.createElement('div');
+            div.className = 'rack-tile';
+            // Display Caesar-shifted letter if active
+            const displayLetter = (activeModifier && activeModifier.id === 'caesar' && letter !== '_')
+                ? caesarShiftLetter(letter, caesarShift)
+                : letter;
+            div.innerText = (letter === '_' && !displayLetter.match(/[A-Z]/)) ? '' : displayLetter;
+            div.setAttribute('draggable', 'true');
+            div.addEventListener('dragstart', () => { draggedTileIdx = idx; draggedFromBoard = false; });
+            if (infectedTileIdx === idx) div.style.boxShadow = "inset 0 0 10px red";
+            const val = document.createElement('span');
+            val.className = 'value';
+            const displayVal = (activeModifier && activeModifier.id === 'deflation') ? 1 : TILE_DATA[letter].v;
+            val.innerText = displayVal;
+            div.appendChild(val);
+            rackEl.appendChild(div);
+        });
+    }
+
+    function handleDrop(e, r, c) {
+        e.preventDefault();
+        if ((turn === 1 && gameConfig.ai !== 'local') || draggedTileIdx === -1) return;
+        
+        if (blockedSquares[`${r},${c}`]) {
+            alert("This square is blocked by a POP-UP AD!");
+            return;
+        }
+
+        if (sabotageActive) {
+            if (boardState[r][c] && boardState[r][c].owner === 1) {
+                boardState[r][c].owner = 0;
+                sabotageActive = false;
+                document.getElementById('sabotageModal').style.display = 'none';
+                document.querySelectorAll('.cell').forEach(el => el.classList.remove('sabotage-overlay'));
+                moveHistory.push({ isModifier: true, word: "SABOTAGE" });
+                renderBoardFromState();
+                updateUI();
+            }
+            return;
+        }
+
+        if (draggedFromBoard) {
+            const moveItem = currentMove[draggedTileIdx];
+            if (!moveItem) return;
+            if (boardState[r][c] || (currentMove.some(m => m.row === r && m.col === c) && (moveItem.row !== r || moveItem.col !== c))) return;
+            const oldCell = document.getElementById(`cell-${moveItem.row}-${moveItem.col}`);
+            const oldBonus = bonuses[`${moveItem.row},${moveItem.col}`] || multimultBonuses[`${moveItem.row},${moveItem.col}`];
+            oldCell.innerHTML = oldBonus ? (oldBonus === 'ST' ? '★' : oldBonus.replace('MM_','')) : '';
+            moveItem.row = r;
+            moveItem.col = c;
+            renderTileOnBoard(r, c, moveItem.letter, true, moveItem.isBlank);
+            validateCurrentMove();
+        } else {
+            focusedCell.row = r;
+            focusedCell.col = c;
+            const letter = racks[0][draggedTileIdx];
+            if (letter === '_') openBlankModal('');
+            else placeTileLogic(letter, draggedTileIdx, false);
+        }
+        draggedTileIdx = -1;
+    }
+
+    function focusCell(r, c) {
+        if (focusedCell.row === r && focusedCell.col === c) {
+            focusedCell.dir = focusedCell.dir === 'right' ? 'down' : 'right';
+        } else {
+            focusedCell.row = r;
+            focusedCell.col = c;
+        }
+        updateFocusUI();
+    }
+
+    function updateFocusUI() {
+        document.querySelectorAll('.cell').forEach(c => c.classList.remove('active', 'down'));
+        const el = document.getElementById(`cell-${focusedCell.row}-${focusedCell.col}`);
+        if (el) {
+            el.classList.add('active');
+            if (focusedCell.dir === 'down') el.classList.add('down');
+        }
+    }
+
+    function handleKeyboard(e) {
+        if (turn === 1 && gameConfig.ai !== 'local') return;
+        if (document.getElementById('blankModal').style.display === 'flex') {
+            if (e.key.length === 1 && /[a-z]/i.test(e.key)) selectBlankLetter(e.key.toUpperCase());
+            return;
+        }
+        if (document.getElementById('swapModal').style.display === 'flex' || document.getElementById('tilesModal').style.display === 'flex') return;
+        if (e.key === 'Enter') { submitMove(); return; }
+        const key = e.key.toUpperCase();
+        if (key === 'BACKSPACE') { recallLastTile(); return; }
+        if (key === 'ARROWUP') moveFocus(-1, 0);
+        if (key === 'ARROWDOWN') moveFocus(1, 0);
+        if (key === 'ARROWLEFT') moveFocus(0, -1);
+        if (key === 'ARROWRIGHT') moveFocus(0, 1);
+        if (key.length === 1 && /[A-Z]/.test(key)) {
+            const { row, col } = focusedCell;
+            if (boardState[row][col] && boardState[row][col].letter === key) advanceFocus();
+            else tryPlaceTile(key);
+        }
+    }
+
+    function moveFocus(dr, dc) {
+        focusedCell.row = Math.max(0, Math.min(14, focusedCell.row + dr));
+        focusedCell.col = Math.max(0, Math.min(14, focusedCell.col + dc));
+        updateFocusUI();
+    }
+
+    function tryPlaceTile(letter) {
+        const { row, col } = focusedCell;
+        const curRack = racks[turn];
+        if (boardState[row][col] || currentMove.some(m => m.row === row && m.col === col)) {
+            advanceFocus();
+            tryPlaceTile(letter);
+            return;
+        }
+        if (blockedSquares[`${row},${col}`]) { advanceFocus(); return; }
+        // Under Caesar, the player types what they SEE (shifted), so we reverse-map
+        let searchLetter = letter;
+        if (activeModifier && activeModifier.id === 'caesar') {
+            searchLetter = caesarShiftLetter(letter, -caesarShift);
+        }
+
+        let rackIdx = curRack.indexOf(searchLetter);
+        if (rackIdx === -1) {
+            const blankIdx = curRack.indexOf('_');
+            if (blankIdx !== -1) { 
+                placeTileLogic(searchLetter, blankIdx, true);
+                return; 
+            }
+            else return;
+        }
+        placeTileLogic(searchLetter, rackIdx, false);
+    }
+
+    function placeTileLogic(letter, rackIdx, isBlank) {
+        const { row, col } = focusedCell;
+        const isThisInfected = (rackIdx === infectedTileIdx);
+        const actualTile = racks[turn].splice(rackIdx, 1)[0];
+        currentMove.push({ row, col, letter, isBlank, actualTile, isInfected: isThisInfected });
+        if (isThisInfected) infectedTileIdx = -1;
+        // Display letter under Caesar = shifted version
+        const displayLetter = (activeModifier && activeModifier.id === 'caesar' && letter !== '_')
+            ? caesarShiftLetter(letter, caesarShift)
+            : letter;
+        renderTileOnBoard(row, col, displayLetter, true, isBlank);
+        renderRack();
+        validateCurrentMove();
+        advanceFocus();
+    }
+
+    function advanceFocus() {
+        if (focusedCell.dir === 'right' && focusedCell.col < 14) focusedCell.col++;
+        else if (focusedCell.dir === 'down' && focusedCell.row < 14) focusedCell.row++;
+        updateFocusUI();
+    }
+
+    function renderTileOnBoard(r, c, letter, isTemp, isBlank, ownerOverride) {
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        if (!cell) return;
+        const existing = cell.querySelector('.tile');
+        if (existing) existing.remove();
+
+        const tileDiv = document.createElement('div');
+        tileDiv.className = `tile ${isTemp ? 'temp' : ''} ${isBlank ? 'blank' : ''}`;
+
+        if (isTemp) {
+            tileDiv.classList.add(turn === 0 ? 'p1-owner' : 'p2-owner');
+        } else {
+            const owner = ownerOverride !== undefined ? ownerOverride : (boardState[r] && boardState[r][c] ? boardState[r][c].owner : undefined);
+            if (owner === 0) tileDiv.classList.add('p1-owner');
+            else if (owner === 1) tileDiv.classList.add('p2-owner');
+        }
+
+        if (isTemp) {
+            tileDiv.setAttribute('draggable', 'true');
+            tileDiv.addEventListener('dragstart', (e) => {
+                draggedTileIdx = currentMove.findIndex(m => m.row === r && m.col === c);
+                draggedFromBoard = true;
+            });
+        }
+
+        const letterSpan = document.createElement('span');
+        letterSpan.className = 'letter';
+        letterSpan.innerText = letter;
+        tileDiv.appendChild(letterSpan);
+
+        const val = document.createElement('span');
+        val.className = 'value';
+        val.innerText = isBlank ? 0 : TILE_DATA[letter] ? TILE_DATA[letter].v : 0;
+        tileDiv.appendChild(val);
+        cell.appendChild(tileDiv);
+    }
+
+    // Blank Logic
+    let pendingBlank = null;
+    function openBlankModal(targetLetter) {
+        document.getElementById('blankModal').style.display = 'flex';
+        pendingBlank = targetLetter;
+    }
+
+    function selectBlankLetter(l) {
+        document.getElementById('blankModal').style.display = 'none';
+        const rackIdx = racks[turn].indexOf('_');
+        if (rackIdx !== -1) placeTileLogic(l, rackIdx, true);
+    }
+
+    function setupLetterGrid() {
+        const grid = document.getElementById('letterGrid');
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('').forEach(l => {
+            const btn = document.createElement('button');
+            btn.className = 'letter-btn';
+            btn.innerText = l;
+            btn.onclick = () => selectBlankLetter(l);
+            grid.appendChild(btn);
+        });
+    }
+
+    function recallLastTile() {
+        if (currentMove.length === 0) return;
+        const last = currentMove.pop();
+        racks[turn].push(last.actualTile);
+        const cell = document.getElementById(`cell-${last.row}-${last.col}`);
+        const bonus = bonuses[`${last.row},${last.col}`] || multimultBonuses[`${last.row},${last.col}`];
+        cell.innerHTML = bonus ? (bonus === 'ST' ? '★' : bonus.replace('MM_','')) : '';
+        focusedCell.row = last.row;
+        focusedCell.col = last.col;
+        renderRack();
+        validateCurrentMove();
+        updateFocusUI();
+    }
+
+    function resetMove() {
+        while(currentMove.length > 0) recallLastTile();
+    }
+
+    // Returns effective bonus at (r,c) considering multimult overrides
+    function getEffectiveBonus(r, c) {
+        const mm = multimultBonuses[`${r},${c}`];
+        if (mm) return mm.replace('MM_', ''); // e.g. 'MM_TW' → 'TW'
+        return bonuses[`${r},${c}`] || null;
+    }
+
+    function validateCurrentMove() {
+        const tiles = document.querySelectorAll('.tile.temp');
+        tiles.forEach(t => t.classList.remove('valid', 'invalid'));
+        if (currentMove.length === 0) { document.getElementById('score-preview').style.display = 'none'; return false; }
+
+        let isValid = true;
+
+        if (activeModifier && activeModifier.id === 'bandwidth' && currentMove.length > 4) isValid = false;
+        if (activeModifier && activeModifier.id === 'firewall') {
+            currentMove.forEach(m => { if (m.row <= 1 || m.row >= 13 || m.col <= 1 || m.col >= 13) isValid = false; });
+        }
+        if (activeModifier && activeModifier.id === 'freeze') {
+            currentMove.forEach(m => { if (!"AEIOU".includes(m.letter) && TILE_DATA[m.letter].v > 3) isValid = false; });
+        }
+
+        const rows = currentMove.map(m => m.row);
+        const cols = currentMove.map(m => m.col);
+        const isHorizontal = rows.every(r => r === rows[0]);
+        const isVertical = cols.every(c => c === cols[0]);
+        const isMyWay = activeModifier && activeModifier.id === 'anyway';
+
+        if (!isHorizontal && !isVertical && !isMyWay) isValid = false;
+
+        const words = findWordsOnBoard();
+        if (words.length === 0) isValid = false;
+
+        for (let w of words) {
+            // Under Caesar, we need to check the UN-shifted word exists in dictionary
+            // The letters stored in currentMove are the real tile letters; shifted display is separate
+            // So findWordsOnBoard returns real letters. Under Caesar, the "real" letter is one back from the displayed.
+            let lookupWord = w;
+            if (activeModifier && activeModifier.id === 'backwards') lookupWord = lookupWord.split('').reverse().join('');
+            if (!dictionary.has(lookupWord)) { isValid = false; break; }
+        }
+
+        const isFirstMove = boardState.every(r => r.every(c => c === null));
+        if (isFirstMove) {
+            if (!currentMove.some(m => m.row === 7 && m.col === 7)) isValid = false;
+        } else {
+            let connects = false;
+            currentMove.forEach(m => {
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                    const nr = m.row + dr, nc = m.col + dc;
+                    if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && boardState[nr][nc]) connects = true;
+                });
+            });
+            if (!connects) isValid = false;
+        }
+
+        if (isValid && currentMove.length > 1) {
+            if (isHorizontal) {
+                const row = rows[0], minCol = Math.min(...cols), maxCol = Math.max(...cols);
+                for (let c = minCol; c <= maxCol; c++) {
+                    if (!boardState[row][c] && !currentMove.some(m => m.row === row && m.col === c)) { isValid = false; break; }
+                }
+            } else if (isVertical) {
+                const col = cols[0], minRow = Math.min(...rows), maxRow = Math.max(...rows);
+                for (let r = minRow; r <= maxRow; r++) {
+                    if (!boardState[r][col] && !currentMove.some(m => m.row === r && m.col === col)) { isValid = false; break; }
+                }
+            }
+        }
+
+        tiles.forEach(t => t.classList.add(isValid ? 'valid' : 'invalid'));
+
+        const scorePreview = document.getElementById('score-preview');
+        if (isValid && currentMove.length > 0) {
+            const first = currentMove.reduce((min, m) => (m.row < min.row || (m.row === min.row && m.col < min.col) ? m : min), currentMove[0]);
+            const cell = document.getElementById(`cell-${first.row}-${first.col}`);
+            const rect = cell.getBoundingClientRect();
+            scorePreview.innerText = `+${calculateScore()}`;
+            scorePreview.style.left = `${rect.left + rect.width / 2}px`;
+            scorePreview.style.top = `${rect.top}px`;
+            scorePreview.style.display = 'block';
+        } else {
+            scorePreview.style.display = 'none';
+        }
+
+        return isValid;
+    }
+
+    function submitMove() {
+        if (loadingTimer > 0) {
+            alert(`SYSTEM LOADING: Please wait ${loadingTimer} more seconds.`);
+            return;
+        }
+
+        // ─── MISCLICK ENFORCEMENT ─────────────────────────────────────────
+        if (activeModifier && activeModifier.id === 'misclick' && forcedMove) {
+            if (currentMove.length === 0) {
+                alert("MISCLICK ACTIVE: You must play the ghost move shown on the board!");
+                return;
+            }
+            const isCorrect = currentMove.length === forcedMove.tiles.length &&
+                currentMove.every(m => forcedMove.tiles.some(ft =>
+                    ft.row === m.row && ft.col === m.col && ft.letter === m.letter
+                ));
+            if (!isCorrect) {
+                alert("MISCLICK ACTIVE: You must play the exact ghost move shown on the board!");
+                return;
+            }
+        }
+
+        if (!validateCurrentMove()) {
+            alert("Move is illegal or words not in dictionary!");
+            return;
+        }
+
+        let moveScore = calculateScore();
+        const words = findWordsOnBoard();
+        const wordText = words.join(", ");
+
+        if (activeModifier && activeModifier.id === 'charity') {
+            const playerShare = Math.round(moveScore / 2);
+            const opponentShare = moveScore - playerShare; // Ensure total is correct due to rounding
+            scores[turn] += playerShare;
+            scores[1 - turn] += opponentShare;
+            moveHistory.push({ player: turn, word: `CHARITY: ${wordText} (to ${playerNames[turn]})`, score: playerShare });
+            moveHistory.push({ player: 1 - turn, word: `CHARITY: ${wordText} (to ${playerNames[1 - turn]})`, score: opponentShare });
+        } else {
+            scores[turn] += moveScore;
+            moveHistory.push({ player: turn, word: wordText, score: moveScore });
+        }
+
+        if (activeModifier && activeModifier.id === 'washmouth') {
+            if (words.some(w => CURSE_WORDS.has(w))) {
+                scores[turn] = 0;
+                moveHistory.push({ player: turn, word: "WASHED MOUTH OUT", score: -999 });
+            }
+        }
+
+        const scoringCoords = getScoringCoordinates();
+        document.getElementById('recycle-btn').style.display = 'none';
+
+        currentMove.forEach(m => {
+            boardState[m.row][m.col] = { letter: m.letter, isBlank: m.isBlank, owner: turn };
+            const tileEl = document.querySelector(`#cell-${m.row}-${m.col} .tile`);
+            if (tileEl) tileEl.classList.remove('temp');
+        });
+
+        if (activeModifier && activeModifier.id === 'traitors') {
+            currentMove.forEach(m => {
+                if (getEffectiveBonus(m.row, m.col) === 'DW') {
+                    boardState[m.row][m.col].owner = 1 - turn;
+                }
+            });
+        }
+
+        scoringCoords.forEach(coord => {
+            const [r, c] = coord.split(',').map(Number);
+            if (boardState[r][c]) boardState[r][c].owner = turn;
+            const tileEl = document.querySelector(`#cell-${r}-${c} .tile`);
+            if (tileEl) { tileEl.classList.remove('p1-owner', 'p2-owner'); tileEl.classList.add(turn === 0 ? 'p1-owner' : 'p2-owner'); }
+        });
+
+        if (activeModifier && activeModifier.id === 'virus' && infectedTileIdx !== -1) {
+            if (currentMove.some(m => m.isInfected)) {
+                scores[turn] = Math.max(0, scores[turn] - 20);
+                moveHistory.push({ player: turn, word: "VIRUS PENALTY", score: -20 });
+            }
+        }
+
+        if (activeModifier && activeModifier.id === 'patrol' && opponentTouchCount > 2) {
+            scores[turn] = Math.max(0, scores[turn] - 15);
+            moveHistory.push({ player: turn, word: "PATROL VIOLATION", score: -15 });
+        }
+
+        // Clear misclick ghosts after successful move
+        if (forcedMove) {
+            clearGhostTiles();
+            forcedMove = null;
+            document.getElementById('misclick-banner').style.display = 'none';
+        }
+
+        // Clear multimult after the round turn completes
+        multimultBonuses = {};
+
+        currentMove = [];
+        renderHistory();
+        fillRack(turn);
+        nextTurn();
+    }
+
+    function clearGhostTiles() {
+        document.querySelectorAll('.tile.ghost').forEach(el => el.remove());
+    }
+
+    function nextTurn() {
+        if (activeModifier && activeModifier.id === 'dementia' && boardState.flat().filter(t => t).length > 3) {
+            const allTiles = [];
+            for(let r=0; r<15; r++) for(let c=0; c<15; c++) if(boardState[r][c]) allTiles.push({r,c});
+            if (allTiles.length > 0) {
+                const t = allTiles[Math.floor(Math.random() * allTiles.length)];
+                const newLetter = "ABCDEFGHIJKLMNOPRSTUVW"[Math.floor(Math.random() * 22)];
+                boardState[t.r][t.c].letter = newLetter;
+                renderBoardFromState();
+                moveHistory.push({ player: -1, word: "DEMENTIA STRIKES", score: 0 });
+            }
+        }
+
+        if (activeModifier && activeModifier.id === 'hotpotato') {
+            const rack = racks[turn];
+            if (rack.includes('Q') || rack.includes('Z')) {
+                scores[turn] = Math.max(0, scores[turn] - 20);
+                moveHistory.push({ player: turn, word: "HOT POTATO!", score: -20 });
+            }
+        }
+
+        opponentTouchCount = 0;
+        turn = 1 - turn;
+
+        if (activeModifier && activeModifier.id === 'dementia') {
+            const allWords = getAllWordsOnBoard();
+            if (allWords.length > 0) {
+                const target = allWords[Math.floor(Math.random() * allWords.length)];
+                const len = target.word.length;
+                if (dictByLength[len]) {
+                    const candidates = dictByLength[len];
+                    const newWord = candidates[Math.floor(Math.random() * candidates.length)];
+                    target.coords.forEach((coord, i) => {
+                        boardState[coord.r][coord.c].letter = newWord[i];
+                    });
+                    renderBoardFromState();
+                    moveHistory.push({ isModifier: true, word: `DEMENTIA: ${target.word} -> ${newWord}` });
+                }
+            }
+        }
+
+        updateUI();
+
+        if (turn === 0 && gameConfig.modifiersEnabled) {
+            setTimeout(triggerRandomModifier, 500);
+        } else {
+            // Recalculate ghosts for local multiplayer turn 1
+            if (gameConfig.ai === 'local' && activeModifier) {
+                if (activeModifier.id === 'misclick') setTimeout(computeAndShowMisclickMove, 500);
+                if (activeModifier.id === 'magic8') setTimeout(computeAndShowBestMoveGhost, 500);
+            }
+
+            if (turn === 1 && gameConfig.ai !== 'local') {
+                setTimeout(aiPlay, 1000);
+            }
+        }
+    }
+
+    function closeEventOverlay() {
+        const overlay = document.getElementById('event-overlay');
+        if (overlay.style.display === 'none') return;
+        overlay.style.display = 'none';
+        const reel = document.getElementById('event-reel');
+        reel.style.transition = 'none';
+        reel.style.transform = 'translateY(0)';
+        if (eventTimeout) clearTimeout(eventTimeout);
+        updateUI();
+    }
+
+    function triggerRandomModifier() {
+        activeModifier = null;
+        forcedMove = null;
+        multimultBonuses = {};
+        blockedSquares = {};
+        document.getElementById('magic8Banner').style.display = 'none';
+        document.body.classList.remove('encrypted');
+        clearGhostTiles();
+        document.getElementById('misclick-banner').style.display = 'none';
+
+        const overlay = document.getElementById('event-overlay');
+        const reel = document.getElementById('event-reel');
+        const descEl = document.getElementById('event-desc');
+
+        reel.innerHTML = '';
+        reel.style.transition = 'none';
+        reel.style.transform = 'translateY(0)';
+
+        let selected = null;
+        let attempts = 0;
+        do {
+            selected = MODIFIER_LIST[Math.floor(Math.random() * MODIFIER_LIST.length)];
+            attempts++;
+            if (attempts > MODIFIER_LIST.length * 2) { // Fallback to prevent infinite loop
+                console.warn("Could not find a non-duplicate modifier. Selecting a random one anyway.");
+                break;
+            }
+        } while (selected.id === lastModifierId);
+
+        MODIFIER_LIST.forEach(mod => { // Still show all modifiers in the reel
+            const div = document.createElement('div');
+            div.className = 'reel-item';
+            div.innerText = mod.title;
+            reel.appendChild(div);
+        });
+
+        const targetIdx = Math.floor(Math.random() * MODIFIER_LIST.length);
+        // The 'selected' variable is already determined above to avoid duplicates
+
+        const reelItems = Array.from(reel.children);
+        reelItems[45] && (reelItems[45].innerText = selected.title);
+
+        descEl.style.visibility = 'hidden';
+        overlay.style.display = 'flex';
+
+        setTimeout(() => {
+            reel.style.transition = 'transform 4s cubic-bezier(0.1, 0, 0, 1)';
+            reel.style.transform = `translateY(-${45 * 80}px)`;
+        }, 100);
+
+        setTimeout(() => { finalizeModifierReveal(selected); }, 4200);
+    }
+
+    function finalizeModifierReveal(selected) {
+        const descEl = document.getElementById('event-desc');
+        activeModifier = JSON.parse(JSON.stringify(selected));
+        lastModifierId = activeModifier.id; // Store the ID of the newly active modifier
+        caesarShift = 0; // reset each round
+
+        if (activeModifier.id === 'golden') {
+            activeModifier.letter = "ABCDEFGHIJKLMNOPRSTUVW"[Math.floor(Math.random() * 22)];
+            moveHistory.push({ isModifier: true, word: `GOLDEN LETTER: ${activeModifier.letter}` });
+        }
+
+        let description = activeModifier.desc;
+        if (activeModifier.id === 'golden') description = `The letter "${activeModifier.letter}" is worth 3x points this round.`;
+        descEl.innerText = description;
+        descEl.style.visibility = 'visible';
+
+        // ─── INSTANT EFFECTS ──────────────────────────────────────────────
+        if (activeModifier.id === 'gravity') { executeGravity(); moveHistory.push({ isModifier: true, word: "GRAVITY" }); }
+        else if (activeModifier.id === 'earthquake') { executeEarthquake(); moveHistory.push({ isModifier: true, word: "EARTHQUAKE" }); }
+        else if (activeModifier.id === 'handshake') { [racks[0], racks[1]] = [racks[1], racks[0]]; moveHistory.push({ isModifier: true, word: "HANDSHAKE" }); }
+        else if (activeModifier.id === 'onhead') { executeBoardFlip(); moveHistory.push({ isModifier: true, word: "BOARD FLIP" }); }
+        else if (activeModifier.id === 'mirrored') { executeBoardMirror(); moveHistory.push({ isModifier: true, word: "BOARD MIRROR" }); }
+        else if (activeModifier.id === 'restore') { boardState = Array(15).fill().map(() => Array(15).fill(null)); renderBoardFromState(); moveHistory.push({ isModifier: true, word: "SYSTEM RESTORE" }); }
+        else if (activeModifier.id === 'solarflare') { executeSolarFlare(); moveHistory.push({ isModifier: true, word: "SOLAR FLARE" }); }
+        else if (activeModifier.id === 'sinkhole') {
+            for(let r=6; r<=8; r++) for(let c=6; c<=8; c++) { if(boardState[r][c]) bag.push(boardState[r][c].letter); boardState[r][c] = null; }
+            shuffle(bag); renderBoardFromState(); moveHistory.push({ isModifier: true, word: "SINKHOLE" });
+        }
+        else if (activeModifier.id === 'migration') {
+            const keys = Object.keys(bonuses), values = Object.values(bonuses);
+            shuffle(values); bonuses = {};
+            keys.forEach((k, i) => bonuses[k] = values[i]);
+            renderBoardFromState(); moveHistory.push({ isModifier: true, word: "BONUS MIGRATION" });
+        }
+        else if (activeModifier.id === 'luckydip') {
+            bag.push(...racks[0], ...racks[1]); racks = [[], []]; shuffle(bag); fillRack(0); fillRack(1);
+            moveHistory.push({ isModifier: true, word: "LUCKY DIP" });
+        }
+        else if (activeModifier.id === 'voweldrought') {
+            [0,1].forEach(p => { racks[p] = racks[p].map(l => "AEIOU".includes(l) ? (bag.pop() || 'S') : l); });
+            shuffle(bag); moveHistory.push({ isModifier: true, word: "VOWEL DROUGHT" });
+        }
+        else if (activeModifier.id === 'taxseason') {
+            let p1t = 0, p2t = 0;
+            for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+                if(boardState[r][c] && boardState[r][c].letter === 'S') { if(boardState[r][c].owner===0) p1t+=10; else p2t+=10; }
+            }
+            scores[0] = Math.max(0, scores[0] - p1t); scores[1] = Math.max(0, scores[1] - p2t);
+            if(p1t) moveHistory.push({ player: 0, word: "TAX SEASON", score: -p1t });
+            if(p2t) moveHistory.push({ player: 1, word: "TAX SEASON", score: -p2t });
+        }
+        else if (activeModifier.id === 'underdog') {
+            const loser = scores[0] < scores[1] ? 0 : 1;
+            scores[loser] += 20; moveHistory.push({ player: loser, word: "UNDERDOG BONUS", score: 20 });
+        }
+        else if (activeModifier.id === 'investment') {
+            const p1c = boardState.flat().filter(t=>t&&t.owner===0).length;
+            const p2c = boardState.flat().filter(t=>t&&t.owner===1).length;
+            scores[0] += p1c; scores[1] += p2c;
+            moveHistory.push({ player: 0, word: "INVESTMENT", score: p1c });
+            moveHistory.push({ player: 1, word: "INVESTMENT", score: p2c });
+        }
+        else if (activeModifier.id === 'encrypted') {
+            document.body.classList.add('encrypted'); moveHistory.push({ isModifier: true, word: "ENCRYPTED!" });
+        }
+        else if (activeModifier.id === 'civilwar') {
+            boardState.flat().forEach(t => { if(t) t.owner = null; });
+            renderBoardFromState(); moveHistory.push({ isModifier: true, word: "CIVIL WAR" });
+        }
+        else if (activeModifier.id === 'reinforcements') {
+            const count = boardState.flat().filter(t => t && t.owner === turn).length;
+            if (count > 10) {
+                for (let i = 0; i < 2; i++) if (bag.length > 0) racks[turn].push(bag.pop());
+                moveHistory.push({ player: turn, word: "REINFORCEMENTS", score: 0 });
+            }
+        }
+        else if (activeModifier.id === 'sabotage') {
+            if (scores[turn] >= 5) {
+                sabotageActive = true;
+                document.getElementById('sabotageModal').style.display = 'flex';
+                document.querySelectorAll('.cell').forEach(el => {
+                    const coords = el.id.split('-').slice(1).map(Number);
+                    if (boardState[coords[0]] && boardState[coords[0]][coords[1]] && boardState[coords[0]][coords[1]].owner === 1-turn) {
+                        el.classList.add('sabotage-overlay');
+                    }
+                });
+                scores[turn] -= 5;
+                moveHistory.push({ isModifier: true, word: "SABOTAGE ENABLED" });
+            }
+        }
+        else if (activeModifier.id === 'loading') {
+            loadingTimer = 5;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            const lInt = setInterval(() => {
+                loadingTimer--;
+                document.getElementById('loading-countdown').innerText = loadingTimer;
+                if (loadingTimer <= 0) {
+                    clearInterval(lInt);
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    moveHistory.push({ isModifier: true, word: "LOADING..." });
+                }
+            }, 1000);
+        }
+        else if (activeModifier.id === 'popup') {
+            const r = Math.floor(Math.random()*15), c = Math.floor(Math.random()*15);
+            blockedSquares[`${r},${c}`] = true; renderBoardFromState();
+            moveHistory.push({ isModifier: true, word: "POP-UP AD" });
+        }
+        else if (activeModifier.id === 'error404') {
+            const allWords = getAllWordsOnBoard();
+            if (allWords.length > 0) {
+                const target = allWords[Math.floor(Math.random() * allWords.length)];
+                target.coords.forEach(c => boardState[c.r][c.c] = null);
+                renderBoardFromState();
+                moveHistory.push({ isModifier: true, word: "404 ERROR: " + target.word + " REMOVED" });
+            }
+        }
+        else if (activeModifier.id === 'caesar') {
+            caesarShift = 1; // shift all letters by +1
+            applycaesarToBoard();
+            moveHistory.push({ isModifier: true, word: "CAESAR SALAD: Letters shift +1" });
+        }
+
+        // ─── FIX: MULTIMULTIPLIERS ─────────────────────────────────────────
+        else if (activeModifier.id === 'multimult') {
+            executeMultimultipliers();
+            moveHistory.push({ isModifier: true, word: "MULTIMULTIPLIERS" });
+        }
+
+        // ─── FIX: MISCLICK ─────────────────────────────────────────────────
+        else if (activeModifier.id === 'misclick') {
+            moveHistory.push({ isModifier: true, word: "MISCLICK" });
+        }
+        else if (activeModifier.id === 'magic8') {
+             moveHistory.push({ isModifier: true, word: "MAGIC 8-BALL" });
+        }
+        else if (activeModifier.id === 'virus') {
+            infectedTileIdx = Math.floor(Math.random() * racks[turn].length);
+            moveHistory.push({ isModifier: true, word: "SYSTEM VIRUS DETECTED" });
+        }
+        else if (activeModifier.id === 'recycling') {
+            document.getElementById('recycle-btn').style.display = 'block';
+            moveHistory.push({ isModifier: true, word: "RECYCLING ENABLED" });
+        }
+        else if (activeModifier.id === 'bandwidth') moveHistory.push({ isModifier: true, word: "BANDWIDTH LIMIT" });
+        else if (activeModifier.id === 'cookies') moveHistory.push({ isModifier: true, word: "COOKIES" });
+        else if (activeModifier.id === 'firewall') moveHistory.push({ isModifier: true, word: "FIREWALL" });
+        else if (activeModifier.id === 'anyway') moveHistory.push({ isModifier: true, word: "MY WAY" });
+        else if (activeModifier.id === 'backwards') moveHistory.push({ isModifier: true, word: "TAKE IT BACK" });
+        else if (activeModifier.id === 'ripoff') moveHistory.push({ isModifier: true, word: "RIP-OFF" });
+        else if (activeModifier.id === 'dementia') moveHistory.push({ isModifier: true, word: "DEMENTIA" });
+        else if (activeModifier.id === 'washmouth') moveHistory.push({ isModifier: true, word: "WASH MOUTH" });
+        else if (activeModifier.id === 'freeze') moveHistory.push({ isModifier: true, word: "CONSONANT FREEZE" });
+        else if (activeModifier.id === 'hotpotato') moveHistory.push({ isModifier: true, word: "HOT POTATO" });
+        else if (activeModifier.id === 'inflation') moveHistory.push({ isModifier: true, word: "INFLATION" });
+        else if (activeModifier.id === 'deflation') moveHistory.push({ isModifier: true, word: "DEFLATION" });
+        else if (activeModifier.id === 'bingofever') moveHistory.push({ isModifier: true, word: "BINGO FEVER" });
+        else if (activeModifier.id === 'reverse') moveHistory.push({ isModifier: true, word: "REVERSE SCRABBLE" });
+        else if (activeModifier.id === 'charity') moveHistory.push({ isModifier: true, word: "CHARITY" });
+        else if (activeModifier.id === 'patrol') moveHistory.push({ isModifier: true, word: "BORDER PATROL" });
+        else if (activeModifier.id === 'traitors') moveHistory.push({ isModifier: true, word: "TRAITORS" });
+        else if (activeModifier.id === 'miracle') {
+            const positions = [];
+            while (positions.length < 3) {
+                const r = Math.floor(Math.random() * 15), c = Math.floor(Math.random() * 15);
+                const key = `${r},${c}`; 
+                if (!positions.includes(key) && !boardState[r][c]) { positions.push(key); bonuses[key] = 'QW'; }
+            }
+            renderBoardFromState(); moveHistory.push({ isModifier: true, word: "A MIRACLE: 3x QW added!" });
+        }
+        else if (activeModifier.id === 'stimulus') {
+            const vowels = racks[turn].filter(l => "AEIOU".includes(l)).length;
+            scores[turn] += vowels * 5;
+            if(vowels) moveHistory.push({ player: turn, word: "STIMULUS CHECK", score: vowels * 5 });
+        }
+
+        eventTimeout = setTimeout(closeEventOverlay, 5000);
+        
+        setTimeout(() => {
+            if (activeModifier && activeModifier.id === 'misclick') {
+                computeAndShowMisclickMove();
+            } else if (activeModifier && activeModifier.id === 'magic8') {
+                computeAndShowBestMoveGhost();
+                document.getElementById('magic8Banner').style.display = 'block';
+            }
+        }, 5500);
+    }
+
+    // ─── FIX: CAESAR SALAD ─────────────────────────────────────────────────
+    function applycaesarToBoard() {
+        // Re-render board with shifted letter display
+        // The boardState stores real letters; we update their display label
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                if (boardState[r][c]) {
+                    const shiftedLetter = caesarShiftLetter(boardState[r][c].letter, caesarShift);
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    if (cell) {
+                        const letterSpan = cell.querySelector('.letter');
+                        if (letterSpan) letterSpan.innerText = shiftedLetter;
+                    }
+                }
+            }
+        }
+        // Rack display is handled in renderRack()
+        renderRack();
+    }
+
+    // ─── FIX: MULTIMULTIPLIERS ─────────────────────────────────────────────
+    function executeMultimultipliers() {
+        const bonusTypes = ['TW', 'DW', 'TL', 'DL'];
+        multimultBonuses = {};
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                if (!boardState[r][c]) { // Only empty cells
+                    const randomBonus = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
+                    multimultBonuses[`${r},${c}`] = 'MM_' + randomBonus;
+                }
+            }
+        }
+        // Re-render board cells to show the new bonus colors (don't rebuild board, just update cells)
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                const cell = document.getElementById(`cell-${r}-${c}`);
+                if (!cell || boardState[r][c]) continue; // skip occupied cells
+                const mmBonus = multimultBonuses[`${r},${c}`];
+                if (mmBonus) {
+                    cell.dataset.bonus = mmBonus;
+                    cell.innerText = mmBonus.replace('MM_', '');
+                    cell.style.opacity = '1';
+                }
+            }
+        }
+    }
+
+    // ─── FIX: MISCLICK — compute worst (lowest scoring) valid move ──────────
+    function computeAndShowMisclickMove() {
+        if (turn === 1 && gameConfig.ai !== 'local') return; 
+        
+        const anchorSet = new Set();
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+            if(boardState[r][c]) {
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc]) => {
+                    const nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<15&&nc>=0&&nc<15&&!boardState[nr][nc]) anchorSet.add(`${nr},${nc}`);
+                });
+            }
+        }
+        const anchors = Array.from(anchorSet).map(s => { const [r,c]=s.split(',').map(Number); return {r,c}; });
+        if(anchors.length === 0) anchors.push({r:7,c:7});
+
+        let worstMove = null; 
+        const aiRack = [...racks[turn]];
+        const dictArray = Array.from(dictionary);
+        const words = [];
+        const sampleSize = Math.min(dictArray.length, 3000);
+        for(let i=0;i<sampleSize;i++) words.push(dictArray[Math.floor(Math.random()*dictArray.length)]);
+
+        for(let word of words) {
+            if(word.length < 2 || word.length > 7) continue;
+            for(let anchor of anchors.slice(0,15)) {
+                for(let dir of ['right','down']) {
+                    for(let offset=0;offset<word.length;offset++) {
+                        let startR = dir==='down' ? anchor.r-offset : anchor.r;
+                        let startC = dir==='right' ? anchor.c-offset : anchor.c;
+                        if(startR<0||startC<0||startR>14||startC>14) continue;
+
+                        let simTiles = [], tempRack=[...aiRack], possible=true;
+                        for(let i=0;i<word.length;i++) {
+                            let r=dir==='down'?startR+i:startR, c=dir==='right'?startC+i:startC;
+                            if(r>14||c>14){possible=false;break;}
+                            let letter=word[i];
+                            if(boardState[r][c]) { if(boardState[r][c].letter!==letter){possible=false;break;} }
+                            else {
+                                let ri=tempRack.indexOf(letter), isBlank=false;
+                                if(ri===-1){ri=tempRack.indexOf('_');isBlank=true;}
+                                if(ri===-1){possible=false;break;}
+                                simTiles.push({row:r,col:c,letter,isBlank,actualTile:tempRack.splice(ri,1)[0]});
+                            }
+                        }
+                        if(possible && simTiles.length > 0) {
+                            const savedMove = currentMove;
+                            currentMove = simTiles;
+                            if(validateCurrentMove()) {
+                                let score = calculateScore();
+                                // We want the WORST (lowest) score
+                                if(!worstMove || score < worstMove.score) {
+                                    worstMove = {tiles:[...simTiles], score, word};
+                                }
+                            }
+                            currentMove = savedMove;
+                        }
+                    }
+                }
+            }
+        }
+
+        document.getElementById('score-preview').style.display = 'none';
+
+        if (worstMove) {
+            forcedMove = worstMove;
+            // Show ghost tiles on board
+            clearGhostTiles();
+            worstMove.tiles.forEach(m => {
+                const cell = document.getElementById(`cell-${m.row}-${m.col}`);
+                if (!cell) return;
+                const ghost = document.createElement('div');
+                ghost.className = 'tile ghost';
+                ghost.innerHTML = `<span class="letter">${m.letter}</span><span class="value">${TILE_DATA[m.letter]?.v || 0}</span>`;
+                cell.appendChild(ghost);
+            });
+            document.getElementById('misclick-banner').style.display = 'block';
+        } else {
+            // No valid move found; clear modifier so player can pass
+            activeModifier = null;
+            forcedMove = null;
+        }
+    }
+
+    function computeAndShowBestMoveGhost() {
+        if (turn === 1 && gameConfig.ai !== 'local') return;
+        const anchorSet = new Set();
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+            if(boardState[r][c]) {
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc]) => {
+                    const nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<15&&nc>=0&&nc<15&&!boardState[nr][nc]) anchorSet.add(`${nr},${nc}`);
+                });
+            }
+        }
+        const anchors = Array.from(anchorSet).map(s => { const [r,c]=s.split(',').map(Number); return {r,c}; });
+        if(anchors.length === 0) anchors.push({r:7,c:7});
+
+        let best = null;
+        const aiRack = [...racks[turn]];
+        const dictArray = Array.from(dictionary);
+        const words = [];
+        const sampleSize = Math.min(dictArray.length, 3000);
+        for(let i=0;i<sampleSize;i++) words.push(dictArray[Math.floor(Math.random()*dictArray.length)]);
+
+        for(let word of words) {
+            for(let anchor of anchors.slice(0,15)) {
+                for(let dir of ['right','down']) {
+                    for(let offset=0;offset<word.length;offset++) {
+                        let startR = dir==='down' ? anchor.r-offset : anchor.r;
+                        let startC = dir==='right' ? anchor.c-offset : anchor.c;
+                        if(startR<0||startC<0||startR>14||startC>14) continue;
+                        let simTiles = [], tempRack=[...aiRack], possible=true;
+                        for(let i=0;i<word.length;i++) {
+                            let r=dir==='down'?startR+i:startR, c=dir==='right'?startC+i:startC;
+                            if(r>14||c>14){possible=false;break;}
+                            let letter=word[i];
+                            if(boardState[r][c]) { if(boardState[r][c].letter!==letter){possible=false;break;} }
+                            else {
+                                let ri=tempRack.indexOf(letter), isBlank=false;
+                                if(ri===-1){ri=tempRack.indexOf('_');isBlank=true;}
+                                if(ri===-1){possible=false;break;}
+                                simTiles.push({row:r,col:c,letter,isBlank,actualTile:tempRack.splice(ri,1)[0]});
+                            }
+                        }
+                        if(possible && simTiles.length > 0) {
+                            const savedMove = currentMove;
+                            currentMove = simTiles;
+                            if(validateCurrentMove()) {
+                                let score = calculateScore();
+                                if(!best || score > best.score) best = {tiles:[...simTiles], score};
+                            }
+                            currentMove = savedMove;
+                        }
+                    }
+                }
+            }
+        }
+        if (best) {
+            best.tiles.forEach(m => {
+                const cell = document.getElementById(`cell-${m.row}-${m.col}`);
+                const ghost = document.createElement('div');
+                ghost.className = 'tile ghost';
+                ghost.innerHTML = `<span class="letter">${m.letter}</span><span class="value">${TILE_DATA[m.letter]?.v || 0}</span>`;
+                cell.appendChild(ghost);
+            });
+        }
+    }
+
+    // ─── BOARD MANIPULATION ───────────────────────────────────────────────
+    function executeSolarFlare() {
+        const newBonuses = {...bonuses};
+        const twKeys = Object.keys(bonuses).filter(k => bonuses[k]==='TW');
+        twKeys.forEach(k => delete newBonuses[k]);
+        twKeys.forEach(() => {
+            const r=Math.floor(Math.random()*15), c=Math.floor(Math.random()*15);
+            newBonuses[`${r},${c}`]='TW';
+            if(boardState[r][c]){bag.push(boardState[r][c].letter);boardState[r][c]=null;moveHistory.push({player:-1,word:"TILE SCORCHED!",score:0});}
+        });
+        bonuses=newBonuses;shuffle(bag);renderBoardFromState();
+    }
+
+    function executeBoardFlip() {
+        const newState=Array(15).fill().map(()=>Array(15).fill(null));
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) if(boardState[r][c]) newState[14-r][14-c]=boardState[r][c];
+        boardState=newState;renderBoardFromState();
+    }
+
+    function executeBoardMirror() {
+        const newState=Array(15).fill().map(()=>Array(15).fill(null));
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) if(boardState[r][c]) newState[r][14-c]=boardState[r][c];
+        boardState=newState;renderBoardFromState();
+    }
+
+    function executeGravity() {
+        for(let c=0;c<15;c++) {
+            let col=[];
+            for(let r=0;r<15;r++){if(boardState[r][c])col.push(boardState[r][c]);boardState[r][c]=null;}
+            for(let i=0;i<col.length;i++) boardState[14-(col.length-1-i)][c]=col[i];
+        }
+        renderBoardFromState();
+    }
+
+    function executeEarthquake() {
+        const newState=Array(15).fill().map(()=>Array(15).fill(null));
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+            if(boardState[r][c]) {
+                const dr=Math.floor(Math.random()*3)-1, dc=Math.floor(Math.random()*3)-1;
+                const nr=Math.max(0,Math.min(14,r+dr)), nc=Math.max(0,Math.min(14,c+dc));
+                if(!newState[nr][nc]) newState[nr][nc]=boardState[r][c]; else newState[r][c]=boardState[r][c];
+            }
+        }
+        boardState=newState;renderBoardFromState();
+    }
+
+    function renderBoardFromState() {
+        const boardEl = document.getElementById('board');
+        boardEl.innerHTML = '';
+        multimultBonuses = {}; // Clear after board re-render
+        createBoard();
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+            if(boardState[r][c]) {
+                const displayLetter = (activeModifier && activeModifier.id === 'caesar' && boardState[r][c].letter !== '_')
+                    ? caesarShiftLetter(boardState[r][c].letter, caesarShift)
+                    : boardState[r][c].letter;
+                renderTileOnBoard(r, c, displayLetter, false, boardState[r][c].isBlank, boardState[r][c].owner);
+            }
+        }
+    }
+
+    function getAllWordsOnBoard() {
+        const words = [];
+        for (let r = 0; r < 15; r++) {
+            let current = "", coords = [];
+            for (let c = 0; c < 15; c++) {
+                if (boardState[r][c]) { current += boardState[r][c].letter; coords.push({ r, c }); }
+                else { if (current.length > 1) words.push({ word: current, coords: [...coords] }); current = ""; coords = []; }
+            }
+            if (current.length > 1) words.push({ word: current, coords: [...coords] });
+        }
+        for (let c = 0; c < 15; c++) {
+            let current = "", coords = [];
+            for (let r = 0; r < 15; r++) {
+                if (boardState[r][c]) { current += boardState[r][c].letter; coords.push({ r, c }); }
+                else { if (current.length > 1) words.push({ word: current, coords: [...coords] }); current = ""; coords = []; }
+            }
+            if (current.length > 1) words.push({ word: current, coords: [...coords] });
+        }
+        return words;
+    }
+
+    function openRecycleModal() {
+        const grid = document.getElementById('recycleGrid');
+        grid.innerHTML = '';
+        racks[turn].forEach((letter, idx) => {
+            const div = document.createElement('div');
+            div.className = 'rack-tile';
+            div.innerText = letter === '_' ? '' : letter;
+            div.onclick = () => { racks[turn][idx] = '_'; renderRack(); document.getElementById('recycleModal').style.display = 'none'; document.getElementById('recycle-btn').style.display = 'none'; };
+            grid.appendChild(div);
+        });
+        document.getElementById('recycleModal').style.display = 'flex';
+    }
+
+    function cancelSabotage() {
+        sabotageActive = false;
+        document.getElementById('sabotageModal').style.display = 'none';
+        document.querySelectorAll('.cell').forEach(el => el.classList.remove('sabotage-overlay'));
+        scores[turn] += 5;
+        updateUI();
+    }
+
+    function getScoringCoordinates() {
+        const coords = new Set();
+        const touchedOpponentTiles = new Set();
+        currentMove.forEach(m => {
+            let left=m.col;
+            while(left>0&&(boardState[m.row][left-1]||currentMove.some(tm=>tm.row===m.row&&tm.col===left-1))) left--;
+            let right=m.col;
+            while(right<14&&(boardState[m.row][right+1]||currentMove.some(tm=>tm.row===m.row&&tm.col===right+1))) right++;
+            if(right-left>=1) {
+                for(let c=left;c<=right;c++) {
+                    coords.add(`${m.row},${c}`);
+                    if (boardState[m.row][c] && boardState[m.row][c].owner === 1 - turn) touchedOpponentTiles.add(`${m.row},${c}`);
+                }
+            }
+
+            let top=m.row;
+            while(top>0&&(boardState[top-1][m.col]||currentMove.some(tm=>tm.row===top-1&&tm.col===m.col))) top--;
+            let bottom=m.row;
+            while(bottom<14&&(boardState[bottom+1][m.col]||currentMove.some(tm=>tm.row===bottom+1&&tm.col===m.col))) bottom++;
+            if(bottom-top>=1) {
+                 for(let r=top;r<=bottom;r++) {
+                    coords.add(`${r},${m.col}`);
+                    if (boardState[r] && boardState[r][m.col] && boardState[r][m.col].owner === 1 - turn) touchedOpponentTiles.add(`${r},${m.col}`);
+                 }
+            }
+        });
+        opponentTouchCount = touchedOpponentTiles.size;
+        return coords;
+    }
+
+    // ─── AI ENGINE ───────────────────────────────────────────────────────
+    function aiPlay() {
+        const anchorSet = new Set();
+        for(let r=0;r<15;r++) for(let c=0;c<15;c++) {
+            if(boardState[r][c]) {
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc]) => {
+                    const nr=r+dr, nc=c+dc;
+                    if(nr>=0&&nr<15&&nc>=0&&nc<15&&!boardState[nr][nc]) anchorSet.add(`${nr},${nc}`);
+                });
+            }
+        }
+        const anchors = Array.from(anchorSet).map(s=>{const[r,c]=s.split(',').map(Number);return{r,c};});
+        if(anchors.length===0) anchors.push({r:7,c:7});
+
+        let bestMove = null;
+        const aiRack = [...racks[1]];
+        const dictArray = Array.from(dictionary);
+        const words = [];
+        const sampleSize = Math.min(dictArray.length, 5000);
+        for(let i=0;i<sampleSize;i++) words.push(dictArray[Math.floor(Math.random()*dictArray.length)]);
+
+        for(let word of words) {
+            if(word.length<2||word.length>8) continue;
+            for(let anchor of anchors.slice(0,20)) {
+                ['right','down'].forEach(dir => {
+                    for(let offset=0;offset<word.length;offset++) {
+                        let startR=dir==='down'?anchor.r-offset:anchor.r;
+                        let startC=dir==='right'?anchor.c-offset:anchor.c;
+                        if(startR<0||startC<0||startR>14||startC>14) continue;
+                        let simTiles=[],tempRack=[...aiRack],possible=true;
+                        for(let i=0;i<word.length;i++) {
+                            let r=dir==='down'?startR+i:startR, c=dir==='right'?startC+i:startC;
+                            if(r>14||c>14){possible=false;break;}
+                            let letter=word[i];
+                            if(boardState[r][c]){if(boardState[r][c].letter!==letter){possible=false;break;}}
+                            else {
+                                let ri=tempRack.indexOf(letter),isBlank=false;
+                                if(ri===-1){ri=tempRack.indexOf('_');isBlank=true;}
+                                if(ri===-1){possible=false;break;}
+                                simTiles.push({row:r,col:c,letter,isBlank,actualTile:tempRack.splice(ri,1)[0]});
+                            }
+                        }
+                        if(possible&&simTiles.length>0) {
+                            const savedMove = currentMove;
+                            currentMove = simTiles;
+                            if(validateCurrentMove()) {
+                                let score=calculateScore();
+                                if(!bestMove||score>bestMove.score) bestMove={tiles:[...simTiles],score,word};
+                            }
+                            currentMove = savedMove;
+                        }
+                    }
+                });
+            }
+        }
+
+        if(bestMove) {
+            currentMove=bestMove.tiles;
+            currentMove.forEach(m=>renderTileOnBoard(m.row,m.col,m.letter,true,m.isBlank));
+            setTimeout(submitMove,1000);
+        } else {
+            passTurn();
+        }
+    }
+
+    function calculateScore() {
+        let total = 0;
+        let wordMult = 1;
+        const tilesUsed = currentMove.length;
+
+        currentMove.forEach(m => {
+            let val;
+            if (activeModifier && activeModifier.id === 'deflation') {
+                val = 1;
+            } else if (activeModifier && activeModifier.id === 'caesar') {
+                // Under Caesar, the played letter's value is the shifted letter's value
+                const shiftedLetter = caesarShiftLetter(m.letter, caesarShift);
+                val = m.isBlank ? 0 : (TILE_DATA[shiftedLetter] ? TILE_DATA[shiftedLetter].v : TILE_DATA[m.letter].v);
+            } else {
+                val = m.isBlank ? 0 : TILE_DATA[m.letter].v;
+            }
+
+            if (activeModifier && activeModifier.id === 'golden' && activeModifier.letter === m.letter) val *= 3;
+
+            const bonus = getEffectiveBonus(m.row, m.col);
+            if (activeModifier && activeModifier.id === 'ripoff') {
+                // Bonuses divide instead of multiply
+                if (bonus === 'DL') val = Math.max(1, Math.floor(val / 2));
+                if (bonus === 'TL') val = Math.max(1, Math.floor(val / 3));
+                if (bonus === 'DW' || bonus === 'ST') wordMult = Math.max(1, wordMult / 2);
+                if (bonus === 'TW') wordMult = Math.max(1, wordMult / 3);
+            } else {
+                if (bonus === 'DL') val *= 2;
+                if (bonus === 'TL') val *= 3;
+                if (bonus === 'DW' || bonus === 'ST') wordMult *= 2;
+                if (bonus === 'TW') wordMult *= 3;
+                if (bonus === 'QW') wordMult *= 4;
+            }
+            total += val;
+        });
+
+        let moveTotal = total * wordMult;
+
+        if (tilesUsed === 7) moveTotal += (activeModifier && activeModifier.id === 'bingofever') ? 100 : 50;
+        if (gameConfig.overtime && timers[turn] < 0) moveTotal -= Math.ceil(Math.abs(timers[turn]) / 60) * 10;
+        if (activeModifier && activeModifier.id === 'inflation') moveTotal *= 2;
+        if (activeModifier && activeModifier.id === 'cookies') {
+            const vowelsUsed = currentMove.filter(m => "AEIOU".includes(m.letter)).length;
+            moveTotal += vowelsUsed * 2;
+        }
+
+        return Math.max(0, Math.round(moveTotal));
+    }
+
+    function findWordsOnBoard() {
+        const words = [];
+        if (currentMove.length === 0) return words;
+
+        const tempBoard = JSON.parse(JSON.stringify(boardState));
+        currentMove.forEach(m => tempBoard[m.row][m.col] = { letter: m.letter });
+
+        const getWordAt = (r, c, dr, dc) => {
+            let word = tempBoard[r][c].letter;
+            let cR=r-dr, cC=c-dc;
+            while(cR>=0&&cR<15&&cC>=0&&cC<15&&tempBoard[cR][cC]){word=tempBoard[cR][cC].letter+word;cR-=dr;cC-=dc;}
+            cR=r+dr;cC=c+dc;
+            while(cR>=0&&cR<15&&cC>=0&&cC<15&&tempBoard[cR][cC]){word+=tempBoard[cR][cC].letter;cR+=dr;cC+=dc;}
+            return word.length>1?word:null;
+        };
+
+        const m = currentMove[0];
+        const rows = currentMove.map(mov=>mov.row);
+        const cols = currentMove.map(mov=>mov.col);
+        const isHorizontal = rows.every(r=>r===rows[0]);
+
+        const mainWord = getWordAt(m.row, m.col, isHorizontal?0:1, isHorizontal?1:0);
+        if(mainWord) words.push(mainWord);
+
+        currentMove.forEach(mov => {
+            const cross = getWordAt(mov.row, mov.col, isHorizontal?1:0, isHorizontal?0:1);
+            if(cross) words.push(cross);
+        });
+
+        return [...new Set(words)];
+    }
+
+    function swapTiles() {
+        if(bag.length<7){alert("Bag must have at least 7 tiles to swap!");return;}
+        resetMove();
+        const modal=document.getElementById('swapModal');
+        const grid=document.getElementById('swapGrid');
+        grid.innerHTML='';
+        selectedSwapIndices.clear();
+        racks[turn].forEach((letter,idx)=>{
+            const div=document.createElement('div');
+            div.className='rack-tile swap-tile';
+            div.innerText=letter==='_'?'':letter;
+            div.onclick=()=>{div.classList.toggle('selected');if(selectedSwapIndices.has(idx))selectedSwapIndices.delete(idx);else selectedSwapIndices.add(idx);};
+            grid.appendChild(div);
+        });
+        modal.style.display='flex';
+    }
+
+    function confirmSwap() {
+        if(selectedSwapIndices.size===0){document.getElementById('swapModal').style.display='none';return;}
+        const indices=Array.from(selectedSwapIndices).sort((a,b)=>b-a);
+        indices.forEach(idx=>{bag.push(racks[turn].splice(idx,1)[0]);});
+        shuffle(bag);fillRack(turn);
+        document.getElementById('swapModal').style.display='none';
+        nextTurn();
+    }
+
+    function shuffleRack() { shuffle(racks[turn]); renderRack(); }
+
+    function passTurn() { resetMove(); nextTurn(); }
+
+    init();
+</script>
+</body>
+</html>
