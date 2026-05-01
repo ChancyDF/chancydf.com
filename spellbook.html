@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpellBook - chancydf.com</title>
+    <title>Classic Scrabble</title>
     <style>
         @font-face {
             font-family: 'Linux Libertine';
@@ -72,7 +72,7 @@
                 linear-gradient(90deg, var(--bg-grid) 2px, transparent 2px);
             background-size: 30px 30px;
             background-attachment: fixed;
-            touch-action: pan-y;
+            touch-action: pan-y; /* Important for mobile */
         }
 
         body::before {
@@ -206,7 +206,7 @@
 
 <div id="launcher">
     <div class="setup-card">
-        <h1 style="color: var(--text-main); margin-bottom: 40px;">SpellBook</h1>
+        <h1 style="color: var(--text-main); margin-bottom: 40px;">Classic Scrabble</h1>
         <div class="config-group">
             <div class="config-item">
                 <span>Opponent</span>
@@ -370,13 +370,13 @@
     let timers = [0, 0], timerInterval, gameConfig = {};
     let selectedSwapIndices = new Set();
     let pendingBlankCell = null;
-    let draggingData = null; 
+    let draggingData = null; // Used for custom smooth pointer drag
 
     async function init() {
         createBoard();
         loadDictionary();
         setupLetterGrid();
-        if (localStorage.getItem('spellbook_save_classic')) document.getElementById('resume-btn').style.display = 'block';
+        if (localStorage.getItem('scrabble_save_classic')) document.getElementById('resume-btn').style.display = 'block';
 
         const aiSelect = document.getElementById('setting-ai');
         const localNames = document.getElementById('local-names');
@@ -386,7 +386,7 @@
     }
 
     function loadDictionary() {
-        fetch('https://raw.githubusercontent.com/redbo/spellbook/refs/heads/master/dictionary.txt')
+        fetch('https://raw.githubusercontent.com/redbo/scrabble/refs/heads/master/dictionary.txt')
             .then(res => res.text())
             .then(text => {
                 text.split('\n').forEach(word => {
@@ -519,12 +519,13 @@
 
     /* SMOOTH POINTER DRAG & DROP SYSTEM */
     function onPointerDown(e, type, letter, original, r, c, rackIdx) {
-        if (e.button && e.button !== 0) return; 
+        if (e.button && e.button !== 0) return; // Ignore right clicks
         if (gameConfig.ai !== 'local' && turn === 1) return;
         
         let target = e.currentTarget;
         let rect = target.getBoundingClientRect();
         
+        // Create visual ghost
         let ghost = document.createElement('div');
         ghost.className = 'tile ghost-tile';
         ghost.innerText = letter === '_' ? '' : letter;
@@ -539,7 +540,7 @@
         ghost.style.height = rect.height + 'px';
         document.body.appendChild(ghost);
         
-        target.style.opacity = '0'; 
+        target.style.opacity = '0'; // Hide original
         
         draggingData = { 
             target, ghost, type, letter, original, r, c, rackIdx,
@@ -567,14 +568,16 @@
         ghost.remove();
         target.style.opacity = '1';
 
+        // Treat short movements as clicks
         let isClick = Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5;
         if (isClick) {
-            if (type === 'rack') playLetter(original, rackIdx); // Use original letter/blank when clicking rack directly
+            if (type === 'rack') playLetter(original, rackIdx);
             else if (type === 'board') clickToReturn(r, c);
             return;
         }
         
-        ghost.style.display = 'none'; 
+        // Determine Drop Target
+        ghost.style.display = 'none'; // hide briefly to find element underneath
         let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
         let cell = dropTarget ? dropTarget.closest('.cell') : null;
         let rackArea = dropTarget ? dropTarget.closest('#rack') : null;
@@ -582,19 +585,20 @@
         if (cell) {
             let tr = parseInt(cell.dataset.row), tc = parseInt(cell.dataset.col);
             
+            // Check occupancy
             if (boardState[tr][tc] || currentMove.some(m => m.row === tr && m.col === tc && !(m.row===r && m.col===c))) {
-                renderRack(); renderBoard(); validateMove(); 
+                renderRack(); renderBoard(); validateMove(); // Snap back
                 return;
             }
             
             if (type === 'rack') {
                 racks[turn].splice(rackIdx, 1);
-                focusCell(tr, tc, focusedCell.dir); // Snap focus to dropped cell
                 if (original === '_') {
                     pendingBlankCell = { row: tr, col: tc, original: '_' };
                     document.getElementById('blankModal').style.display = 'flex';
                 } else {
                     currentMove.push({ row: tr, col: tc, letter, original });
+                    focusCell(tr, tc, focusedCell.dir);
                 }
             } else if (type === 'board') {
                 let mIdx = currentMove.findIndex(m => m.row === r && m.col === c);
@@ -604,6 +608,7 @@
                 }
             }
         } else if (rackArea || type === 'board') {
+            // Dragged to rack OR dragged out of bounds -> return to rack
             if (type === 'board') {
                 let mIdx = currentMove.findIndex(m => m.row === r && m.col === c);
                 if (mIdx !== -1) {
@@ -627,13 +632,14 @@
 
     function playLetter(letterStr, specificIdx = -1) {
         let rackIdx = specificIdx;
-        let targetLetter = letterStr; 
         
+        // Find the tile on the rack
         if (rackIdx === -1) {
             rackIdx = racks[turn].indexOf(letterStr);
             if (rackIdx === -1) {
+                // If they don't have the letter, look for a blank instead
                 rackIdx = racks[turn].indexOf('_');
-                if (rackIdx === -1) return; // Completely lacking the letter
+                if (rackIdx === -1) return; // Stop if they don't have the letter OR a blank
             }
         }
 
@@ -647,19 +653,13 @@
 
         racks[turn].splice(rackIdx, 1);
         
-        if (original === '_') {
-            if (targetLetter !== '_') {
-                // Auto-use blank as the typed letter
-                currentMove.push({ row, col, letter: targetLetter, original: '_' });
-                advanceFocus();
-                renderRack(); renderBoard(); validateMove();
-            } else {
-                // Explicitly pressed SPACE or clicked a blank directly
-                pendingBlankCell = { row, col, original: '_' };
-                document.getElementById('blankModal').style.display = 'flex';
-            }
+        // If the user specifically clicked/dragged a blank (or hit spacebar), ask for the letter
+        if (letterStr === '_') {
+            pendingBlankCell = { row, col, original: '_' };
+            document.getElementById('blankModal').style.display = 'flex';
         } else {
-            currentMove.push({ row, col, letter: original, original });
+            // If they typed a letter and we used a blank to fill it, automatically assign it
+            currentMove.push({ row, col, letter: letterStr, original: original });
             advanceFocus();
             renderRack(); renderBoard(); validateMove();
         }
@@ -724,6 +724,7 @@
             renderTileOnBoard(m.row, m.col, m.letter, true, m.original === '_', turn, null);
         });
         
+        // Clear animation flags so they only play once
         for (let r = 0; r < 15; r++) {
             for (let c = 0; c < 15; c++) {
                 if (boardState[r][c] && boardState[r][c].justPlaced !== undefined) {
@@ -895,7 +896,7 @@
 
     function animateScoreValue(playerIdx, oldScore, newScore) {
         const obj = document.getElementById(`score-p${playerIdx+1}`);
-        const duration = 800; 
+        const duration = 800; // ms
         let startTimestamp = null;
         
         obj.style.color = 'var(--bonus-dw)';
@@ -908,7 +909,7 @@
                 window.requestAnimationFrame(step);
             } else {
                 obj.innerText = newScore;
-                obj.style.color = ''; 
+                obj.style.color = ''; // reset to class color
             }
         };
         window.requestAnimationFrame(step);
@@ -928,6 +929,7 @@
         let oldScore = scores[turn];
         scores[turn] += pts;
         
+        // Prepare beautiful staggered render and log tiles
         let primaryWord = words[0];
         let wordTileData = primaryWord.coords.map((coord, i) => {
             let isNew = currentMove.some(m => m.row === coord.r && m.col === coord.c);
@@ -1020,6 +1022,8 @@
         document.body.classList.toggle('turn-p1', turn === 0);
         document.body.classList.toggle('turn-p2', turn === 1);
         
+        // Don't overwrite animating scores immediately if they are running, but updateUI is safe since animateValue directly manipulates DOM.
+        // We will just let animateValue finish, but we ensure base values are correct on resume/load.
         if (document.getElementById('score-p1').innerText === "0") {
             document.getElementById('score-p1').innerText = scores[0];
             document.getElementById('score-p2').innerText = scores[1];
@@ -1192,9 +1196,9 @@
         }
     }
 
-    function saveGame() { localStorage.setItem('spellbook_save_classic', JSON.stringify({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig })); }
+    function saveGame() { localStorage.setItem('scrabble_save_classic', JSON.stringify({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig })); }
     function resumeSavedGame() {
-        const saved = JSON.parse(localStorage.getItem('spellbook_save_classic'));
+        const saved = JSON.parse(localStorage.getItem('scrabble_save_classic'));
         if (!saved) return;
         ({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig } = saved);
         startGameUI();
