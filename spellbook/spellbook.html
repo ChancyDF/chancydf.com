@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpellBook</title>
+    <title id="window-title">SpellBook</title>
     <style>
         @font-face {
             font-family: 'Linux Libertine';
@@ -83,11 +83,11 @@
         .master-layout { display: flex; width: 100%; max-width: 1200px; height: 100vh; padding: 20px; box-sizing: border-box; gap: 20px; position: relative; z-index: 2; }
         #launcher { position: fixed; inset: 0; z-index: 10000; background: var(--bg-body); display: flex; justify-content: center; align-items: center; transition: background-color 0.4s ease; }
 
-        .setup-card { background: var(--bg-sidebar); border: 4px solid #000; padding: 40px; max-width: 500px; width: 100%; text-align: center; box-shadow: 10px 10px 0 var(--shadow); }
-        .setup-card h1 { font-family: 'Linux Libertine', Georgia, serif; font-size: 3rem; margin: 0 0 20px 0; font-weight: 900; }
+        .setup-card { background: var(--bg-sidebar); border: 4px solid #000; padding: 40px; max-width: 550px; width: 100%; text-align: center; box-shadow: 10px 10px 0 var(--shadow); }
+        .setup-card h1 { font-family: 'Linux Libertine', Georgia, serif; font-size: 3.5rem; margin: 0 0 20px 0; font-weight: 900; transition: 0.3s; }
         .config-group { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; text-align: left; }
         .config-item { display: flex; justify-content: space-between; align-items: center; font-weight: 600; background: #fff; padding: 10px 15px; border: 2px solid #000; color: #1a1b26; }
-        select, input[type="text"], input[type="checkbox"] { padding: 5px; font-family: inherit; font-weight: bold; border: 1px solid #444; cursor: pointer; max-width: 200px; }
+        select, input[type="text"], input[type="checkbox"] { padding: 5px; font-family: inherit; font-weight: bold; border: 1px solid #444; cursor: pointer; max-width: 250px; }
 
         .play-btn { width: 100%; font-size: 1.5rem; padding: 15px; background: var(--bonus-dw); color: #000; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; font-weight: 800; transition: 0.1s; }
         .play-btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; background: var(--bonus-tw); }
@@ -159,7 +159,7 @@
         .tile.temp.invalid { background: #ff5c5c; color: #fff; border-color: #8f0000; }
         .tile.p1-owner { border-color: var(--p1-color); }
         .tile.p2-owner { border-color: var(--p2-color); }
-        .tile.blank-played { color: var(--accent); } /* Blanks are colored to distinguish */
+        .tile.blank-played { color: var(--accent); } 
 
         .ghost-tile {
             position: fixed !important; z-index: 100000 !important;
@@ -204,45 +204,45 @@
 
 <div id="launcher">
     <div class="setup-card">
-        <h1 style="color: var(--text-main); margin-bottom: 40px;">SpellBook</h1>
+        <h1 id="ui-title" style="color: var(--text-main); margin-bottom: 40px;">SpellBook</h1>
         <div class="config-group">
             <div class="config-item">
-                <span>Dictionary</span>
-                <select id="setting-dict">
-                    <option value="https://www.wordgamedictionary.com/twl06/download/twl06.txt" selected>English US (NASPA)</option>
-                    <option value="https://www.wordgamedictionary.com/sowpods/download/sowpods.txt">English UK (Collins)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/french/ods8.txt">French (ODS8)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/german/german.txt">German (Tanglet)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/spanish/file-2017.txt">Spanish (FILE)</option>
+                <span id="ui-label-dict">Dictionary</span>
+                <select id="setting-dict" onchange="updateLanguageUI()">
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/english/twl06.txt" data-lang="en">English US (NASPA)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/english/sowpods.txt" data-lang="en">English UK (Collins)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/french/ods8.txt" data-lang="fr">French (ODS8)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/german/german.txt" data-lang="de">German (Tanglet)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/spanish/file-2017.txt" data-lang="es">Spanish (FILE)</option>
                 </select>
             </div>
             <div class="config-item">
-                <span>Opponent</span>
+                <span id="ui-label-opp">Opponent</span>
                 <select id="setting-ai">
-                    <option value="easy">AI (Easy)</option>
-                    <option value="medium" selected>AI (Medium)</option>
-                    <option value="hard">AI (Hard)</option>
-                    <option value="local">Local Multiplayer</option>
+                    <option value="easy" id="ui-opt-easy">AI (Easy)</option>
+                    <option value="medium" id="ui-opt-med" selected>AI (Medium)</option>
+                    <option value="hard" id="ui-opt-hard">AI (Hard)</option>
+                    <option value="local" id="ui-opt-local">Local Multiplayer</option>
                 </select>
             </div>
             <div class="config-item" id="local-names" style="display:none;">
-                <span>P1 / P2 Names</span>
+                <span id="ui-label-names">P1 / P2 Names</span>
                 <span style="display:flex; gap:6px;">
                     <input type="text" id="setting-p1name" maxlength="10" value="Player 1" style="width:80px;">
                     <input type="text" id="setting-p2name" maxlength="10" value="Player 2" style="width:80px;">
                 </span>
             </div>
             <div class="config-item">
-                <span>Timer (Minutes)</span>
+                <span id="ui-label-timer">Timer (Minutes)</span>
                 <select id="setting-timer">
-                    <option value="0">None</option>
+                    <option value="0" id="ui-opt-none">None</option>
                     <option value="15">15:00</option>
                     <option value="25" selected>25:00</option>
                     <option value="40">40:00</option>
                 </select>
             </div>
             <div class="config-item">
-                <span>Dark Mode</span>
+                <span id="ui-label-dark">Dark Mode</span>
                 <input type="checkbox" id="setting-dark" onclick="toggleDarkModeUI(this.checked)" checked>
             </div>
         </div>
@@ -256,31 +256,31 @@
         <div id="board"></div>
         
         <div class="rack-wrapper">
-            <button class="icon-btn square-btn" onclick="swapTiles()" title="Swap Tiles">
+            <button class="icon-btn square-btn" id="btn-swap-icon" onclick="swapTiles()" title="Swap Tiles">
                 <span style="font-size: 1.5rem; font-weight: 900; color: var(--text-main);">⇆</span>
             </button>
             <div class="rack-container" id="rack"></div>
-            <button class="icon-btn square-btn" onclick="shuffleRack()" title="Shuffle Rack">
+            <button class="icon-btn square-btn" id="btn-shuffle" onclick="shuffleRack()" title="Shuffle Rack">
                 <img src="https://www.svgrepo.com/show/532230/arrow-spin.svg" alt="Shuffle">
             </button>
         </div>
 
         <div class="controls">
-            <button class="btn-play" onclick="submitMove()">SUBMIT</button>
+            <button class="btn-play" id="btn-submit" onclick="submitMove()">SUBMIT</button>
             <div class="icon-btn-row">
-                <button class="icon-btn" onclick="showDictionary()" title="Dictionary Definitions">
+                <button class="icon-btn" id="btn-dict" onclick="showDictionary()" title="Dictionary Definitions">
                     <img src="https://www.svgrepo.com/show/532298/book-section.svg" alt="Dictionary">
                 </button>
-                <button class="icon-btn" onclick="resetMove()" title="Recall Tiles">
+                <button class="icon-btn" id="btn-recall" onclick="resetMove()" title="Recall Tiles">
                     <img src="https://www.svgrepo.com/show/533031/trash-undo-alt.svg" alt="Recall">
                 </button>
-                <button class="icon-btn" onclick="toggleInGameTheme()" title="Toggle Theme">
+                <button class="icon-btn" id="btn-theme" onclick="toggleInGameTheme()" title="Toggle Theme">
                     <img id="theme-icon" src="https://www.svgrepo.com/show/532067/sun-dust.svg" alt="Theme">
                 </button>
-                <button class="icon-btn" onclick="passTurn()" title="Pass Turn">
+                <button class="icon-btn" id="btn-pass" onclick="passTurn()" title="Pass Turn">
                     <img src="https://www.svgrepo.com/show/532510/forward-step.svg" alt="Skip">
                 </button>
-                <button class="icon-btn resign-btn" onclick="quitToLauncher()" title="Resign / Quit Game">
+                <button class="icon-btn resign-btn" id="btn-resign" onclick="quitToLauncher()" title="Resign / Quit Game">
                     <img src="https://www.svgrepo.com/show/532527/flag.svg" alt="Resign">
                 </button>
             </div>
@@ -305,7 +305,7 @@
         </div>
 
         <div class="game-stats-bar">
-            <button class="icon-btn" onclick="showBagTiles()" title="View Tile Bag" style="width: 40px; height: 40px; border-width: 2px; flex: none;">
+            <button class="icon-btn" id="btn-bag-icon" onclick="showBagTiles()" title="View Tile Bag" style="width: 40px; height: 40px; border-width: 2px; flex: none;">
                 <img src="https://www.svgrepo.com/show/533028/bag-shopping.svg" alt="Tile Bag" style="width: 20px; height: 20px;">
             </button>
             <div id="bag-count" style="font-weight: 900; font-size: 1.2rem; color: var(--text-main); font-family: monospace;">100 Tiles Left</div>
@@ -319,51 +319,119 @@
 
 <div id="blankModal" class="modal">
     <div class="modal-content">
-        <h3>Select Letter for Blank</h3>
-        <p>Type on your keyboard or click below</p>
+        <h3 id="ui-blank-title">Select Letter for Blank</h3>
         <div class="letter-grid" id="letterGrid"></div>
-        <button class="btn-play" style="padding: 10px !important; font-size: 1rem;" onclick="cancelBlank()">Cancel Drop</button>
+        <button class="btn-play" id="ui-blank-cancel" style="padding: 10px !important; font-size: 1rem;" onclick="cancelBlank()">Cancel Drop</button>
     </div>
 </div>
 
 <div id="swapModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
-        <h3>Swap Tiles</h3>
-        <p>Select tiles to trade back into the bag</p>
+        <h3 id="ui-swap-title">Swap Tiles</h3>
+        <p id="ui-swap-desc">Select tiles to trade back into the bag</p>
         <div class="swap-grid" id="swapGrid"></div>
         <div style="display: flex; gap: 10px;">
-            <button class="btn-play" onclick="confirmSwap()">Swap Selected</button>
-            <button class="btn-play" style="background: var(--bg-sidebar); color: var(--text-main);" onclick="document.getElementById('swapModal').style.display='none'">Cancel</button>
+            <button class="btn-play" id="ui-swap-btn" onclick="confirmSwap()">Swap Selected</button>
+            <button class="btn-play" id="ui-swap-cancel" style="background: var(--bg-sidebar); color: var(--text-main);" onclick="document.getElementById('swapModal').style.display='none'">Cancel</button>
         </div>
     </div>
 </div>
 
 <div id="dictModal" class="modal">
     <div class="modal-content" style="max-width: 500px; text-align: left; max-height: 80vh; overflow-y: auto;">
-        <h3 style="text-align: center; font-family: 'Linux Libertine', serif;">Recent Definitions</h3>
+        <h3 id="ui-dict-title" style="text-align: center; font-family: 'Linux Libertine', serif;">Recent Definitions</h3>
         <div id="dict-results" style="margin-top: 15px;"></div>
-        <button class="btn-play" style="margin-top:20px;" onclick="document.getElementById('dictModal').style.display='none'">Close</button>
+        <button class="btn-play" id="ui-dict-close" style="margin-top:20px;" onclick="document.getElementById('dictModal').style.display='none'">Close</button>
     </div>
 </div>
 
 <div id="bagModal" class="modal">
     <div class="modal-content" style="max-width: 450px;">
-        <h3>Tiles Remaining</h3>
+        <h3 id="ui-bag-title">Tiles Remaining</h3>
         <div id="bag-breakdown" class="letter-grid bag-grid"></div>
-        <button class="btn-play" style="margin-top:20px;" onclick="document.getElementById('bagModal').style.display='none'">Close</button>
+        <button class="btn-play" id="ui-bag-close" style="margin-top:20px;" onclick="document.getElementById('bagModal').style.display='none'">Close</button>
     </div>
 </div>
 
 <script>
-    const TILE_DATA = {
-        'A': { v: 1, c: 9 }, 'B': { v: 3, c: 2 }, 'C': { v: 3, c: 2 }, 'D': { v: 2, c: 4 },
-        'E': { v: 1, c: 12 }, 'F': { v: 4, c: 2 }, 'G': { v: 2, c: 3 }, 'H': { v: 4, c: 2 },
-        'I': { v: 1, c: 9 }, 'J': { v: 8, c: 1 }, 'K': { v: 5, c: 1 }, 'L': { v: 1, c: 4 },
-        'M': { v: 3, c: 2 }, 'N': { v: 1, c: 6 }, 'O': { v: 1, c: 8 }, 'P': { v: 3, c: 2 },
-        'Q': { v: 10, c: 1 }, 'R': { v: 1, c: 6 }, 'S': { v: 1, c: 4 }, 'T': { v: 1, c: 6 },
-        'U': { v: 1, c: 4 }, 'V': { v: 4, c: 2 }, 'W': { v: 4, c: 2 }, 'X': { v: 8, c: 1 },
-        'Y': { v: 4, c: 2 }, 'Z': { v: 10, c: 1 }, '_': { v: 0, c: 2 }
+    // Regional Tile Distributions
+    const TILE_SETS = {
+        'en': {
+            'A': { v: 1, c: 9 }, 'B': { v: 3, c: 2 }, 'C': { v: 3, c: 2 }, 'D': { v: 2, c: 4 },
+            'E': { v: 1, c: 12 }, 'F': { v: 4, c: 2 }, 'G': { v: 2, c: 3 }, 'H': { v: 4, c: 2 },
+            'I': { v: 1, c: 9 }, 'J': { v: 8, c: 1 }, 'K': { v: 5, c: 1 }, 'L': { v: 1, c: 4 },
+            'M': { v: 3, c: 2 }, 'N': { v: 1, c: 6 }, 'O': { v: 1, c: 8 }, 'P': { v: 3, c: 2 },
+            'Q': { v: 10, c: 1 }, 'R': { v: 1, c: 6 }, 'S': { v: 1, c: 4 }, 'T': { v: 1, c: 6 },
+            'U': { v: 1, c: 4 }, 'V': { v: 4, c: 2 }, 'W': { v: 4, c: 2 }, 'X': { v: 8, c: 1 },
+            'Y': { v: 4, c: 2 }, 'Z': { v: 10, c: 1 }, '_': { v: 0, c: 2 }
+        },
+        'fr': {
+            'A': { v: 1, c: 9 }, 'B': { v: 3, c: 2 }, 'C': { v: 3, c: 2 }, 'D': { v: 2, c: 3 },
+            'E': { v: 1, c: 15 }, 'F': { v: 4, c: 2 }, 'G': { v: 2, c: 2 }, 'H': { v: 4, c: 2 },
+            'I': { v: 1, c: 8 }, 'J': { v: 8, c: 1 }, 'K': { v: 10, c: 1 }, 'L': { v: 1, c: 5 },
+            'M': { v: 2, c: 3 }, 'N': { v: 1, c: 6 }, 'O': { v: 1, c: 6 }, 'P': { v: 3, c: 2 },
+            'Q': { v: 8, c: 1 }, 'R': { v: 1, c: 6 }, 'S': { v: 1, c: 6 }, 'T': { v: 1, c: 6 },
+            'U': { v: 1, c: 6 }, 'V': { v: 4, c: 2 }, 'W': { v: 10, c: 1 }, 'X': { v: 10, c: 1 },
+            'Y': { v: 10, c: 1 }, 'Z': { v: 10, c: 1 }, '_': { v: 0, c: 2 }
+        },
+        'de': {
+            'A': { v: 1, c: 5 }, 'Ä': { v: 6, c: 1 }, 'B': { v: 3, c: 2 }, 'C': { v: 4, c: 2 },
+            'D': { v: 1, c: 4 }, 'E': { v: 1, c: 15 }, 'F': { v: 4, c: 2 }, 'G': { v: 2, c: 3 },
+            'H': { v: 2, c: 4 }, 'I': { v: 1, c: 6 }, 'J': { v: 6, c: 1 }, 'K': { v: 4, c: 2 },
+            'L': { v: 2, c: 3 }, 'M': { v: 3, c: 4 }, 'N': { v: 1, c: 9 }, 'O': { v: 2, c: 3 },
+            'Ö': { v: 8, c: 1 }, 'P': { v: 4, c: 1 }, 'Q': { v: 10, c: 1 }, 'R': { v: 1, c: 6 },
+            'S': { v: 1, c: 7 }, 'T': { v: 1, c: 6 }, 'U': { v: 1, c: 6 }, 'Ü': { v: 6, c: 1 },
+            'V': { v: 6, c: 1 }, 'W': { v: 3, c: 1 }, 'X': { v: 8, c: 1 }, 'Y': { v: 10, c: 1 },
+            'Z': { v: 3, c: 1 }, '_': { v: 0, c: 2 }
+        },
+        'es': {
+            'A': { v: 1, c: 12 }, 'B': { v: 3, c: 2 }, 'C': { v: 3, c: 4 }, 'D': { v: 2, c: 5 },
+            'E': { v: 1, c: 12 }, 'F': { v: 4, c: 1 }, 'G': { v: 2, c: 2 }, 'H': { v: 4, c: 2 },
+            'I': { v: 1, c: 6 }, 'J': { v: 8, c: 1 }, 'L': { v: 1, c: 4 }, 'M': { v: 3, c: 2 },
+            'N': { v: 1, c: 5 }, 'Ñ': { v: 8, c: 1 }, 'O': { v: 1, c: 9 }, 'P': { v: 3, c: 2 },
+            'Q': { v: 5, c: 1 }, 'R': { v: 1, c: 5 }, 'S': { v: 1, c: 6 }, 'T': { v: 1, c: 4 },
+            'U': { v: 1, c: 5 }, 'V': { v: 4, c: 1 }, 'X': { v: 8, c: 1 }, 'Y': { v: 4, c: 1 },
+            'Z': { v: 10, c: 1 }, '_': { v: 0, c: 2 }
+        }
     };
+
+    const TRANSLATIONS = {
+        'en': {
+            title: "SpellBook", dict: "Dictionary", opp: "Opponent", ai_easy: "AI (Easy)", ai_med: "AI (Medium)", ai_hard: "AI (Hard)",
+            local: "Local Multiplayer", names: "P1 / P2 Names", timer: "Timer (Minutes)", none: "None", dark: "Dark Mode",
+            new_btn: "NEW GAME", res_btn: "RESUME PREVIOUS GAME", sub_btn: "SUBMIT",
+            t_swap: "Swap Tiles", t_shuf: "Shuffle Rack", t_dict: "Dictionary Definitions", t_rec: "Recall Tiles", t_theme: "Toggle Theme", t_pass: "Pass Turn", t_res: "Resign / Quit Game", t_bag: "View Tile Bag",
+            tiles_left: "Tiles Left", blank_title: "Select Letter for Blank", cancel: "Cancel", swap_title: "Swap Tiles", swap_desc: "Select tiles to trade back into the bag", swap_btn: "Swap Selected",
+            dict_title: "Recent Definitions", close: "Close", bag_title: "Tiles Remaining"
+        },
+        'fr': {
+            title: "Sortographe", dict: "Dictionnaire", opp: "Adversaire", ai_easy: "IA (Facile)", ai_med: "IA (Moyen)", ai_hard: "IA (Difficile)",
+            local: "Multijoueur Local", names: "Noms J1 / J2", timer: "Chronomètre (Min)", none: "Aucun", dark: "Mode Sombre",
+            new_btn: "NOUVELLE PARTIE", res_btn: "REPRENDRE LA PARTIE", sub_btn: "VALIDER",
+            t_swap: "Échanger", t_shuf: "Mélanger", t_dict: "Définitions", t_rec: "Rappeler", t_theme: "Changer le Thème", t_pass: "Passer le tour", t_res: "Quitter", t_bag: "Voir le sac",
+            tiles_left: "Tuiles Restantes", blank_title: "Choisir une Lettre", cancel: "Annuler", swap_title: "Échanger des tuiles", swap_desc: "Sélectionnez les tuiles à remettre", swap_btn: "Échanger",
+            dict_title: "Définitions Récentes", close: "Fermer", bag_title: "Tuiles Restantes"
+        },
+        'de': {
+            title: "Buchstabauberei", dict: "Wörterbuch", opp: "Gegner", ai_easy: "KI (Leicht)", ai_med: "KI (Mittel)", ai_hard: "KI (Schwer)",
+            local: "Lokaler Mehrspieler", names: "S1 / S2 Name", timer: "Timer (Minuten)", none: "Keiner", dark: "Dunkelmodus",
+            new_btn: "NEUES SPIEL", res_btn: "SPIEL FORTSETZEN", sub_btn: "ZUG BEENDEN",
+            t_swap: "Tauschen", t_shuf: "Mischen", t_dict: "Definitionen", t_rec: "Zurückrufen", t_theme: "Design umschalten", t_pass: "Aussetzen", t_res: "Beenden", t_bag: "Säckchen ansehen",
+            tiles_left: "Steine übrig", blank_title: "Buchstaben wählen", cancel: "Abbrechen", swap_title: "Steine tauschen", swap_desc: "Wähle Steine zum Tauschen", swap_btn: "Tauschen",
+            dict_title: "Kürzliche Definitionen", close: "Schließen", bag_title: "Verbleibende Steine"
+        },
+        'es': {
+            title: "Hechizolabras", dict: "Diccionario", opp: "Oponente", ai_easy: "IA (Fácil)", ai_med: "IA (Medio)", ai_hard: "IA (Difícil)",
+            local: "Multijugador Local", names: "Nombres J1 / J2", timer: "Temporizador (Mins)", none: "Ninguno", dark: "Modo Oscuro",
+            new_btn: "NUEVO JUEGO", res_btn: "REANUDAR JUEGO", sub_btn: "ENVIAR",
+            t_swap: "Cambiar Fichas", t_shuf: "Mezclar", t_dict: "Definiciones", t_rec: "Recuperar", t_theme: "Cambiar Tema", t_pass: "Pasar Turno", t_res: "Salir", t_bag: "Ver Bolsa",
+            tiles_left: "Fichas Restantes", blank_title: "Seleccionar comodín", cancel: "Cancelar", swap_title: "Cambiar Fichas", swap_desc: "Selecciona fichas para devolver", swap_btn: "Cambiar",
+            dict_title: "Definiciones Recientes", close: "Cerrar", bag_title: "Fichas Restantes"
+        }
+    };
+
+    let TILE_DATA = TILE_SETS['en'];
+    let currentLang = 'en';
 
     const BONUSES = {
         '0,0': 'TW', '0,7': 'TW', '0,14': 'TW', '7,0': 'TW', '7,14': 'TW', '14,0': 'TW', '14,7': 'TW', '14,14': 'TW',
@@ -382,7 +450,7 @@
 
     function init() {
         createBoard();
-        setupLetterGrid();
+        updateLanguageUI();
         if (localStorage.getItem('scrabble_save_classic')) document.getElementById('resume-btn').style.display = 'block';
 
         const aiSelect = document.getElementById('setting-ai');
@@ -392,15 +460,62 @@
         window.addEventListener('keydown', handleKeyboard);
     }
 
+    function updateLanguageUI() {
+        const select = document.getElementById('setting-dict');
+        currentLang = select.options[select.selectedIndex].dataset.lang || 'en';
+        TILE_DATA = TILE_SETS[currentLang];
+        
+        const t = TRANSLATIONS[currentLang];
+        document.getElementById('ui-title').innerText = t.title;
+        document.getElementById('window-title').innerText = t.title;
+        document.getElementById('ui-label-dict').innerText = t.dict;
+        document.getElementById('ui-label-opp').innerText = t.opp;
+        document.getElementById('ui-opt-easy').innerText = t.ai_easy;
+        document.getElementById('ui-opt-med').innerText = t.ai_med;
+        document.getElementById('ui-opt-hard').innerText = t.ai_hard;
+        document.getElementById('ui-opt-local').innerText = t.local;
+        document.getElementById('ui-label-names').innerText = t.names;
+        document.getElementById('ui-label-timer').innerText = t.timer;
+        document.getElementById('ui-opt-none').innerText = t.none;
+        document.getElementById('ui-label-dark').innerText = t.dark;
+        document.getElementById('new-game-btn').innerText = t.new_btn;
+        document.getElementById('resume-btn').innerText = t.res_btn;
+        document.getElementById('btn-submit').innerText = t.sub_btn;
+        
+        document.getElementById('btn-swap-icon').title = t.t_swap;
+        document.getElementById('btn-shuffle').title = t.t_shuf;
+        document.getElementById('btn-dict').title = t.t_dict;
+        document.getElementById('btn-recall').title = t.t_rec;
+        document.getElementById('btn-theme').title = t.t_theme;
+        document.getElementById('btn-pass').title = t.t_pass;
+        document.getElementById('btn-resign').title = t.t_res;
+        document.getElementById('btn-bag-icon').title = t.t_bag;
+
+        document.getElementById('ui-blank-title').innerText = t.blank_title;
+        document.getElementById('ui-blank-cancel').innerText = t.cancel;
+        document.getElementById('ui-swap-title').innerText = t.swap_title;
+        document.getElementById('ui-swap-desc').innerText = t.swap_desc;
+        document.getElementById('ui-swap-btn').innerText = t.swap_btn;
+        document.getElementById('ui-swap-cancel').innerText = t.cancel;
+        document.getElementById('ui-dict-title').innerText = t.dict_title;
+        document.getElementById('ui-dict-close').innerText = t.close;
+        document.getElementById('ui-bag-title').innerText = t.bag_title;
+        document.getElementById('ui-bag-close').innerText = t.close;
+        
+        setupLetterGrid();
+    }
+
     function setupLetterGrid() {
         const grid = document.getElementById('letterGrid');
-        for (let i = 65; i <= 90; i++) {
+        grid.innerHTML = '';
+        Object.keys(TILE_DATA).sort().forEach(char => {
+            if (char === '_') return;
             const btn = document.createElement('button');
             btn.className = 'letter-btn';
-            btn.innerText = String.fromCharCode(i);
-            btn.onclick = () => setBlankLetter(String.fromCharCode(i));
+            btn.innerText = char;
+            btn.onclick = () => setBlankLetter(char);
             grid.appendChild(btn);
-        }
+        });
     }
 
     function toggleDarkModeUI(isDark) { 
@@ -440,7 +555,7 @@
     async function startNewGame() {
         const btn = document.getElementById('new-game-btn');
         const originalText = btn.innerText;
-        btn.innerText = "LOADING DICTIONARY...";
+        btn.innerText = TRANSLATIONS[currentLang].res_btn === "REPRENDRE LA PARTIE" ? "CHARGEMENT..." : (TRANSLATIONS[currentLang].res_btn === "SPIEL FORTSETZEN" ? "LÄDT..." : (TRANSLATIONS[currentLang].res_btn === "REANUDAR JUEGO" ? "CARGANDO..." : "LOADING..."));
         btn.disabled = true;
 
         const dictUrl = document.getElementById('setting-dict').value;
@@ -457,7 +572,8 @@
         gameConfig = { 
             ai: document.getElementById('setting-ai').value, 
             timeLimit: parseInt(document.getElementById('setting-timer').value) * 60,
-            dictUrl: dictUrl
+            dictUrl: dictUrl,
+            lang: currentLang
         };
         playerNames[0] = document.getElementById('setting-p1name').value || "Player 1";
         playerNames[1] = gameConfig.ai === 'local' ? (document.getElementById('setting-p2name').value || "Player 2") : "AI";
@@ -487,6 +603,10 @@
         btn.disabled = true;
 
         const url = saved.gameConfig.dictUrl || document.getElementById('setting-dict').value;
+        currentLang = saved.gameConfig.lang || 'en';
+        TILE_DATA = TILE_SETS[currentLang];
+        updateLanguageUI();
+
         const dictLoaded = await loadDictionaryFromURL(url);
         
         btn.innerText = originalText;
@@ -552,7 +672,7 @@
         if (document.getElementById('launcher').style.display !== 'none' || draggingData) return;
         if (document.getElementById('blankModal').style.display === 'flex') {
             const key = e.key.toUpperCase();
-            if (key >= 'A' && key <= 'Z' && key.length === 1) setBlankLetter(key);
+            if (TILE_DATA[key] && key !== '_') setBlankLetter(key);
             else if (key === 'ESCAPE') cancelBlank();
             return;
         }
@@ -571,7 +691,7 @@
         else if (key === 'ARROWDOWN') focusCell(focusedCell.row + 1, focusedCell.col, 'down');
         else if (key === 'ARROWLEFT') focusCell(focusedCell.row, focusedCell.col - 1, 'right');
         else if (key === 'ARROWRIGHT') focusCell(focusedCell.row, focusedCell.col + 1, 'right');
-        else if (key.length === 1 && key >= 'A' && key <= 'Z') playLetter(key);
+        else if (TILE_DATA[key] && key !== '_') playLetter(key);
         else if (key === ' ' || key === '_') playLetter('_');
     }
 
@@ -1062,7 +1182,10 @@
     function updateUI() {
         document.getElementById('card-p1').classList.toggle('active', turn === 0);
         document.getElementById('card-p2').classList.toggle('active', turn === 1);
-        document.getElementById('bag-count').innerText = `${bag.length} Tiles Left`;
+        
+        const textTilesLeft = TRANSLATIONS[currentLang].tiles_left;
+        document.getElementById('bag-count').innerText = `${bag.length} ${textTilesLeft}`;
+        
         document.body.classList.toggle('turn-p1', turn === 0);
         document.body.classList.toggle('turn-p2', turn === 1);
         
@@ -1145,7 +1268,10 @@
         
         for (const w of words) {
             try {
-                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+                // DictionaryAPI is best-effort for non-English languages. We append the current Lang to hit appropriate endpoint if available
+                const reqLang = (currentLang === 'en' ? 'en' : (currentLang === 'fr' ? 'fr' : (currentLang === 'es' ? 'es' : (currentLang === 'de' ? 'de' : 'en'))));
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/${reqLang}/${w.toLowerCase()}`);
+                
                 if (!res.ok) { html += `<h4 style="color:var(--text-main); margin-bottom:5px;">${w}</h4><p style="color:var(--text-muted); font-size:0.9rem; margin-top:0;">Definition not found.</p><hr style="border-color:var(--cell-border);">`; continue; }
                 const data = await res.json();
                 let defsHtml = data[0].meanings.slice(0,2).map(m => `<li><em>${m.partOfSpeech}</em>: ${m.definitions[0].definition}</li>`).join('');
@@ -1235,7 +1361,7 @@
             } else if (gameConfig.ai === 'medium') {
                 selectedMove = validMoves[Math.floor(validMoves.length / 2)].move;
             } else {
-                selectedMove = validMoves[Math.floor(validMoves.length * 0.15)].move; // Lower percentile for Easy
+                selectedMove = validMoves[Math.floor(validMoves.length * 0.15)].move; 
             }
 
             currentMove = selectedMove;
