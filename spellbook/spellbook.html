@@ -217,14 +217,18 @@
                     <option value="local">Local Multiplayer</option>
                 </select>
             </div>
-            <div class="config-item" id="local-names" style="display:none;">
-                <span>P1 / P2 Names</span>
-                <span style="display:flex; gap:6px;">
-                    <input type="text" id="setting-p1name" maxlength="10" value="Player 1" style="width:80px;">
-                    <input type="text" id="setting-p2name" maxlength="10" value="Player 2" style="width:80px;">
-                </span>
-            </div>
+            
             <div class="config-item">
+                <span>Dictionary</span>
+                <select id="setting-dict" style="max-width: 200px;">
+                    <option value="https://www.wordgamedictionary.com/twl06/download/twl06.txt">English US (NASPA)</option>
+                    <option value="https://www.wordgamedictionary.com/sowpods/download/sowpods.txt">English UK (Collins)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/french/ods8.txt">French (ODS8)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/german/german.txt">German (Tanglet)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/spanish/file-2017.txt">Spanish (Lexicón FILE)</option>
+                </select>
+            </div>
+            <div class="config-item" id="local-names" style="display:none;">
                 <span>Timer (Minutes)</span>
                 <select id="setting-timer">
                     <option value="0">None</option>
@@ -374,7 +378,6 @@
 
     async function init() {
         createBoard();
-        loadDictionary();
         setupLetterGrid();
         if (localStorage.getItem('scrabble_save_classic')) document.getElementById('resume-btn').style.display = 'block';
 
@@ -385,46 +388,42 @@
         window.addEventListener('keydown', handleKeyboard);
     }
 
-    function loadDictionary() {
-        fetch('https://raw.githubusercontent.com/redbo/scrabble/refs/heads/master/dictionary.txt')
-            .then(res => res.text())
-            .then(text => {
-                text.split('\n').forEach(word => {
-                    word = word.trim().toUpperCase();
-                    if (word) { dictionary.add(word); aiVocab.push(word); }
-                });
-                shuffle(aiVocab);
+    async function loadDictionary(url) {
+        dictionary.clear();
+        aiVocab = [];
+        try {
+            // Proxies non-github URLs to bypass strict CORS blocking
+            const fetchUrl = url.includes('githubusercontent') ? url : 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+            const res = await fetch(fetchUrl);
+            const text = await res.text();
+            text.split('\n').forEach(word => {
+                word = word.trim().toUpperCase();
+                if (word) { dictionary.add(word); aiVocab.push(word); }
             });
-    }
-
-    function setupLetterGrid() {
-        const grid = document.getElementById('letterGrid');
-        for (let i = 65; i <= 90; i++) {
-            const btn = document.createElement('button');
-            btn.className = 'letter-btn';
-            btn.innerText = String.fromCharCode(i);
-            btn.onclick = () => setBlankLetter(String.fromCharCode(i));
-            grid.appendChild(btn);
+            shuffle(aiVocab);
+        } catch (e) {
+            alert("Failed to load dictionary. Please check your connection.");
+            console.error(e);
         }
     }
 
-    function toggleDarkModeUI(isDark) { 
-        document.body.className = isDark ? 'dark-mode' : ''; 
-        const themeIcon = document.getElementById('theme-icon');
-        if (themeIcon) {
-            themeIcon.src = isDark ? 'https://www.svgrepo.com/show/532067/sun-dust.svg' : 'https://www.svgrepo.com/show/532061/moon-stars.svg';
-        }
-    }
-    
-    function toggleInGameTheme() { 
-        document.body.classList.toggle('dark-mode'); 
-        const isDark = document.body.classList.contains('dark-mode');
-        document.getElementById('setting-dark').checked = isDark;
-        document.getElementById('theme-icon').src = isDark ? 'https://www.svgrepo.com/show/532067/sun-dust.svg' : 'https://www.svgrepo.com/show/532061/moon-stars.svg';
-    }
+    async function startNewGame() {
+        const btn = document.querySelector('.play-btn');
+        const originalText = btn.innerText;
+        btn.innerText = "LOADING DICTIONARY...";
+        btn.disabled = true;
 
-    function startNewGame() {
-        gameConfig = { ai: document.getElementById('setting-ai').value, timeLimit: parseInt(document.getElementById('setting-timer').value) * 60 };
+        const dictUrl = document.getElementById('setting-dict').value;
+        await loadDictionary(dictUrl);
+        
+        btn.innerText = originalText;
+        btn.disabled = false;
+
+        gameConfig = { 
+            ai: document.getElementById('setting-ai').value, 
+            timeLimit: parseInt(document.getElementById('setting-timer').value) * 60,
+            dictUrl: dictUrl
+        };
         playerNames[0] = document.getElementById('setting-p1name').value || "Player 1";
         playerNames[1] = gameConfig.ai === 'local' ? (document.getElementById('setting-p2name').value || "Player 2") : "AI";
         
@@ -440,6 +439,24 @@
         timers = [gameConfig.timeLimit, gameConfig.timeLimit];
         
         fillRack(0); fillRack(1);
+        startGameUI();
+    }
+
+    async function resumeSavedGame() {
+        const saved = JSON.parse(localStorage.getItem('scrabble_save_classic'));
+        if (!saved) return;
+
+        const btn = document.getElementById('resume-btn');
+        const originalText = btn.innerText;
+        btn.innerText = "LOADING DICTIONARY...";
+        btn.disabled = true;
+
+        await loadDictionary(saved.gameConfig.dictUrl || document.getElementById('setting-dict').value);
+
+        btn.innerText = originalText;
+        btn.disabled = false;
+
+        ({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig } = saved);
         startGameUI();
     }
 
@@ -743,7 +760,9 @@
             tile.style.animationDelay = `${placedIdx * 0.1}s`;
         }
         
-        tile.innerText = isBlank ? '' : letter;
+        // FIX: Tile text now sets to the letter regardless of if it's a blank tile
+        tile.innerText = letter; 
+        
         if (isTemp) tile.onpointerdown = (e) => onPointerDown(e, 'board', letter, isBlank ? '_' : letter, r, c, -1);
         
         const val = document.createElement('div');
@@ -1119,8 +1138,9 @@
         let isFirstTurn = true;
         for(let r=0; r<15; r++) for(let c=0; c<15; c++) if(boardState[r][c]) { anchors.push({r, c, letter: boardState[r][c].letter}); isFirstTurn = false; }
 
-        let bestMove = null; let bestScore = -1;
-        let maxSearchLimit = gameConfig.ai === 'hard' ? 40000 : (gameConfig.ai === 'medium' ? 10000 : 2000);
+        let possibleMoves = [];
+        // Hard searches 3x more words to find optimal placements
+        let maxSearchLimit = gameConfig.ai === 'hard' ? 40000 : (gameConfig.ai === 'medium' ? 15000 : 5000);
         let wordsToCheck = aiVocab.slice(0, maxSearchLimit);
 
         function canFormWord(word, availableLetters) {
@@ -1156,7 +1176,8 @@
                 const wordsFormed = findWordsOnBoard();
                 if (wordsFormed.length > 0 && wordsFormed.every(w => dictionary.has(w.word))) {
                     let score = calculateScore();
-                    if (score > bestScore) { bestScore = score; bestMove = JSON.parse(JSON.stringify(wordMove)); }
+                    // Store ALL valid moves and their scores
+                    possibleMoves.push({ move: JSON.parse(JSON.stringify(wordMove)), score });
                 }
             }
             currentMove = [];
@@ -1166,7 +1187,6 @@
             for (let word of wordsToCheck) {
                 if (word.length > 7 || !canFormWord(word, aiRack)) continue;
                 tryPlacement(word, 7, 7, true);
-                if (bestScore > 15 && gameConfig.ai === 'easy') break;
             }
         } else {
             for (let anchor of anchors) {
@@ -1181,6 +1201,30 @@
                     }
                 }
             }
+        }
+
+        let bestMove = null;
+        if (possibleMoves.length > 0) {
+            // Sort moves from worst to best score
+            possibleMoves.sort((a, b) => a.score - b.score);
+            let selected;
+
+            if (gameConfig.ai === 'easy') {
+                // Easy: Pick a random move from the bottom 40%
+                let maxIdx = Math.max(1, Math.floor(possibleMoves.length * 0.4));
+                selected = possibleMoves[Math.floor(Math.random() * maxIdx)];
+            } else if (gameConfig.ai === 'medium') {
+                // Medium: Pick a random move from the middle percentiles
+                let minIdx = Math.floor(possibleMoves.length * 0.4);
+                let maxIdx = Math.floor(possibleMoves.length * 0.8);
+                if (maxIdx <= minIdx) maxIdx = minIdx + 1;
+                selected = possibleMoves[Math.floor(Math.random() * (maxIdx - minIdx)) + minIdx];
+                if (!selected) selected = possibleMoves[possibleMoves.length - 1]; // Fallback
+            } else {
+                // Hard: Pick the absolute highest scoring move available
+                selected = possibleMoves[possibleMoves.length - 1];
+            }
+            bestMove = selected.move;
         }
 
         if (bestMove) {
