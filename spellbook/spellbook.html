@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpellBook - chancydf.com</title>
+    <title>SpellBook</title>
     <style>
         @font-face {
             font-family: 'Linux Libertine';
@@ -72,7 +72,7 @@
                 linear-gradient(90deg, var(--bg-grid) 2px, transparent 2px);
             background-size: 30px 30px;
             background-attachment: fixed;
-            touch-action: pan-y; /* Important for mobile */
+            touch-action: pan-y; 
         }
 
         body::before {
@@ -87,12 +87,13 @@
         .setup-card h1 { font-family: 'Linux Libertine', Georgia, serif; font-size: 3rem; margin: 0 0 20px 0; font-weight: 900; }
         .config-group { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; text-align: left; }
         .config-item { display: flex; justify-content: space-between; align-items: center; font-weight: 600; background: #fff; padding: 10px 15px; border: 2px solid #000; color: #1a1b26; }
-        select, input[type="text"], input[type="checkbox"] { padding: 5px; font-family: inherit; font-weight: bold; border: 1px solid #444; cursor: pointer; }
+        select, input[type="text"], input[type="checkbox"] { padding: 5px; font-family: inherit; font-weight: bold; border: 1px solid #444; cursor: pointer; max-width: 200px; }
 
         .play-btn { width: 100%; font-size: 1.5rem; padding: 15px; background: var(--bonus-dw); color: #000; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; font-weight: 800; transition: 0.1s; }
-        .play-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; background: var(--bonus-tw); }
+        .play-btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; background: var(--bonus-tw); }
+        .play-btn:disabled { opacity: 0.7; cursor: wait; transform: none; box-shadow: 4px 4px 0 #000; }
         .resume-btn { width: 100%; font-size: 1.2rem; padding: 12px; margin-top: 15px; background: var(--bonus-tl); color: #fff; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; font-weight: 800; transition: 0.1s; display: none; }
-        .resume-btn:hover { background: var(--bonus-dl); color: #000; }
+        .resume-btn:hover:not(:disabled) { background: var(--bonus-dl); color: #000; }
 
         .board-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
         
@@ -135,7 +136,6 @@
         .history-item:nth-child(even) { background: rgba(0,0,0,0.03); }
         .avatar-box { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 900; border: 2px solid #000; color: #000; flex-shrink: 0; }
 
-        /* Dynamic Log Tiles */
         .log-word { display: flex; flex-wrap: wrap; gap: 2px; }
         .log-tile { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 900; background: var(--tile-color); color: var(--text-main); border: 1px solid #000; border-radius: 2px; }
         .log-tile.bonus-TW { background: var(--bonus-tw); color: #fff; }
@@ -143,7 +143,6 @@
         .log-tile.bonus-TL { background: var(--bonus-tl); color: #fff; }
         .log-tile.bonus-DL { background: var(--bonus-dl); color: #000; }
 
-        /* Smooth Dragging Tiles */
         .tile, .rack-tile {
             position: absolute; inset: 0; background: var(--tile-color); color: var(--tile-text); border: 2px solid #000;
             display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 900; box-shadow: 3px 3px 0 #000; z-index: 2; width: 100%; height: 100%; box-sizing: border-box;
@@ -160,15 +159,14 @@
         .tile.temp.invalid { background: #ff5c5c; color: #fff; border-color: #8f0000; }
         .tile.p1-owner { border-color: var(--p1-color); }
         .tile.p2-owner { border-color: var(--p2-color); }
+        .tile.blank-played { color: var(--accent); } /* Blanks are colored to distinguish */
 
-        /* The flying ghost tile during drag */
         .ghost-tile {
             position: fixed !important; z-index: 100000 !important;
             transform: scale(1.15) translate(-50%, -50%); transform-origin: top left;
             box-shadow: 10px 10px 25px rgba(0,0,0,0.5) !important; pointer-events: none !important;
         }
 
-        /* Staggered Submit Animation */
         @keyframes submitPop {
             0% { transform: scale(1); filter: brightness(1); box-shadow: 3px 3px 0 #000; }
             50% { transform: scale(1.15); filter: brightness(1.5); box-shadow: 0 0 15px #fff; z-index: 10; }
@@ -209,6 +207,16 @@
         <h1 style="color: var(--text-main); margin-bottom: 40px;">SpellBook</h1>
         <div class="config-group">
             <div class="config-item">
+                <span>Dictionary</span>
+                <select id="setting-dict">
+                    <option value="https://www.wordgamedictionary.com/twl06/download/twl06.txt" selected>English US (NASPA)</option>
+                    <option value="https://www.wordgamedictionary.com/sowpods/download/sowpods.txt">English UK (Collins)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/french/ods8.txt">French (ODS8)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/german/german.txt">German (Tanglet)</option>
+                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/spanish/file-2017.txt">Spanish (FILE)</option>
+                </select>
+            </div>
+            <div class="config-item">
                 <span>Opponent</span>
                 <select id="setting-ai">
                     <option value="easy">AI (Easy)</option>
@@ -217,18 +225,14 @@
                     <option value="local">Local Multiplayer</option>
                 </select>
             </div>
-            
-            <div class="config-item">
-                <span>Dictionary</span>
-                <select id="setting-dict" style="max-width: 200px;">
-                    <option value="https://www.wordgamedictionary.com/twl06/download/twl06.txt">English US (NASPA)</option>
-                    <option value="https://www.wordgamedictionary.com/sowpods/download/sowpods.txt">English UK (Collins)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/french/ods8.txt">French (ODS8)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/german/german.txt">German (Tanglet)</option>
-                    <option value="https://raw.githubusercontent.com/kamilmielnik/scrabble-dictionaries/refs/heads/master/spanish/file-2017.txt">Spanish (Lexicón FILE)</option>
-                </select>
-            </div>
             <div class="config-item" id="local-names" style="display:none;">
+                <span>P1 / P2 Names</span>
+                <span style="display:flex; gap:6px;">
+                    <input type="text" id="setting-p1name" maxlength="10" value="Player 1" style="width:80px;">
+                    <input type="text" id="setting-p2name" maxlength="10" value="Player 2" style="width:80px;">
+                </span>
+            </div>
+            <div class="config-item">
                 <span>Timer (Minutes)</span>
                 <select id="setting-timer">
                     <option value="0">None</option>
@@ -242,7 +246,7 @@
                 <input type="checkbox" id="setting-dark" onclick="toggleDarkModeUI(this.checked)" checked>
             </div>
         </div>
-        <button class="play-btn" onclick="startNewGame()">NEW GAME</button>
+        <button id="new-game-btn" class="play-btn" onclick="startNewGame()">NEW GAME</button>
         <button id="resume-btn" class="resume-btn" onclick="resumeSavedGame()">RESUME PREVIOUS GAME</button>
     </div>
 </div>
@@ -374,9 +378,9 @@
     let timers = [0, 0], timerInterval, gameConfig = {};
     let selectedSwapIndices = new Set();
     let pendingBlankCell = null;
-    let draggingData = null; // Used for custom smooth pointer drag
+    let draggingData = null; 
 
-    async function init() {
+    function init() {
         createBoard();
         setupLetterGrid();
         if (localStorage.getItem('scrabble_save_classic')) document.getElementById('resume-btn').style.display = 'block';
@@ -388,36 +392,67 @@
         window.addEventListener('keydown', handleKeyboard);
     }
 
-    async function loadDictionary(url) {
+    function setupLetterGrid() {
+        const grid = document.getElementById('letterGrid');
+        for (let i = 65; i <= 90; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'letter-btn';
+            btn.innerText = String.fromCharCode(i);
+            btn.onclick = () => setBlankLetter(String.fromCharCode(i));
+            grid.appendChild(btn);
+        }
+    }
+
+    function toggleDarkModeUI(isDark) { 
+        document.body.className = isDark ? 'dark-mode' : ''; 
+        const themeIcon = document.getElementById('theme-icon');
+        if (themeIcon) {
+            themeIcon.src = isDark ? 'https://www.svgrepo.com/show/532067/sun-dust.svg' : 'https://www.svgrepo.com/show/532061/moon-stars.svg';
+        }
+    }
+    
+    function toggleInGameTheme() { 
+        document.body.classList.toggle('dark-mode'); 
+        const isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('setting-dark').checked = isDark;
+        document.getElementById('theme-icon').src = isDark ? 'https://www.svgrepo.com/show/532067/sun-dust.svg' : 'https://www.svgrepo.com/show/532061/moon-stars.svg';
+    }
+
+    async function loadDictionaryFromURL(url) {
         dictionary.clear();
         aiVocab = [];
         try {
-            // Proxies non-github URLs to bypass strict CORS blocking
-            const fetchUrl = url.includes('githubusercontent') ? url : 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-            const res = await fetch(fetchUrl);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Network response was not ok");
             const text = await res.text();
             text.split('\n').forEach(word => {
                 word = word.trim().toUpperCase();
                 if (word) { dictionary.add(word); aiVocab.push(word); }
             });
             shuffle(aiVocab);
+            return true;
         } catch (e) {
-            alert("Failed to load dictionary. Please check your connection.");
             console.error(e);
+            return false;
         }
     }
 
     async function startNewGame() {
-        const btn = document.querySelector('.play-btn');
+        const btn = document.getElementById('new-game-btn');
         const originalText = btn.innerText;
         btn.innerText = "LOADING DICTIONARY...";
         btn.disabled = true;
 
         const dictUrl = document.getElementById('setting-dict').value;
-        await loadDictionary(dictUrl);
+        const dictLoaded = await loadDictionaryFromURL(dictUrl);
         
         btn.innerText = originalText;
         btn.disabled = false;
+
+        if (!dictLoaded) {
+            alert("Failed to load the selected dictionary. Please check your connection or try another dictionary.");
+            return;
+        }
 
         gameConfig = { 
             ai: document.getElementById('setting-ai').value, 
@@ -445,16 +480,22 @@
     async function resumeSavedGame() {
         const saved = JSON.parse(localStorage.getItem('scrabble_save_classic'));
         if (!saved) return;
-
+        
         const btn = document.getElementById('resume-btn');
         const originalText = btn.innerText;
-        btn.innerText = "LOADING DICTIONARY...";
+        btn.innerText = "LOADING...";
         btn.disabled = true;
 
-        await loadDictionary(saved.gameConfig.dictUrl || document.getElementById('setting-dict').value);
-
+        const url = saved.gameConfig.dictUrl || document.getElementById('setting-dict').value;
+        const dictLoaded = await loadDictionaryFromURL(url);
+        
         btn.innerText = originalText;
         btn.disabled = false;
+
+        if (!dictLoaded) {
+            alert("Failed to load dictionary.");
+            return;
+        }
 
         ({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig } = saved);
         startGameUI();
@@ -466,8 +507,8 @@
         document.getElementById('p1-name-display').innerText = playerNames[0];
         document.getElementById('p2-name-display').innerText = playerNames[1];
         
-        document.getElementById('score-p1').innerText = 0;
-        document.getElementById('score-p2').innerText = 0;
+        document.getElementById('score-p1').innerText = scores[0] || 0;
+        document.getElementById('score-p2').innerText = scores[1] || 0;
         
         if (timerInterval) clearInterval(timerInterval);
         if (gameConfig.timeLimit > 0) timerInterval = setInterval(tickTimer, 1000);
@@ -534,15 +575,13 @@
         else if (key === ' ' || key === '_') playLetter('_');
     }
 
-    /* SMOOTH POINTER DRAG & DROP SYSTEM */
     function onPointerDown(e, type, letter, original, r, c, rackIdx) {
-        if (e.button && e.button !== 0) return; // Ignore right clicks
+        if (e.button && e.button !== 0) return;
         if (gameConfig.ai !== 'local' && turn === 1) return;
         
         let target = e.currentTarget;
         let rect = target.getBoundingClientRect();
         
-        // Create visual ghost
         let ghost = document.createElement('div');
         ghost.className = 'tile ghost-tile';
         ghost.innerText = letter === '_' ? '' : letter;
@@ -557,12 +596,9 @@
         ghost.style.height = rect.height + 'px';
         document.body.appendChild(ghost);
         
-        target.style.opacity = '0'; // Hide original
+        target.style.opacity = '0';
         
-        draggingData = { 
-            target, ghost, type, letter, original, r, c, rackIdx,
-            startX: e.clientX, startY: e.clientY
-        };
+        draggingData = { target, ghost, type, letter, original, r, c, rackIdx, startX: e.clientX, startY: e.clientY };
         
         document.addEventListener('pointermove', onPointerMove);
         document.addEventListener('pointerup', onPointerUp);
@@ -585,7 +621,6 @@
         ghost.remove();
         target.style.opacity = '1';
 
-        // Treat short movements as clicks
         let isClick = Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5;
         if (isClick) {
             if (type === 'rack') playLetter(original, rackIdx);
@@ -593,18 +628,15 @@
             return;
         }
         
-        // Determine Drop Target
-        ghost.style.display = 'none'; // hide briefly to find element underneath
+        ghost.style.display = 'none';
         let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
         let cell = dropTarget ? dropTarget.closest('.cell') : null;
         let rackArea = dropTarget ? dropTarget.closest('#rack') : null;
         
         if (cell) {
             let tr = parseInt(cell.dataset.row), tc = parseInt(cell.dataset.col);
-            
-            // Check occupancy
             if (boardState[tr][tc] || currentMove.some(m => m.row === tr && m.col === tc && !(m.row===r && m.col===c))) {
-                renderRack(); renderBoard(); validateMove(); // Snap back
+                renderRack(); renderBoard(); validateMove();
                 return;
             }
             
@@ -625,7 +657,6 @@
                 }
             }
         } else if (rackArea || type === 'board') {
-            // Dragged to rack OR dragged out of bounds -> return to rack
             if (type === 'board') {
                 let mIdx = currentMove.findIndex(m => m.row === r && m.col === c);
                 if (mIdx !== -1) {
@@ -650,13 +681,11 @@
     function playLetter(letterStr, specificIdx = -1) {
         let rackIdx = specificIdx;
         
-        // Find the tile on the rack
         if (rackIdx === -1) {
             rackIdx = racks[turn].indexOf(letterStr);
             if (rackIdx === -1) {
-                // If they don't have the letter, look for a blank instead
                 rackIdx = racks[turn].indexOf('_');
-                if (rackIdx === -1) return; // Stop if they don't have the letter OR a blank
+                if (rackIdx === -1) return;
             }
         }
 
@@ -670,12 +699,10 @@
 
         racks[turn].splice(rackIdx, 1);
         
-        // If the user specifically clicked/dragged a blank (or hit spacebar), ask for the letter
         if (letterStr === '_') {
             pendingBlankCell = { row, col, original: '_' };
             document.getElementById('blankModal').style.display = 'flex';
         } else {
-            // If they typed a letter and we used a blank to fill it, automatically assign it
             currentMove.push({ row, col, letter: letterStr, original: original });
             advanceFocus();
             renderRack(); renderBoard(); validateMove();
@@ -741,7 +768,6 @@
             renderTileOnBoard(m.row, m.col, m.letter, true, m.original === '_', turn, null);
         });
         
-        // Clear animation flags so they only play once
         for (let r = 0; r < 15; r++) {
             for (let c = 0; c < 15; c++) {
                 if (boardState[r][c] && boardState[r][c].justPlaced !== undefined) {
@@ -759,8 +785,8 @@
             tile.classList.add('just-placed');
             tile.style.animationDelay = `${placedIdx * 0.1}s`;
         }
+        if (isBlank) tile.classList.add('blank-played');
         
-        // FIX: Tile text now sets to the letter regardless of if it's a blank tile
         tile.innerText = letter; 
         
         if (isTemp) tile.onpointerdown = (e) => onPointerDown(e, 'board', letter, isBlank ? '_' : letter, r, c, -1);
@@ -915,7 +941,7 @@
 
     function animateScoreValue(playerIdx, oldScore, newScore) {
         const obj = document.getElementById(`score-p${playerIdx+1}`);
-        const duration = 800; // ms
+        const duration = 800; 
         let startTimestamp = null;
         
         obj.style.color = 'var(--bonus-dw)';
@@ -928,7 +954,7 @@
                 window.requestAnimationFrame(step);
             } else {
                 obj.innerText = newScore;
-                obj.style.color = ''; // reset to class color
+                obj.style.color = ''; 
             }
         };
         window.requestAnimationFrame(step);
@@ -948,7 +974,6 @@
         let oldScore = scores[turn];
         scores[turn] += pts;
         
-        // Prepare beautiful staggered render and log tiles
         let primaryWord = words[0];
         let wordTileData = primaryWord.coords.map((coord, i) => {
             let isNew = currentMove.some(m => m.row === coord.r && m.col === coord.c);
@@ -1041,10 +1066,10 @@
         document.body.classList.toggle('turn-p1', turn === 0);
         document.body.classList.toggle('turn-p2', turn === 1);
         
-        // Don't overwrite animating scores immediately if they are running, but updateUI is safe since animateValue directly manipulates DOM.
-        // We will just let animateValue finish, but we ensure base values are correct on resume/load.
-        if (document.getElementById('score-p1').innerText === "0") {
+        if (document.getElementById('score-p1').innerText === "0" && scores[0] > 0) {
             document.getElementById('score-p1').innerText = scores[0];
+        }
+        if (document.getElementById('score-p2').innerText === "0" && scores[1] > 0) {
             document.getElementById('score-p2').innerText = scores[1];
         }
 
@@ -1138,9 +1163,8 @@
         let isFirstTurn = true;
         for(let r=0; r<15; r++) for(let c=0; c<15; c++) if(boardState[r][c]) { anchors.push({r, c, letter: boardState[r][c].letter}); isFirstTurn = false; }
 
-        let possibleMoves = [];
-        // Hard searches 3x more words to find optimal placements
-        let maxSearchLimit = gameConfig.ai === 'hard' ? 40000 : (gameConfig.ai === 'medium' ? 15000 : 5000);
+        let validMoves = [];
+        let maxSearchLimit = gameConfig.ai === 'hard' ? 15000 : (gameConfig.ai === 'medium' ? 5000 : 1500);
         let wordsToCheck = aiVocab.slice(0, maxSearchLimit);
 
         function canFormWord(word, availableLetters) {
@@ -1175,9 +1199,7 @@
             if (validateMoveBasic()) {
                 const wordsFormed = findWordsOnBoard();
                 if (wordsFormed.length > 0 && wordsFormed.every(w => dictionary.has(w.word))) {
-                    let score = calculateScore();
-                    // Store ALL valid moves and their scores
-                    possibleMoves.push({ move: JSON.parse(JSON.stringify(wordMove)), score });
+                    validMoves.push({ move: JSON.parse(JSON.stringify(wordMove)), score: calculateScore() });
                 }
             }
             currentMove = [];
@@ -1187,6 +1209,7 @@
             for (let word of wordsToCheck) {
                 if (word.length > 7 || !canFormWord(word, aiRack)) continue;
                 tryPlacement(word, 7, 7, true);
+                if (validMoves.length > 5 && gameConfig.ai === 'easy') break;
             }
         } else {
             for (let anchor of anchors) {
@@ -1203,32 +1226,19 @@
             }
         }
 
-        let bestMove = null;
-        if (possibleMoves.length > 0) {
-            // Sort moves from worst to best score
-            possibleMoves.sort((a, b) => a.score - b.score);
-            let selected;
+        if (validMoves.length > 0) {
+            validMoves.sort((a, b) => a.score - b.score);
+            let selectedMove;
 
-            if (gameConfig.ai === 'easy') {
-                // Easy: Pick a random move from the bottom 40%
-                let maxIdx = Math.max(1, Math.floor(possibleMoves.length * 0.4));
-                selected = possibleMoves[Math.floor(Math.random() * maxIdx)];
+            if (gameConfig.ai === 'hard') {
+                selectedMove = validMoves[validMoves.length - 1].move;
             } else if (gameConfig.ai === 'medium') {
-                // Medium: Pick a random move from the middle percentiles
-                let minIdx = Math.floor(possibleMoves.length * 0.4);
-                let maxIdx = Math.floor(possibleMoves.length * 0.8);
-                if (maxIdx <= minIdx) maxIdx = minIdx + 1;
-                selected = possibleMoves[Math.floor(Math.random() * (maxIdx - minIdx)) + minIdx];
-                if (!selected) selected = possibleMoves[possibleMoves.length - 1]; // Fallback
+                selectedMove = validMoves[Math.floor(validMoves.length / 2)].move;
             } else {
-                // Hard: Pick the absolute highest scoring move available
-                selected = possibleMoves[possibleMoves.length - 1];
+                selectedMove = validMoves[Math.floor(validMoves.length * 0.15)].move; // Lower percentile for Easy
             }
-            bestMove = selected.move;
-        }
 
-        if (bestMove) {
-            currentMove = bestMove;
+            currentMove = selectedMove;
             currentMove.forEach(m => { let rIdx = racks[1].indexOf(m.original); if (rIdx !== -1) racks[1].splice(rIdx, 1); });
             renderBoard();
             setTimeout(() => submitMove(), 1200);
@@ -1241,12 +1251,6 @@
     }
 
     function saveGame() { localStorage.setItem('scrabble_save_classic', JSON.stringify({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig })); }
-    function resumeSavedGame() {
-        const saved = JSON.parse(localStorage.getItem('scrabble_save_classic'));
-        if (!saved) return;
-        ({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig } = saved);
-        startGameUI();
-    }
     function quitToLauncher() { document.getElementById('game-wrapper').style.display = 'none'; document.getElementById('launcher').style.display = 'flex'; document.body.className = document.getElementById('setting-dark').checked ? 'dark-mode' : ''; }
 
     init();
