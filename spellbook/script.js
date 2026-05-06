@@ -26,36 +26,67 @@ const BONUSES = {
 const SPELLS = {
     L1: [
         { id: 'shield', title: 'Shield', desc: 'Opponent cannot claim your tiles.', cost: 3, level: 1, duration: 2 },
-        { id: 'healing_word', title: 'Healing Word', desc: 'Next move score is doubled.', cost: 3, level: 1 },
-        { id: 'burning_hands', title: 'Burning Hands', desc: 'Destroy a word and negate its points.', cost: 4, level: 1 }
+        { id: 'bless', title: 'Bless', desc: 'Next move score is doubled.', cost: 3, level: 1 },
+        { id: 'healing_word', title: 'Healing Word', desc: 'Claim and score an existing word on your next turn.', cost: 3, level: 1 },
+        { id: 'burning_hands', title: 'Burning Hands', desc: 'Destroy a word and negate its points.', cost: 4, level: 1 },
+        { id: 'find_familiar', title: 'Find Familiar', desc: 'Preview 3 possible words from your rack.', cost: 4, level: 1 },
+        { id: 'sleep', title: 'Sleep', desc: '1d20: If 10+, opponent skips next turn.', cost: 4, level: 1 }
     ],
     L2: [
-        { id: 'hold_person', title: 'Hold Person', desc: "Opponent's next turn is skipped.", cost: 5, level: 2 },
+        { id: 'hold_person', title: 'Hold Person', desc: "Opponent cannot purchase spells next round.", cost: 5, level: 2 },
+        { id: 'pass_without_trace', title: 'Pass Without Trace', desc: 'Play any 1d4+1 string as a valid word.', cost: 5, level: 2 },
+        { id: 'suggestion', title: 'Suggestion', desc: '1d20: If 10+, opponent plays their worst move.', cost: 6, level: 2 },
         { id: 'invisibility', title: 'Invisibility', desc: 'A random tile becomes blank.', cost: 5, level: 2 },
         { id: 'web', title: 'Web', desc: '1d6 tiles stuck to rack for 2 rounds.', cost: 6, level: 2, duration: 4 },
         { id: 'mirror_image', title: 'Mirror Image', desc: 'Create a decoy move to trick opponent.', cost: 6, level: 2 },
         { id: 'aid', title: 'Aid', desc: 'See a move preview (Roll 1d20).', cost: 6, level: 2 }
     ],
     L3: [
-        { id: 'counterspell', title: 'Counterspell', desc: "Negate opponent's last points.", cost: 7, level: 3 },
-        { id: 'haste', title: 'Haste', desc: 'Play two moves in next rounds.', cost: 7, level: 3 },
+        { id: 'counterspell', title: 'Counterspell', desc: "Negate opponent's last points or spell.", cost: 7, level: 3 },
+        { id: 'haste', title: 'Haste', desc: 'Play two moves for 1d4 rounds.', cost: 7, level: 3 },
+        { id: 'slow', title: 'Slow', desc: 'Opponent word length limit (1d4+2).', cost: 7, level: 3 },
+        { id: 'fireball', title: 'Fireball', desc: 'Burn a 3x3 area on your next turn.', cost: 8, level: 3 },
+        { id: 'revivify', title: 'Revivify', desc: 'Restore 1d4 dead tiles to the board.', cost: 8, level: 3 },
         { id: 'fly', title: 'Fly', desc: 'Next move can be placed anywhere.', cost: 8, level: 3 }
     ],
     L4: [
-        { id: 'greater_invis', title: 'Greater Invisibility', desc: '1d4 tiles become blank.', cost: 10, level: 4 },
-        { id: 'confusion', title: 'Confusion', desc: 'AI decides opponent move.', cost: 10, level: 4 },
+        { id: 'greater_invis', title: 'Greater Invisibility', desc: '1d4+1 tiles become blank.', cost: 10, level: 4 },
+        { id: 'confusion', title: 'Confusion', desc: 'Opponent next move is random.', cost: 10, level: 4 },
         { id: 'fire_shield', title: 'Fire Shield', desc: 'Claiming your tiles skips their turn.', cost: 10, level: 4, duration: 2 }
     ],
     L5: [
-        { id: 'greater_restoration', title: 'Greater Restoration', desc: 'Immunity to spells (1d4 rounds).', cost: 11, level: 5 }
+        { id: 'greater_restoration', title: 'Greater Restoration', desc: 'Immunity to spells (1d4 rounds).', cost: 11, level: 5 },
+        { id: 'telekinesis', title: 'Telekinesis', desc: "Make your opponent's next move for them.", cost: 12, level: 5 }
     ],
     L6: [
         { id: 'heal', title: 'Heal', desc: 'Regain all previously lost points.', cost: 14, level: 6 },
         { id: 'contingency', title: 'Contingency', desc: 'Cast a random spell when a condition is met.', cost: 14, level: 6 }
+    ],
+    L7: [
+        { id: 'reverse_gravity', title: 'Reverse Gravity', desc: 'Board flips 180° for 1d4 rounds.', cost: 16, level: 7 },
+        { id: 'simulacrum', title: 'Simulacrum', desc: 'An icy copy of opponent steals points (1d6 rds).', cost: 16, level: 7 },
+        { id: 'project_image', title: 'Project Image', desc: 'An AI copy of you claims tiles (1d6 rds).', cost: 16, level: 7 }
+    ],
+    L8: [
+        { id: 'demiplane', title: 'Demiplane', desc: 'Spawn a second rack with 1d6+1 tiles.', cost: 17, level: 8 },
+        { id: 'true_polymorph', title: 'True Polymorph', desc: 'Turn one word into another random word.', cost: 17, level: 8 },
+        { id: 'earthquake', title: 'Earthquake', desc: 'Shake board; tiles move 1d4 times.', cost: 18, level: 8 }
+    ],
+    L9: [
+        { id: 'time_stop', title: 'Time Stop', desc: 'Skip opponent’s turn for 1d4 + 1 rounds.', cost: 19, level: 9 },
+        { id: 'mass_polymorph', title: 'Mass Polymorph', desc: '2d4+2 words change to random ones.', cost: 21, level: 9 },
+        { id: 'invulnerability', title: 'Invulnerability', desc: 'Immune to losing points/tiles (4d6 rds).', cost: 21, level: 9 },
+        { id: 'true_resurrection', title: 'True Resurrection', desc: 'Rewind game 1d20 rounds.', cost: 22, level: 9 },
+        { id: 'time_ravage', title: 'Time Ravage', desc: 'Fast-forward 1d6 + 1 rounds.', cost: 22, level: 9 },
+        { id: 'gate', title: 'Gate', desc: 'Warp to a mid-game alternate dimension.', cost: 22, level: 9 },
+        { id: 'weird', title: 'Weird', desc: 'Randomize all letters and point values.', cost: 22, level: 9 },
+        { id: 'wish', title: 'Wish', desc: 'Cast any spell from the book.', cost: 25, level: 9 },
+        { id: 'power_word_kill', title: 'Power Word Kill', desc: 'If opponent has < 100 points, win automatically.', cost: 20, level: 9 },
+        { id: 'power_word_heal', title: 'Power Word Heal', desc: 'Revert all spells and restore lost points.', cost: 20, level: 9 }
     ]
 };
 
-let bag = [], racks = [[], []], turn = 0, moveHistory = [], scores = [0, 0];
+let bag = [], racks = [[], []], secondaryRacks = [[], []], turn = 0, moveHistory = [], scores = [0, 0];
 let boardState = Array(15).fill().map(() => Array(15).fill(null));
 let playerNames = ["Player 1", "AI"], dictionary = new Set(), aiVocab = [], currentMove = [], focusedCell = { row: 7, col: 7, dir: 'right' };
 let timers = [0, 0], timerInterval, gameConfig = {};
@@ -66,16 +97,29 @@ let draggingData = null;
 let globalTurnCounter = 0;
 let roundScores = [0, 0]; 
 let bingoCoupons = [0, 0]; 
+let isTimeRavaging = false;
+let targetTimeRavageTurn = 0;
+let timeRavageCallback = null;
 let playerSpells = [[], []]; 
 let marketActive = false;
 let marketQueue = []; 
+let queuedSpells = [];
 let marketCurrentPlayer = null;
 let marketCountdown = null;
 let marketTimeLeft = 10;
 let activeEffects = [{}, {}]; 
 let couponActiveThisTurn = false;
 let lostPoints = [0, 0];
-
+let deadTiles = [];
+let healingWordSelection = false;
+let highlightedHealingCoords = [];
+let fireballSelection = false;
+let highlightedFireballCoords = [];
+let reverseGravityRounds = 0;
+let copyPlayer = null; // { type: 'simulacrum'|'project_image', owner: 0|1, rounds: N }
+let gameHistory = []; // Buffer for True Resurrection
+let polySelection = false;
+let highlightedPolyCoords = [];
 // Dice System Globals
 let diceScene, diceCamera, diceRenderer, diceWorld, diceFloor;
 let diceList = [], bodyList = [], diceData = [];
@@ -89,17 +133,87 @@ const DICE_CONFIG = {
     d20: { type: 'd20', vertices: [[-1, (1+Math.sqrt(5))/2, 0], [1, (1+Math.sqrt(5))/2, 0], [-1, -(1+Math.sqrt(5))/2, 0], [1, -(1+Math.sqrt(5))/2, 0], [0, -1, (1+Math.sqrt(5))/2], [0, 1, (1+Math.sqrt(5))/2], [0, -1, -(1+Math.sqrt(5))/2], [0, 1, -(1+Math.sqrt(5))/2], [(1+Math.sqrt(5))/2, 0, -1], [(1+Math.sqrt(5))/2, 0, 1], [-(1+Math.sqrt(5))/2, 0, -1], [-(1+Math.sqrt(5))/2, 0, 1]], faces: [[0,11,5], [0,5,1], [0,1,7], [0,7,10], [0,10,11], [1,5,9], [5,11,4], [11,10,2], [10,7,6], [7,1,8], [3,9,4], [3,4,2], [3,2,6], [3,6,8], [3,8,9], [4,9,5], [2,4,11], [6,2,10], [8,6,7], [9,8,1]] }
 };
 
+let preEarthquakeBoard = null;
+let earthquakeInterval = null;
+
+// Debug Panel Toggle State
+let debugKeys = {};
+window.addEventListener('keydown', (e) => {
+    debugKeys[e.key.toUpperCase()] = true;
+    if (debugKeys['SHIFT'] && debugKeys['D'] && debugKeys['F']) {
+        const panel = document.querySelector('.debug-panel');
+        if (panel) panel.classList.toggle('hidden');
+    }
+});
+window.addEventListener('keyup', (e) => { debugKeys[e.key.toUpperCase()] = false; });
+
 function init() {
     createBoard();
     updateLanguageUI();
-    if (localStorage.getItem('spellbook_save')) document.getElementById('resume-btn').style.display = 'block';
+
+    if (localStorage.getItem('spellbook_save')) {
+        const resBtn = document.getElementById('resume-btn');
+        if (resBtn) resBtn.style.display = 'block';
+    }
 
     const aiSelect = document.getElementById('setting-ai');
     const localNames = document.getElementById('local-names');
-    toggleDarkModeUI(document.getElementById('setting-dark').checked);
-    aiSelect.addEventListener('change', () => { localNames.style.display = aiSelect.value === 'local' ? 'flex' : 'none'; });
+    const darkSetting = document.getElementById('setting-dark');
+    if (darkSetting) toggleDarkModeUI(darkSetting.checked);
+
+    const familiarDiv = document.createElement('div');
+    familiarDiv.id = 'familiar-previews';
+    const rackWrapper = document.querySelector('.rack-wrapper');
+    if (rackWrapper) rackWrapper.prepend(familiarDiv);
+
+    if (aiSelect && localNames) {
+        aiSelect.addEventListener('change', () => { localNames.style.display = aiSelect.value === 'local' ? 'flex' : 'none'; });
+        localNames.style.display = aiSelect.value === 'local' ? 'flex' : 'none';
+    }
     window.addEventListener('keydown', handleKeyboard);
     initDiceSystem();
+    createDebugPanel();
+}
+
+function createDebugPanel() {
+    const panel = document.createElement('div');
+    panel.className = 'debug-panel hidden';
+    panel.innerHTML = `
+        <h4>Admin: Tile States</h4>
+        <div class="debug-row">
+            <button class="debug-btn" onclick="setTileType('regular')">Regular</button>
+            <button class="debug-btn" onclick="setTileType('protected')">Protected</button>
+            <button class="debug-btn" onclick="setTileType('poison')">Poison</button>
+            <button class="debug-btn" onclick="setTileType('decoy')">Decoy</button>
+        </div>
+        <h4>Admin: Game Actions</h4>
+        <div class="debug-row">
+            <button class="debug-btn" onclick="reviveDeadTiles()">Revive Dead</button>
+            <button class="debug-btn" onclick="testSpell('hold_person')">Skip Opponent</button>
+            <button class="debug-btn" onclick="payMana(turn, -10)">+10 Mana</button>
+        </div>
+        <h4>Admin: Grimoire</h4>
+        <div class="debug-row">
+            <button class="debug-btn" onclick="showSpellTester()">Test Spells</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+}
+
+function setTileType(type) {
+    const {row, col} = focusedCell;
+    if (boardState[row][col]) {
+        boardState[row][col].type = type;
+        renderBoard();
+    }
+}
+
+function reviveDeadTiles() {
+    deadTiles.forEach(tile => {
+        boardState[tile.r][tile.c] = { ...tile.data, type: 'revived', owner: turn };
+    });
+    deadTiles = [];
+    renderBoard();
 }
 
 function initDiceSystem() {
@@ -144,40 +258,61 @@ function initDiceSystem() {
     diceScene.add(light);
     diceScene.add(new THREE.AmbientLight(0x404040, 1.0));
 
-    requestAnimationFrame(animateDice);
-}
-
-function animateDice() {
-    diceWorld.step(1/60);
-    diceList.forEach((mesh, i) => {
-        mesh.position.copy(bodyList[i].position);
-        mesh.quaternion.copy(bodyList[i].quaternion);
-        
-        let data = diceData[i];
-        if (data.isRolling && Date.now() - data.startTime > 1000) {
-            if (bodyList[i].velocity.length() < 0.1 && bodyList[i].angularVelocity.length() < 0.1) {
-                data.isRolling = false;
-                let worldUp = new THREE.Vector3(0, 1, 0);
-                let maxDot = -Infinity, result = 1;
-                data.faceNormals.forEach((normal, fIdx) => {
-                    let worldNormal = normal.clone().applyQuaternion(mesh.quaternion);
-                    let dot = worldNormal.dot(worldUp);
-                    if (dot > maxDot) { maxDot = dot; result = fIdx + 1; }
-                });
-                onDiceSettle(i, result);
-            }
+    window.addEventListener('resize', () => {
+        if (diceCamera && diceRenderer) {
+            diceCamera.aspect = window.innerWidth / window.innerHeight;
+            diceCamera.updateProjectionMatrix();
+            diceRenderer.setSize(window.innerWidth, window.innerHeight);
         }
     });
-    diceRenderer.render(diceScene, diceCamera);
+
+    animateDice();
+}
+
+let lastDiceFrameTime = performance.now();
+function animateDice() {
     requestAnimationFrame(animateDice);
+    const now = performance.now();
+    const dt = Math.min((now - lastDiceFrameTime) / 1000, 0.1);
+    lastDiceFrameTime = now;
+
+    if (diceList.length > 0) {
+        diceWorld.step(1/60, dt, 3);
+        diceList.forEach((mesh, i) => {
+            if (!bodyList[i]) return;
+            mesh.position.copy(bodyList[i].position);
+            mesh.quaternion.copy(bodyList[i].quaternion);
+            
+            let data = diceData[i];
+            if (data && data.isRolling && Date.now() - data.startTime > 1000) {
+                if (bodyList[i].velocity.length() < 0.1 && bodyList[i].angularVelocity.length() < 0.1) {
+                    data.isRolling = false;
+                    let worldUp = new THREE.Vector3(0, 1, 0);
+                    let maxDot = -Infinity, result = 1;
+                    data.faceNormals.forEach((normal, fIdx) => {
+                        let worldNormal = normal.clone().applyQuaternion(mesh.quaternion);
+                        let dot = worldNormal.dot(worldUp);
+                        if (dot > maxDot) { maxDot = dot; result = fIdx + 1; }
+                    });
+                    onDiceSettle(i, result);
+                }
+            }
+        });
+    }
+
+    diceRenderer.render(diceScene, diceCamera);
 }
 
 function onDiceSettle(idx, val) {
     const mat = diceList[idx].material[val - 1];
     if (mat) { mat.emissive.setHex(0x7dcfff); mat.emissiveIntensity = 2.0; }
     
+    diceData[idx].result = val;
+    if (!diceData.every(d => !d.isRolling)) return;
+
+    const total = diceData.reduce((acc, d) => acc + (d.result || 0), 0);
     const popup = document.getElementById('dice-result-popup');
-    popup.innerText = val;
+    popup.innerText = total;
     popup.style.opacity = '1';
     popup.style.transform = 'translateX(-50%) scale(1.2)';
 
@@ -185,7 +320,7 @@ function onDiceSettle(idx, val) {
         if (activeDiceCallback) {
             let cb = activeDiceCallback;
             activeDiceCallback = null;
-            cb(val);
+            cb(total);
         }
         setTimeout(() => {
             document.getElementById('dice-overlay').style.display = 'none';
@@ -198,20 +333,35 @@ function onDiceSettle(idx, val) {
     }, 1000);
 }
 
-function requestDiceRoll(type, callback) {
+function requestDiceRoll(type, callback, count = 1) {
+    if (isTimeRavaging) {
+        const sides = parseInt(type.slice(1)) || 6;
+        let total = 0;
+        for (let i = 0; i < count; i++) {
+            total += Math.floor(Math.random() * sides) + 1;
+        }
+        callback(total);
+        return;
+    }
     activeDiceCallback = callback;
     document.getElementById('dice-overlay').style.display = 'block';
+
+    diceList.forEach(m => diceScene.remove(m));
+    bodyList.forEach(b => diceWorld.remove(b));
+    diceList = []; bodyList = []; diceData = [];
+    document.getElementById('dice-result-popup').style.opacity = '0';
     
-    // Use the spawn and roll logic from previous turns
-    const idx = spawnDiceForOverlay(type);
-    const dBody = bodyList[idx];
-    const data = diceData[idx];
-    
-    data.isRolling = true;
-    data.startTime = Date.now();
-    dBody.position.set(10, 10, 8);
-    dBody.velocity.set(-18 - (Math.random() * 10), -12, -15 - (Math.random() * 10));
-    dBody.angularVelocity.set(Math.random() * 30, Math.random() * 30, Math.random() * 30);
+    for(let i=0; i<count; i++) {
+        const idx = spawnDiceForOverlay(type);
+        const dBody = bodyList[idx];
+        const data = diceData[idx];
+        
+        data.isRolling = true;
+        data.startTime = Date.now();
+        dBody.position.set(10 + (i*2), 10, 8);
+        dBody.velocity.set(-18 - (Math.random() * 10), -12, -15 - (Math.random() * 10));
+        dBody.angularVelocity.set(Math.random() * 30, Math.random() * 30, Math.random() * 30);
+    }
 }
 
 function spawnDiceForOverlay(type) {
@@ -222,6 +372,7 @@ function spawnDiceForOverlay(type) {
     
     config.faces.forEach((f, i) => {
         const isQuad = f.length === 4;
+        const startVertex = verticesArray.length / 3;
         const triIndices = isQuad ? [f[0], f[1], f[2], f[0], f[2], f[3]] : [f[0], f[1], f[2]];
         triIndices.forEach(vIdx => { const v = vertices[vIdx]; verticesArray.push(v.x, v.y, v.z); });
         for(let j=0; j < (isQuad ? 2 : 1); j++) uvsArray.push(0, 0, 1, 0, 0.5, 1);
@@ -230,7 +381,7 @@ function spawnDiceForOverlay(type) {
             map: createTextTextureForOverlay(i + 1, config.type),
             flatShading: true, color: 0xffffff, emissive: 0x000000, emissiveIntensity: 1
         }));
-        geometry.addGroup(materials.length === 1 ? 0 : verticesArray.length/3 - (isQuad ? 6 : 3), isQuad ? 6 : 3, i);
+        geometry.addGroup(startVertex, isQuad ? 6 : 3, i);
         const v0 = vertices[f[0]], v1 = vertices[f[1]], v2 = vertices[f[2]];
         faceNormals.push(new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(v1, v0), new THREE.Vector3().subVectors(v2, v0)).normalize());
     });
@@ -276,7 +427,7 @@ function createTextTextureForOverlay(text, type) {
 
 function updateLanguageUI() {
     const select = document.getElementById('setting-dict');
-    currentLang = select.options[select.selectedIndex].dataset.lang || 'en';
+    currentLang = (select && select.selectedIndex !== -1) ? select.options[select.selectedIndex].dataset.lang : 'en';
     TILE_DATA = TILE_SETS[currentLang];
     
     const t = TRANSLATIONS[currentLang];
@@ -382,9 +533,9 @@ async function loadDictionaryFromURL(url) {
 
 function getRandomSpell(tier) {
     let pool = [];
-    if (tier === 'low') pool = [...SPELLS.L1, ...SPELLS.L2];
-    else if (tier === 'med') pool = [...SPELLS.L3, ...SPELLS.L4];
-    else pool = [...SPELLS.L5, ...SPELLS.L6];
+    if (tier === 'low') pool = [...SPELLS.L1, ...SPELLS.L2, ...SPELLS.L3];
+    else if (tier === 'med') pool = [...SPELLS.L4, ...SPELLS.L5, ...SPELLS.L6];
+    else pool = [...SPELLS.L7, ...SPELLS.L8, ...SPELLS.L9];
     
     return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -507,6 +658,24 @@ function createBoard() {
             }
             
             cell.onclick = () => focusCell(r, c, (focusedCell.row === r && focusedCell.col === c) ? (focusedCell.dir === 'right' ? 'down' : 'right') : focusedCell.dir);
+            cell.onmouseenter = () => handleHealingWordHover(r, c, true);
+            cell.onmouseleave = () => handleHealingWordHover(r, c, false);
+            
+            cell.addEventListener('mouseenter', () => handlePolyHover(r, c, true));
+            cell.addEventListener('mouseleave', () => handlePolyHover(r, c, false));
+            cell.addEventListener('click', () => {
+                if (polySelection) handlePolyClick(r, c);
+            });
+
+            cell.addEventListener('mouseenter', () => handleFireballHover(r, c, true));
+            cell.addEventListener('mouseleave', () => handleFireballHover(r, c, false));
+            cell.addEventListener('click', () => {
+                if (fireballSelection) handleFireballClick(r, c);
+            });
+
+            cell.addEventListener('click', () => {
+                if (healingWordSelection) handleHealingWordClick(r, c);
+            });
             boardEl.appendChild(cell);
         }
     }
@@ -525,16 +694,18 @@ function focusCell(r, c, dir) {
 }
 
 function handleKeyboard(e) {
-    if (document.getElementById('launcher').style.display !== 'none' || draggingData || marketActive) return;
+    if (document.getElementById('launcher').style.display !== 'none' || draggingData || marketActive || healingWordSelection || fireballSelection || polySelection) return;
     if (document.getElementById('blankModal').style.display === 'flex') {
         const key = e.key.toUpperCase();
         if (TILE_DATA[key] && key !== '_') setBlankLetter(key);
         else if (key === 'ESCAPE') cancelBlank();
         return;
     }
-    if (gameConfig.ai !== 'local' && turn === 1) return;
+    if (gameConfig.ai !== 'local' && turn === 1 && !activeEffects[turn].telekinesis) return;
     
     const key = e.key.toUpperCase();
+    const isGrav = reverseGravityRounds > 0;
+
     if (key === 'BACKSPACE') {
         if (currentMove.length > 0) {
             const last = currentMove.pop();
@@ -543,18 +714,262 @@ function handleKeyboard(e) {
             focusCell(last.row, last.col, focusedCell.dir);
         }
     } else if (key === 'ENTER') submitMove();
-    else if (key === 'ARROWUP') focusCell(focusedCell.row - 1, focusedCell.col, 'down');
-    else if (key === 'ARROWDOWN') focusCell(focusedCell.row + 1, focusedCell.col, 'down');
-    else if (key === 'ARROWLEFT') focusCell(focusedCell.row, focusedCell.col - 1, 'right');
-    else if (key === 'ARROWRIGHT') focusCell(focusedCell.row, focusedCell.col + 1, 'right');
+    else if (key === 'ARROWUP') focusCell(focusedCell.row + (isGrav ? 1 : -1), focusedCell.col, 'down');
+    else if (key === 'ARROWDOWN') focusCell(focusedCell.row + (isGrav ? -1 : 1), focusedCell.col, 'down');
+    else if (key === 'ARROWLEFT') focusCell(focusedCell.row, focusedCell.col + (isGrav ? 1 : -1), 'right');
+    else if (key === 'ARROWRIGHT') focusCell(focusedCell.row, focusedCell.col + (isGrav ? -1 : 1), 'right');
     else if (TILE_DATA[key] && key !== '_') playLetter(key);
     else if (key === ' ' || key === '_') playLetter('_');
+}
+
+function handleHealingWordHover(r, c, isEnter) {
+    if (!healingWordSelection) return;
+    highlightedHealingCoords.forEach(coord => document.getElementById(`cell-${coord.r}-${coord.c}`).classList.remove('healing-highlight'));
+    highlightedHealingCoords = [];
+    const scorePreview = document.getElementById('score-preview');
+    scorePreview.style.display = 'none';
+    if (!isEnter || !boardState[r][c]) return;
+
+    const words = getWordCoordsAt(r, c);
+    if (!words) return;
+    highlightedHealingCoords = words.hWord || words.vWord || [];
+
+    if (highlightedHealingCoords.length > 0) {
+        highlightedHealingCoords.forEach(coord => document.getElementById(`cell-${coord.r}-${coord.c}`).classList.add('healing-highlight'));
+        const pts = calculateSingleWordScore(highlightedHealingCoords);
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        const rect = cell.getBoundingClientRect();
+        scorePreview.style.left = rect.left + window.scrollX + (rect.width/2) + 'px';
+        scorePreview.style.top = rect.top + window.scrollY - 5 + 'px';
+        scorePreview.innerText = '+' + pts;
+        scorePreview.style.display = 'block';
+    }
+}
+
+function handleHealingWordClick(r, c) {
+    if (!healingWordSelection || highlightedHealingCoords.length === 0) return;
+    const pts = calculateSingleWordScore(highlightedHealingCoords);
+    let oldScore = scores[turn];
+    scores[turn] += pts;
+    roundScores[turn] += pts;
+    highlightedHealingCoords.forEach(coord => {
+        boardState[coord.r][coord.c].owner = turn;
+        boardState[coord.r][coord.c].turnPlaced = globalTurnCounter;
+    });
+    animateScoreValue(turn, oldScore, scores[turn]);
+    healingWordSelection = false;
+    delete activeEffects[turn].healingWordActive;
+    highlightedHealingCoords = [];
+    document.querySelectorAll('.cell').forEach(el => el.classList.remove('healing-highlight'));
+    document.getElementById('score-preview').style.display = 'none';
+    renderBoard();
+    updateManaUI();
+    saveGame();
+}
+
+function handlePolyHover(r, c, isEnter) {
+    if (!polySelection) return;
+    highlightedPolyCoords.forEach(coord => document.getElementById(`cell-${coord.r}-${coord.c}`).classList.remove('poly-highlight'));
+    highlightedPolyCoords = [];
+    if (!isEnter || !boardState[r][c]) return;
+
+    const words = getWordCoordsAt(r, c);
+    if (!words) return;
+    highlightedPolyCoords = words.hWord || words.vWord || [];
+    highlightedPolyCoords.forEach(coord => document.getElementById(`cell-${coord.r}-${coord.c}`).classList.add('poly-highlight'));
+}
+
+function handlePolyClick(r, c) {
+    if (!polySelection || highlightedPolyCoords.length === 0) return;
+    
+    // Store current state for Power Word Heal (WEIRD logic placeholder)
+    // If we wanted to track every individual tile change, we would 
+    // but for now, we'll follow the specific revert instructions provided.
+
+    const len = highlightedPolyCoords.length;
+    const sameLengthWords = aiVocab.filter(w => w.length === len);
+    if (sameLengthWords.length === 0) return alert("No replacement word found!");
+
+    const newWord = sameLengthWords[Math.floor(Math.random() * sameLengthWords.length)];
+    
+    highlightedPolyCoords.forEach((coord, i) => {
+        const cell = document.getElementById(`cell-${coord.r}-${coord.c}`);
+        const tile = cell.querySelector('.tile');
+        if (tile) tile.classList.add('poly-morphing');
+        
+        setTimeout(() => {
+            boardState[coord.r][coord.c].letter = newWord[i];
+            renderBoard();
+        }, 500);
+    });
+
+    polySelection = false;
+    delete activeEffects[turn].polyActive;
+    setTimeout(() => {
+        document.querySelectorAll('.cell').forEach(el => el.classList.remove('poly-highlight'));
+        renderBoard();
+    }, 1000);
+}
+
+function findAllWordsOnBoard() {
+    const words = [];
+    const seen = new Set();
+
+    const scan = (dr, dc) => {
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                if (boardState[r][c]) {
+                    // Only start scan if it's the beginning of a word
+                    const pr = r - dr, pc = c - dc;
+                    if (pr >= 0 && pr < 15 && pc >= 0 && pc < 15 && boardState[pr][pc]) continue;
+
+                    let currentW = "", currentCoords = [];
+                    let cr = r, cc = c;
+                    while (cr < 15 && cc < 15 && boardState[cr][cc]) {
+                        currentW += boardState[cr][cc].letter;
+                        currentCoords.push({ r: cr, c: cc });
+                        cr += dr; cc += dc;
+                    }
+                    if (currentW.length > 1) {
+                        const id = currentCoords.map(co => `${co.r},${co.c}`).join('|');
+                        if (!seen.has(id)) {
+                            seen.add(id);
+                            words.push({ word: currentW, coords: currentCoords });
+                        }
+                    }
+                }
+            }
+        }
+    };
+    scan(0, 1); // Horizontal
+    scan(1, 0); // Vertical
+    return words;
+}
+
+function runEarthquake(count) {
+    const board = document.getElementById('board');
+    board.classList.add('shaking');
+    preEarthquakeBoard = JSON.parse(JSON.stringify(boardState));
+    
+    let steps = 0;
+    earthquakeInterval = setInterval(() => {
+        const moves = [[0,1],[0,-1],[1,0],[-1,0]];
+        for(let r=0; r<15; r++) {
+            for(let c=0; c<15; c++) {
+                if (boardState[r][c] && Math.random() > 0.5) {
+                    if (boardState[r][c].owner !== -1 && activeEffects[boardState[r][c].owner].invulnerable > 0) continue;
+                    const dir = moves[Math.floor(Math.random()*4)];
+                    const nr = r + dir[0], nc = c + dir[1];
+                    if (nr>=0 && nr<15 && nc>=0 && nc<15 && !boardState[nr][nc]) {
+                        boardState[nr][nc] = boardState[r][c];
+                        boardState[r][c] = null;
+                    }
+                }
+            }
+        }
+        renderBoard();
+        steps++;
+        if (steps >= count) {
+            clearInterval(earthquakeInterval);
+            earthquakeInterval = null;
+            setTimeout(() => board.classList.remove('shaking'), 2000);
+        }
+    }, 400);
+}
+
+function handleFireballHover(r, c, isEnter) {
+    if (!fireballSelection) return;
+    highlightedFireballCoords.forEach(coord => {
+        const el = document.getElementById(`cell-${coord.r}-${coord.c}`);
+        if (el) el.classList.remove('fireball-highlight');
+    });
+    highlightedFireballCoords = [];
+    if (!isEnter) return;
+
+    for (let i = r - 1; i <= r + 1; i++) {
+        for (let j = c - 1; j <= c + 1; j++) {
+            if (i >= 0 && i < 15 && j >= 0 && j < 15) {
+                highlightedFireballCoords.push({ r: i, c: j });
+                document.getElementById(`cell-${i}-${j}`).classList.add('fireball-highlight');
+            }
+        }
+    }
+}
+
+function handleFireballClick(r, c) {
+    if (!fireballSelection) return;
+    highlightedFireballCoords.forEach(coord => {
+        const tile = boardState[coord.r][coord.c];
+        if (tile) {
+            const owner = tile.owner;
+            if (owner !== -1) {
+                const val = calculateTileScore(coord.r, coord.c);
+                scores[owner] -= val;
+                lostPoints[owner] += val;
+                animateScoreValue(owner, scores[owner] + val, scores[owner]);
+            }
+            tile.isBurning = true;
+        }
+    });
+
+    fireballSelection = false;
+    delete activeEffects[turn].fireballActive;
+    renderBoard();
+
+    setTimeout(() => {
+        for (let r = 0; r < 15; r++) {
+            for (let c = 0; c < 15; c++) {
+                if (boardState[r][c]?.isBurning) {
+                    deadTiles.push({ r, c, data: { ...boardState[r][c], isBurning: false } });
+                    boardState[r][c] = null;
+                }
+            }
+        }
+        renderBoard();
+    }, 2500);
+}
+
+function calculateTileScore(r, c) {
+    const data = boardState[r][c];
+    if (!data) return 0;
+    let val = data.isBlank ? 0 : TILE_DATA[data.letter].v;
+    const bonus = BONUSES[`${r},${c}`];
+    if (bonus === 'DL') val *= 2;
+    if (bonus === 'TL') val *= 3;
+    return val;
+}
+
+function getWordCoordsAt(r, c) {
+    if (!boardState[r][c]) return null;
+    let hCoords = [{r, c}], vCoords = [{r, c}];
+    let tc = c - 1; while(tc >= 0 && boardState[r][tc]) { hCoords.unshift({r, c: tc}); tc--; }
+    tc = c + 1; while(tc < 15 && boardState[r][tc]) { hCoords.push({r, c: tc}); tc++; }
+    let tr = r - 1; while(tr >= 0 && boardState[tr][c]) { vCoords.unshift({r: tr, c}); tr--; }
+    tr = r + 1; while(tr < 15 && boardState[tr][c]) { vCoords.push({r: tr, c}); tr++; }
+    return { hWord: hCoords.length > 1 ? hCoords : null, vWord: vCoords.length > 1 ? vCoords : null };
+}
+
+function calculateSingleWordScore(coords) {
+    let wordMultiplier = 1, wordScore = 0;
+    coords.forEach(coord => {
+        const data = boardState[coord.r][coord.c];
+        if (!data) return;
+        let letterScore = data.isBlank ? 0 : TILE_DATA[data.letter].v;
+        if (data.type === 'poison') letterScore *= -1;
+        const bonus = BONUSES[`${coord.r},${coord.c}`];
+        if (bonus === 'DL') letterScore *= 2;
+        if (bonus === 'TL') letterScore *= 3;
+        if (bonus === 'DW' || bonus === 'ST') wordMultiplier *= 2;
+        if (bonus === 'TW') wordMultiplier *= 3;
+        wordScore += letterScore;
+    });
+    return wordScore * wordMultiplier;
 }
 
 // DRAG AND DROP
 function onPointerDown(e, type, letter, original, r, c, rackIdx) {
     if (e.button && e.button !== 0) return;
-    if (marketActive || (gameConfig.ai !== 'local' && turn === 1)) return;
+    if (marketActive || (gameConfig.ai !== 'local' && turn === 1 && !activeEffects[turn].telekinesis)) return;
     
     let target = e.currentTarget;
     let rect = target.getBoundingClientRect();
@@ -608,7 +1023,7 @@ function onPointerUp(e) {
     ghost.style.display = 'none';
     let dropTarget = document.elementFromPoint(e.clientX, e.clientY);
     let cell = dropTarget ? dropTarget.closest('.cell') : null;
-    let rackArea = dropTarget ? dropTarget.closest('#rack') : null;
+    let rackArea = dropTarget ? (dropTarget.closest('#rack') || dropTarget.closest('#secondary-rack')) : null;
     
     if (cell) {
         let tr = parseInt(cell.dataset.row), tc = parseInt(cell.dataset.col);
@@ -617,8 +1032,10 @@ function onPointerUp(e) {
             return;
         }
         
-        if (type === 'rack') {
-            racks[turn].splice(rackIdx, 1);
+        if (type === 'rack' || type === 'secondary') {
+            if (type === 'rack') racks[turn].splice(rackIdx, 1);
+            else secondaryRacks[turn].splice(rackIdx, 1);
+
             if (original === '_') {
                 pendingBlankCell = { row: tr, col: tc, original: '_' };
                 document.getElementById('blankModal').style.display = 'flex';
@@ -655,36 +1072,48 @@ function clickToReturn(r, c) {
     }
 }
 
-function playLetter(letterStr, specificIdx = -1) {
-    let rackIdx = specificIdx;
-    
-    // Web Check
-    if (activeEffects[turn].webbedIndices?.includes(rackIdx)) return;
+function playLetter(letterStr, specificIdx = -1, isSecondary = false) {
+    let currentRack = isSecondary ? secondaryRacks[turn] : racks[turn];
+    if (!currentRack) return;
 
+    let rackIdx = specificIdx;
     if (rackIdx === -1) {
-        rackIdx = racks[turn].indexOf(letterStr);
-        if (rackIdx === -1) {
-            rackIdx = racks[turn].indexOf('_');
-            if (rackIdx === -1) return;
+        rackIdx = currentRack.indexOf(letterStr);
+        // If letter not found, and we're typing, check for a blank tile immediately
+        if (rackIdx === -1 && letterStr !== '_' && letterStr !== ' ' && letterStr.length === 1) {
+            rackIdx = currentRack.indexOf('_');
         }
     }
 
-    let original = racks[turn][rackIdx];
+    if (rackIdx === -1) {
+        if (!isSecondary && secondaryRacks[turn] && secondaryRacks[turn].length > 0) {
+            return playLetter(letterStr, -1, true);
+        }
+        return;
+    }
     
+    if (!isSecondary && activeEffects[turn].webbedIndices?.includes(rackIdx)) return;
+
+    let original = currentRack[rackIdx];
+    if (original === undefined || (!original && original !== '_')) return;
+
     let { row, col, dir } = focusedCell;
     while (boardState[row][col] || currentMove.some(m => m.row === row && m.col === col)) {
         if (dir === 'right') col++; else row++;
         if (col > 14 || row > 14) return;
     }
 
-    racks[turn].splice(rackIdx, 1);
+    currentRack.splice(rackIdx, 1);
     
-    // MODIFIED: Skip modal if typing a specific letter for a blank
-    if (original === '_' && (letterStr === '_' || letterStr === ' ')) {
+    if (original === '_' && letterStr !== '_' && letterStr !== ' ' && letterStr.length === 1) {
+        currentMove.push({ row, col, letter: letterStr, original: '_' });
+        advanceFocus();
+        renderRack(); renderBoard(); validateMove();
+    } else if (original === '_' && (letterStr === '_' || letterStr === ' ')) {
         pendingBlankCell = { row, col, original: '_' };
         document.getElementById('blankModal').style.display = 'flex';
     } else {
-        currentMove.push({ row, col, letter: letterStr, original: original });
+        currentMove.push({ row, col, letter: original, original: original });
         advanceFocus();
         renderRack(); renderBoard(); validateMove();
     }
@@ -711,35 +1140,63 @@ function cancelBlank() {
 
 function advanceFocus() {
     let { row, col, dir } = focusedCell;
+    const isGrav = reverseGravityRounds > 0;
     do {
-        if (dir === 'right') col++; else row++;
-    } while (col < 15 && row < 15 && (boardState[row][col] || currentMove.some(m => m.row === row && m.col === col)));
-    if (col < 15 && row < 15) focusCell(row, col, dir);
+        if (dir === 'right') isGrav ? col-- : col++; 
+        else isGrav ? row-- : row++;
+    } while (col >= 0 && col < 15 && row >= 0 && row < 15 && (boardState[row][col] || currentMove.some(m => m.row === row && m.col === col)));
+    if (col >= 0 && col < 15 && row >= 0 && row < 15) focusCell(row, col, dir);
 }
 
 function renderRack() {
     const rackEl = document.getElementById('rack');
+    let secondaryEl = document.getElementById('secondary-rack');
     rackEl.innerHTML = '';
-    if (gameConfig.ai !== 'local' && turn === 1) return;
-    racks[turn].forEach((letter, idx) => {
-        const div = document.createElement('div');
-        div.className = 'rack-tile';
-        if (activeEffects[turn].webbedIndices?.includes(idx)) div.classList.add('webbed');
+    if (secondaryEl) secondaryEl.innerHTML = '';
 
-        div.innerText = letter === '_' ? '' : letter;
-        
-        const val = document.createElement('div');
-        val.className = 'value';
-        val.innerText = letter === '_' ? 0 : TILE_DATA[letter].v;
-        div.appendChild(val);
-        
-        div.onpointerdown = (e) => onPointerDown(e, 'rack', letter, letter, -1, -1, idx);
-        rackEl.appendChild(div);
+    if (turn === 2) return; // Copies don't show racks
+    if (gameConfig.ai !== 'local' && turn === 1 && !activeEffects[turn].telekinesis) return;
+
+    if (activeEffects[turn].demiplaneSize > 0 && !secondaryEl) {
+        secondaryEl = document.createElement('div');
+        secondaryEl.id = 'secondary-rack';
+        secondaryEl.className = 'rack-container secondary-rack';
+        document.querySelector('.rack-wrapper').after(secondaryEl);
+    } else if (!activeEffects[turn].demiplaneSize && secondaryEl) {
+        secondaryEl.remove();
+    }
+
+    racks[turn].forEach((letter, idx) => {
+        rackEl.appendChild(createRackTileElement(letter, idx, false));
     });
+
+    if (activeEffects[turn].demiplaneSize > 0) {
+        secondaryRacks[turn].forEach((letter, idx) => {
+            secondaryEl.appendChild(createRackTileElement(letter, idx, true));
+        });
+    }
+}
+
+function createRackTileElement(letter, idx, isSecondary) {
+    const div = document.createElement('div');
+    div.className = 'rack-tile';
+    if (!isSecondary && activeEffects[turn].webbedIndices?.includes(idx)) div.classList.add('webbed');
+    if (activeEffects[turn].bless) div.classList.add('blessed');
+    div.innerText = letter === '_' ? '' : letter;
+    const val = document.createElement('div');
+    val.className = 'value';
+    val.innerText = letter === '_' ? 0 : TILE_DATA[letter].v;
+    div.appendChild(val);
+    div.onpointerdown = (e) => onPointerDown(e, isSecondary ? 'secondary' : 'rack', letter, letter, -1, -1, idx);
+    return div;
 }
 
 function renderBoard() {
     document.querySelectorAll('.cell .tile').forEach(e => e.remove());
+    const boardEl = document.getElementById('board');
+    if (reverseGravityRounds > 0) boardEl.classList.add('reversed');
+    else boardEl.classList.remove('reversed');
+
     for (let r = 0; r < 15; r++) {
         for (let c = 0; c < 15; c++) {
             if (boardState[r][c]) {
@@ -771,11 +1228,27 @@ function renderTileOnBoard(r, c, letter, isTemp, isBlank, owner, placedIdx) {
         tile.classList.add('just-placed');
         tile.style.animationDelay = `${placedIdx * 0.1}s`;
     }
+    
+    if (state?.type) {
+        tile.classList.add(state.type);
+        if (state.type === 'decoy') {
+            if (state.owner === turn) tile.classList.add('decoy-caster');
+            else tile.classList.remove('decoy'); // Hide decoy status from opponent
+        }
+    }
+
+    if (state?.isGravityTile) tile.classList.add('upside-down');
+    if (state?.isSimulacrum) tile.classList.add('simulacrum-tile');
+
     if (isBlank) tile.classList.add('blank-played');
     if (state?.shieldedBy !== undefined) tile.classList.add('shielded');
     if (state?.fireShieldedBy !== undefined) tile.classList.add('fire-shielded');
+    if (state?.isBurning) tile.classList.add('burning');
     
-    tile.innerText = letter; 
+    const letterSpan = document.createElement('span');
+    letterSpan.className = 'letter-span';
+    letterSpan.innerText = letter;
+    tile.appendChild(letterSpan);
     
     if (isTemp) tile.onpointerdown = (e) => onPointerDown(e, 'board', letter, isBlank ? '_' : letter, r, c, -1);
     
@@ -830,7 +1303,18 @@ function validateMove() {
     if (isValid) {
         words = findWordsOnBoard();
         if (words.length === 0) isValid = false;
-        if (dictionary.size > 0 && isValid) words.forEach(w => { if (!dictionary.has(w.word)) isValid = false; });
+        if (dictionary.size > 0 && isValid) {
+            words.forEach(w => { 
+                const isTraceWord = (activeEffects[turn].passWithoutTrace === w.word.length);
+                if (!dictionary.has(w.word) && !isTraceWord) isValid = false; 
+            });
+        }
+    }
+
+    if (isValid && activeEffects[turn].slowLimit) {
+        words.forEach(w => {
+            if (w.word.length > activeEffects[turn].slowLimit) isValid = false;
+        });
     }
 
     const tiles = document.querySelectorAll('.tile.temp');
@@ -865,6 +1349,7 @@ function calculateScore() {
         w.coords.forEach(coord => {
             const {r, c} = coord;
             const letter = w.word[w.coords.indexOf(coord)];
+            const tileData = boardState[r][c];
             
             let isBlank = false;
             if (boardState[r][c]) isBlank = boardState[r][c].isBlank;
@@ -874,6 +1359,9 @@ function calculateScore() {
             }
             
             let letterScore = isBlank ? 0 : TILE_DATA[letter].v;
+            if (tileData?.type === 'poison') letterScore *= -1;
+            if (tileData?.type === 'potential') letterScore = 0;
+
             const movePart = currentMove.find(m => m.row === r && m.col === c);
             if (movePart) {
                 const bonus = BONUSES[`${r},${c}`];
@@ -890,7 +1378,7 @@ function calculateScore() {
     if (currentMove.length === 7) moveTotal += 50;
 
     // Healing Word Effect
-    if (activeEffects[turn].doubleScore) moveTotal *= 2;
+    if (activeEffects[turn].doubleScore || activeEffects[turn].bless) moveTotal *= 2;
 
     return moveTotal;
 }
@@ -970,19 +1458,35 @@ function updateManaUI() {
 }
 
 function payMana(player, amount) {
-    let ownedTiles = [];
-    for(let r=0; r<15; r++) {
-        for(let c=0; c<15; c++) {
-            if (boardState[r][c] && boardState[r][c].owner === player) {
-                ownedTiles.push({r, c, turnPlaced: boardState[r][c].turnPlaced});
+    if (amount < 0) {
+        // Debug Mode: Gain Mana
+        let count = 0;
+        const target = Math.abs(amount);
+        for(let r=0; r<15 && count < target; r++) {
+            for(let c=0; c<15 && count < target; c++) {
+                if (!boardState[r][c]) {
+                    boardState[r][c] = { letter: '?', owner: player, type: 'regular', turnPlaced: globalTurnCounter };
+                    count++;
+                } else if (boardState[r][c].owner === -1) {
+                    boardState[r][c].owner = player;
+                    count++;
+                }
             }
         }
-    }
-    
-    ownedTiles.sort((a,b) => a.turnPlaced - b.turnPlaced);
-    
-    for(let i=0; i<amount; i++) {
-        if (ownedTiles[i]) boardState[ownedTiles[i].r][ownedTiles[i].c].owner = -1;
+    } else {
+        // Standard Mode: Spend Mana
+        let ownedTiles = [];
+        for(let r=0; r<15; r++) {
+            for(let c=0; c<15; c++) {
+                if (boardState[r][c] && boardState[r][c].owner === player) {
+                    ownedTiles.push({r, c, turnPlaced: boardState[r][c].turnPlaced});
+                }
+            }
+        }
+        ownedTiles.sort((a,b) => a.turnPlaced - b.turnPlaced);
+        for(let i=0; i<amount; i++) {
+            if (ownedTiles[i]) boardState[ownedTiles[i].r][ownedTiles[i].c].owner = -1;
+        }
     }
     
     renderBoard();
@@ -1001,8 +1505,16 @@ function submitMove() {
 
     const pts = calculateScore();
     let oldScore = scores[turn];
-    scores[turn] += pts;
-    roundScores[turn] += pts;
+    
+    if (turn === 2 && copyPlayer?.type === 'simulacrum') {
+        const target = copyPlayer.owner === 0 ? 1 : 0;
+        scores[target] -= pts;
+        animateScoreValue(target, scores[target] + pts, scores[target]);
+    } else {
+        let scoreTarget = (turn === 2) ? copyPlayer.owner : turn;
+        scores[scoreTarget] += pts;
+        roundScores[scoreTarget] += pts;
+    }
     
     let isBingo = currentMove.length === 7;
     if (isBingo) bingoCoupons[turn] = 1; 
@@ -1031,17 +1543,47 @@ function submitMove() {
         return;
     }
 
+    let decoyTrapTriggered = false;
+    words.forEach(w => {
+        w.coords.forEach(coord => {
+            const cell = boardState[coord.r][coord.c];
+            if (cell && cell.owner !== turn && cell.type === 'decoy') decoyTrapTriggered = true;
+        });
+    });
+
+    if (decoyTrapTriggered) {
+        alert("DECOY TRAP! Move revoked and turn skipped.");
+        words.forEach(w => {
+            w.coords.forEach(coord => {
+                if (boardState[coord.r][coord.c]?.type === 'decoy') boardState[coord.r][coord.c] = null;
+            });
+        });
+        resetMove();
+        activeEffects[turn].skipTurn = true;
+        passTurn();
+        return;
+    }
+
     let placedIdx = 0;
     currentMove.forEach(m => {
-        boardState[m.row][m.col] = { letter: m.letter, isBlank: m.original === '_', owner: turn, turnPlaced: globalTurnCounter, justPlaced: placedIdx++ };
+        let actualRow = m.row, actualCol = m.col;
+        if (reverseGravityRounds > 0) {
+            actualRow = 14 - m.row;
+            actualCol = 14 - m.col;
+        }
+        const isSim = (turn === 2 && copyPlayer?.type === 'simulacrum');
+        const owner = (turn === 2) ? copyPlayer.owner : turn;
+        boardState[actualRow][actualCol] = { letter: m.letter, isBlank: m.original === '_', owner: owner, turnPlaced: globalTurnCounter, justPlaced: placedIdx++, isGravityTile: reverseGravityRounds > 0, isSimulacrum: isSim };
     });
 
     words.forEach(w => {
         w.coords.forEach(coord => {
+            let ar = coord.r, ac = coord.c;
+            if (reverseGravityRounds > 0) { ar = 14 - coord.r; ac = 14 - coord.c; }
             const cell = boardState[coord.r][coord.c];
-            if (cell) {
-                // Shield Check: Respect existing owner if shielded
-                if (cell.shieldedBy !== undefined && cell.shieldedBy !== turn) {
+            if (cell && turn !== 2) { // Copies don't claim tiles
+                // Shield & Protected Check
+                if ((cell.shieldedBy !== undefined || cell.type === 'protected') && cell.owner !== turn) {
                     // Don't change owner
                 } else {
                     cell.owner = turn;
@@ -1051,13 +1593,12 @@ function submitMove() {
         });
     });
 
-    // Contingency Check
     if (activeEffects[turn].contingency) {
         const { condition, spell } = activeEffects[turn].contingency;
         let triggered = false;
-        if (condition === 1 && pts >= 70) triggered = true;
-        if (condition === 5 && isBingo) triggered = true;
-        if (condition === 9) triggered = true; // Next turn trigger
+        if ((condition === 1 || condition === 2) && pts >= 70) triggered = true;
+        if ((condition === 3 || condition === 4 || condition === 5) && isBingo) triggered = true;
+        if (condition >= 6) triggered = true; 
 
         if (triggered) {
             castSpellEffect(spell, turn);
@@ -1065,10 +1606,13 @@ function submitMove() {
         }
     }
 
-    moveHistory.unshift({ player: turn, action: 'play', wordTiles: wordTileData, wordString: primaryWord.word, extraWords: words.length - 1, pts: pts, bingo: isBingo });
+    moveHistory.unshift({ player: turn, action: 'play', wordTiles: wordTileData, wordString: primaryWord.word, extraWords: words.length - 1, pts: pts, bingo: isBingo, turnIndex: globalTurnCounter });
 
     if (activeEffects[turn].doubleScore) delete activeEffects[turn].doubleScore;
+    if (activeEffects[turn].bless) delete activeEffects[turn].bless;
+    if (activeEffects[turn].passWithoutTrace) delete activeEffects[turn].passWithoutTrace;
     if (activeEffects[turn].fly) delete activeEffects[turn].fly;
+    if (activeEffects[turn].telekinesis) delete activeEffects[turn].telekinesis;
 
     animateScoreValue(turn, oldScore, scores[turn]);
     fillRack(turn);
@@ -1157,37 +1701,97 @@ function updateTimerDisplay() {
 }
 
 function nextTurn() {
+    // Save state snapshot for True Resurrection
+    const snapshot = JSON.stringify({ boardState, racks, bag, scores, turn, playerSpells, activeEffects, lostPoints });
+    gameHistory.unshift(snapshot);
+    if (gameHistory.length > 40) gameHistory.pop();
+
     // Cleanup round-based durations
     Object.keys(activeEffects[turn]).forEach(k => {
         if (typeof activeEffects[turn][k] === 'number') {
             activeEffects[turn][k]--;
+            if (k === 'timeStop' && activeEffects[turn][k] >= 0) activeEffects[turn].skipTurn = true;
             if (activeEffects[turn][k] <= 0) {
                 if (k === 'shield') removeBoardEffect('shieldedBy', turn);
                 if (k === 'fireShield') removeBoardEffect('fireShieldedBy', turn);
+                if (k === 'web') delete activeEffects[turn].webbedIndices;
+                if (k === 'slow') delete activeEffects[turn].slowLimit;
+                if (k === 'invulnerable') document.getElementById(`card-p${turn+1}`).classList.remove('invulnerable');
                 delete activeEffects[turn][k];
             }
         }
     });
 
-    // Haste Check: Grant an extra move
-    if (activeEffects[turn].extraMoves > 0) {
-        activeEffects[turn].extraMoves--;
+    if (activeEffects[turn].familiarWords) delete activeEffects[turn].familiarWords;
+    document.getElementById('familiar-previews').innerText = '';
+
+    if (isTimeRavaging && globalTurnCounter >= targetTimeRavageTurn) {
+        isTimeRavaging = false;
+        const board = document.getElementById('board');
+        if (board) board.classList.remove('fast-forward-active');
         updateUI();
-        if (gameConfig.ai !== 'local' && turn === 1) setTimeout(playAI, 1200);
+        if (timeRavageCallback) { let cb = timeRavageCallback; timeRavageCallback = null; cb(); }
         return;
     }
 
-    turn = turn === 0 ? 1 : 0;
+    const aiDelay = isTimeRavaging ? 200 : 1200;
 
-    if (activeEffects[turn].skipTurn) {
+    if (activeEffects[turn].extraMoves > 0) {
+        activeEffects[turn].extraMoves--;
+        updateUI();
+        if (isTimeRavaging || (gameConfig.ai !== 'local' && (turn === 1 || turn === 2))) setTimeout(playAI, aiDelay);
+        return;
+    }
+
+    if (reverseGravityRounds > 0) {
+        reverseGravityRounds--;
+        if (reverseGravityRounds === 0) {
+            // Set all tiles that were upright during flip to upside-down for normal view
+            for(let r=0; r<15; r++) for(let c=0; c<15; c++) {
+                if (boardState[r][c] && boardState[r][c].isGravityTile) boardState[r][c].isGravityTile = true;
+                else if (boardState[r][c]) boardState[r][c].isGravityTile = false;
+            }
+        }
+    }
+
+    if (copyPlayer) {
+        copyPlayer.rounds--;
+        if (copyPlayer.rounds <= 0) copyPlayer = null;
+    }
+    
+    if (activeEffects[turn].polyActive) polySelection = true;
+
+    if (copyPlayer && turn === 1) {
+        turn = 2;
+    } else {
+        turn = (turn === 0 || turn === 2) ? 1 : 0;
+    }
+
+    // Inject Copy Turn
+    if (copyPlayer && turn === copyPlayer.owner) {
+        // Handle copy turn after the caster's turn logic
+    }
+
+    if (activeEffects[turn].fireballActive) fireballSelection = true;
+
+    if (activeEffects[turn].healingWordActive) healingWordSelection = true;
+
+    if (activeEffects[turn].skipTurn && !marketActive) {
         delete activeEffects[turn].skipTurn;
         moveHistory.unshift({ player: turn, action: 'pass', pts: 0, spellTitle: 'Stunned' });
         return nextTurn();
     }
 
     updateUI();
-    if (gameConfig.ai !== 'local' && turn === 1) setTimeout(playAI, 1200);
-    else if (activeEffects[turn].confused) setTimeout(playAI, 1200);
+    if (isTimeRavaging) {
+        setTimeout(() => playAI(false, false, true), aiDelay);
+    } else if (activeEffects[turn].suggestion) {
+        setTimeout(() => playAI(true), aiDelay);
+    } else if (activeEffects[turn].confused) {
+        setTimeout(() => playAI(false, true), aiDelay);
+    } else if (gameConfig.ai !== 'local' && (turn === 1 || turn === 2) && !activeEffects[turn].telekinesis) {
+        setTimeout(playAI, aiDelay);
+    }
 }
 
 function removeBoardEffect(property, owner) {
@@ -1209,11 +1813,20 @@ function castSpellEffect(spell, playerId, onComplete) {
         return;
     }
 
+    if (activeEffects[opponentId].mirrorImage > 0 && spell.level >= 1 && spell.id !== 'greater_restoration') {
+        activeEffects[opponentId].mirrorImage--;
+        alert(`${playerNames[opponentId]}'s Mirror Image absorbed the spell!`);
+        return false;
+    }
+
     switch(spell.id) {
         case 'shield':
             activeEffects[playerId].shield = 2;
             for(let r=0; r<15; r++) for(let c=0; c<15; c++) 
                 if (boardState[r][c] && boardState[r][c].owner === playerId) boardState[r][c].shieldedBy = playerId;
+            break;
+        case 'bless':
+            activeEffects[playerId].bless = true;
             break;
         case 'fire_shield':
             activeEffects[playerId].fireShield = 2;
@@ -1221,11 +1834,29 @@ function castSpellEffect(spell, playerId, onComplete) {
                 if (boardState[r][c] && boardState[r][c].owner === playerId) boardState[r][c].fireShieldedBy = playerId;
             break;
         case 'healing_word':
-            activeEffects[playerId].doubleScore = true;
+            activeEffects[playerId].healingWordActive = true;
             break;
         case 'hold_person':
-            activeEffects[opponentId].skipTurn = true;
+            activeEffects[opponentId].holdPerson = 1;
             break;
+        case 'pass_without_trace':
+            requestDiceRoll('d4', (roll) => {
+                activeEffects[playerId].passWithoutTrace = roll + 1;
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'suggestion':
+            requestDiceRoll('d20', (roll) => {
+                if (roll >= 10) activeEffects[opponentId].suggestion = true;
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'sleep':
+            requestDiceRoll('d20', (roll) => {
+                if (roll >= 10) activeEffects[opponentId].skipTurn = true;
+                if (onComplete) onComplete();
+            });
+            return true;
         case 'invisibility':
             if (racks[playerId].length > 0) {
                 let idx = Math.floor(Math.random() * racks[playerId].length);
@@ -1233,7 +1864,7 @@ function castSpellEffect(spell, playerId, onComplete) {
             }
             break;
         case 'mirror_image':
-            activeEffects[playerId].mirrorImage = true;
+            activeEffects[playerId].mirrorImage = 2;
             break;
         case 'contingency':
             const randomSpell = getRandomSpell('low');
@@ -1242,15 +1873,38 @@ function castSpellEffect(spell, playerId, onComplete) {
             break;
         case 'greater_invis':
             requestDiceRoll('d4', (roll) => {
-                for(let i=0; i<roll; i++) {
-                    if (racks[playerId].length > 0) {
-                        let idx = Math.floor(Math.random() * racks[playerId].length);
-                        racks[playerId][idx] = '_';
+                const count = roll + 1;
+                for(let i=0; i<count; i++) {
+                    const available = racks[playerId].map((l, idx) => l !== '_' ? idx : -1).filter(idx => idx !== -1);
+                    if (available.length > 0) {
+                        const randIdx = available[Math.floor(Math.random() * available.length)];
+                        racks[playerId][randIdx] = '_';
                     }
                 }
                 if (onComplete) onComplete();
             });
             return true; // Mark as async
+        case 'find_familiar':
+            requestDiceRoll('d6', (roll) => {
+                const maxLen = roll + 1;
+                const suggestions = [];
+                // Reusing AI helper logic to find words
+                for (let word of aiVocab) {
+                    if (word.length <= maxLen && canFormWord(word, racks[playerId])) {
+                        suggestions.push(word);
+                        if (suggestions.length >= 3) break;
+                    }
+                }
+                if (suggestions.length > 0) {
+                    activeEffects[playerId].familiarWords = suggestions;
+                    const div = document.getElementById('familiar-previews');
+                    div.innerHTML = suggestions.map(w => `<span>✨ ${w}</span>`).join('');
+                } else {
+                    alert("The familiar couldn't find any words!");
+                }
+                if (onComplete) onComplete();
+            });
+            return true;
         case 'web':
             requestDiceRoll('d6', (roll) => {
                 activeEffects[opponentId].webbedIndices = [];
@@ -1259,12 +1913,37 @@ function castSpellEffect(spell, playerId, onComplete) {
                 if (onComplete) onComplete();
             });
             return true; // Mark as async
+        case 'fireball':
+            activeEffects[playerId].fireballActive = true;
+            break;
+        case 'revivify':
+            requestDiceRoll('d4', (roll) => {
+                let restored = 0;
+                // Re-add last 1d4 removed tiles if space is open
+                for (let i = deadTiles.length - 1; i >= 0 && restored < roll; i--) {
+                    const entry = deadTiles[i];
+                    if (!boardState[entry.r][entry.c]) {
+                        boardState[entry.r][entry.c] = { ...entry.data, type: 'revived', owner: playerId };
+                        const val = calculateTileScore(entry.r, entry.c);
+                        scores[playerId] += val;
+                        animateScoreValue(playerId, scores[playerId] - val, scores[playerId]);
+                        deadTiles.splice(i, 1);
+                        restored++;
+                    }
+                }
+                if (onComplete) onComplete();
+            });
+            return true;
         case 'counterspell':
-            let lastMove = moveHistory.find(m => m.player === opponentId && m.action === 'play');
-            if (lastMove) {
-                scores[opponentId] -= lastMove.pts;
-                lostPoints[opponentId] += lastMove.pts;
-                lastMove.pts = -lastMove.pts; // Negate in log
+            const lastAction = moveHistory[0];
+            if (lastAction && lastAction.player === opponentId) {
+                if (activeEffects[opponentId].invulnerable > 0) return alert("Counterspell failed: Opponent is Invulnerable!");
+                if (lastAction.action === 'play') {
+                    scores[opponentId] -= lastAction.pts;
+                    lostPoints[opponentId] += lastAction.pts;
+                    lastAction.pts = -lastAction.pts;
+                }
+                alert(`Countered ${playerNames[opponentId]}'s last ${lastAction.action}!`);
             }
             break;
         case 'haste':
@@ -1273,13 +1952,227 @@ function castSpellEffect(spell, playerId, onComplete) {
                 if (onComplete) onComplete();
             });
             return true;
+        case 'slow':
+            requestDiceRoll('d4', (roll) => {
+                activeEffects[opponentId].slow = 1;
+                activeEffects[opponentId].slowLimit = roll + 2;
+                if (onComplete) onComplete();
+            });
+            return true;
         case 'fly':
             activeEffects[playerId].fly = true;
             break;
         case 'confusion':
             activeEffects[opponentId].confused = true;
-            activeEffects[opponentId].confusion = 2;
+            activeEffects[opponentId].confusion = 1;
             break;
+        case 'telekinesis':
+            activeEffects[opponentId].telekinesis = true;
+            break;
+        case 'gate':
+            const currentTurns = globalTurnCounter;
+            const savedRacks = JSON.parse(JSON.stringify(racks));
+            alert("Stepping through the Gate... generating alternate reality.");
+            
+            // Reset World
+            boardState = Array(15).fill().map(() => Array(15).fill(null));
+            scores = [0, 0];
+            bag = [];
+            for (const [letter, data] of Object.entries(TILE_DATA)) {
+                for (let i = 0; i < data.c; i++) bag.push(letter);
+            }
+            shuffle(bag);
+            
+            // Simulate AI Match
+            for (let i = 0; i < currentTurns; i++) {
+                const simTurn = i % 2;
+                // Temporary rack for simulation
+                let simRack = [];
+                for(let j=0; j<7; j++) if(bag.length > 0) simRack.push(bag.pop());
+                // Placeholder for simulation logic
+                const move = null; 
+                if (move) {
+                    move.move.forEach(m => {
+                        boardState[m.row][m.col] = { 
+                            letter: m.letter, 
+                            isBlank: m.original === '_', 
+                            owner: simTurn, 
+                            turnPlaced: i 
+                        };
+                    });
+                    scores[simTurn] += move.score;
+                }
+            }
+            racks = savedRacks;
+            renderBoard();
+            updateUI();
+            break;
+        case 'weird':
+            const letters = Object.keys(TILE_DATA).filter(l => l !== '_');
+            // Randomize Values
+            letters.forEach(l => { TILE_DATA[l].v = Math.floor(Math.random() * 10) + 1; });
+            
+            // Shuffling Animation
+            let shuffleCount = 0;
+            const weirdInt = setInterval(() => {
+                for(let r=0; r<15; r++) for(let c=0; c<15; c++) {
+                    if (boardState[r][c]) boardState[r][c].letter = letters[Math.floor(Math.random()*letters.length)];
+                }
+                racks.forEach(rack => {
+                    for(let i=0; i<rack.length; i++) if(rack[i] !== '_') rack[i] = letters[Math.floor(Math.random()*letters.length)];
+                });
+                renderBoard();
+                renderRack();
+                shuffleCount++;
+                if (shuffleCount > 20) {
+                    clearInterval(weirdInt);
+                    renderBoard();
+                    renderRack();
+                }
+            }, 100);
+            break;
+        case 'wish':
+            showWishModal(playerId, onComplete);
+            return true;
+        case 'true_resurrection':
+            requestDiceRoll('d20', (roll) => {
+                const overlay = document.getElementById('vhs-overlay');
+                if (overlay) overlay.classList.add('active');
+                const targetIndex = Math.min(roll, gameHistory.length - 1);
+                setTimeout(() => {
+                    const restored = JSON.parse(gameHistory[targetIndex]);
+                    ({ boardState, racks, bag, scores, turn, playerSpells, activeEffects, lostPoints } = restored);
+                    if (overlay) overlay.classList.remove('active');
+                    updateUI();
+                    saveGame();
+                }, 3000);
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'time_ravage':
+            isTimeRavaging = true; 
+            requestDiceRoll('d6', (roll) => {
+                timeRavageCallback = onComplete;
+                targetTimeRavageTurn = globalTurnCounter + ((roll + 1) * 2);
+                const board = document.getElementById('board');
+                if (board) board.classList.add('fast-forward-active');
+                playAI(false, false, true);
+            });
+            return true;
+        case 'invulnerability':
+            requestDiceRoll('d6', (roll) => {
+                activeEffects[playerId].invulnerable = roll;
+                document.getElementById(`card-p${playerId+1}`).classList.add('invulnerable');
+                if (onComplete) onComplete();
+            }, 4);
+            return true;
+        case 'mass_polymorph':
+            requestDiceRoll('d4', (roll) => {
+                const count = roll + 2;
+                const allWords = findAllWordsOnBoard();
+                shuffle(allWords);
+                const targetWords = allWords.slice(0, count);
+                targetWords.forEach(w => {
+                    const sameLen = aiVocab.filter(v => v.length === w.coords.length);
+                    if (sameLen.length > 0) {
+                        const newW = sameLen[Math.floor(Math.random() * sameLen.length)];
+                        w.coords.forEach((c, i) => {
+                            if (boardState[c.r][c.c].owner !== -1 && activeEffects[boardState[c.r][c.c].owner].invulnerable > 0) return;
+                            boardState[c.r][c.c].letter = newW[i];
+                        });
+                    }
+                });
+                renderBoard();
+                if (onComplete) onComplete();
+            }, 2);
+            return true;
+        case 'time_stop':
+            requestDiceRoll('d4', (roll) => {
+                activeEffects[opponentId].timeStop = roll + 1;
+                activeEffects[opponentId].skipTurn = true;
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'power_word_kill':
+            if (scores[opponentId] < 100) {
+                scores[playerId] = 9999; 
+                triggerGameOver();
+            } else {
+                alert("Power Word Kill failed! Opponent's spirit is too strong (100+ points).");
+            }
+            break;
+        case 'power_word_heal':
+            // Award lost points
+            for (let i = 0; i < 2; i++) {
+                let recovery = lostPoints[i];
+                scores[i] += recovery;
+                lostPoints[i] = 0;
+                animateScoreValue(i, scores[i] - recovery, scores[i]);
+            }
+
+            // Revert Earthquake
+            if (preEarthquakeBoard) {
+                boardState = JSON.parse(JSON.stringify(preEarthquakeBoard));
+                preEarthquakeBoard = null;
+            }
+            if (earthquakeInterval) {
+                clearInterval(earthquakeInterval);
+                earthquakeInterval = null;
+                document.getElementById('board').classList.remove('shaking');
+            }
+
+            // Deactivate and clear all spell states
+            activeEffects = [{}, {}];
+            reverseGravityRounds = 0;
+            copyPlayer = null;
+            healingWordSelection = false;
+            fireballSelection = false;
+            polySelection = false;
+            secondaryRacks = [[], []];
+
+            // Default all tiles to Regular
+            for (let r = 0; r < 15; r++) {
+                for (let c = 0; c < 15; c++) {
+                    if (boardState[r][c]) {
+                        const propsToRemove = ['shieldedBy', 'fireShieldedBy', 'isBurning', 'isGravityTile', 'isSimulacrum', 'type'];
+                        propsToRemove.forEach(p => delete boardState[r][c][p]);
+                    }
+                }
+            }
+            renderBoard();
+            updateUI();
+            break;
+        case 'demiplane':
+            requestDiceRoll('d6', (roll) => {
+                const count = roll + 1;
+                activeEffects[playerId].demiplaneSize = count;
+                if (!secondaryRacks[playerId]) secondaryRacks[playerId] = [];
+                while(secondaryRacks[playerId].length < count && bag.length > 0) secondaryRacks[playerId].push(bag.pop());
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'true_polymorph':
+            activeEffects[playerId].polyActive = true;
+            break;
+        case 'earthquake':
+            requestDiceRoll('d4', (roll) => {
+                runEarthquake(roll);
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'reverse_gravity':
+            requestDiceRoll('d4', (roll) => {
+                reverseGravityRounds = roll;
+                if (onComplete) onComplete();
+            });
+            return true;
+        case 'simulacrum':
+        case 'project_image':
+            requestDiceRoll('d6', (roll) => {
+                copyPlayer = { type: spell.id, owner: playerId, rounds: roll };
+                if (onComplete) onComplete();
+            });
+            return true;
         case 'greater_restoration':
             requestDiceRoll('d4', (roll) => {
                 activeEffects[playerId].immune = roll;
@@ -1291,43 +2184,63 @@ function castSpellEffect(spell, playerId, onComplete) {
             lostPoints[playerId] = 0;
             break;
         case 'burning_hands':
-            let wordToBurn = moveHistory.find(m => m.player === opponentId && m.action === 'play');
+            const wordToBurn = moveHistory.find(m => m.player === opponentId && m.action === 'play');
             if (wordToBurn) {
+                if (activeEffects[opponentId].invulnerable > 0) return alert("Burning Hands failed: Opponent is Invulnerable!");
                 scores[opponentId] -= wordToBurn.pts;
                 lostPoints[opponentId] += wordToBurn.pts;
-                wordToBurn.pts = -wordToBurn.pts;
+                const originalPts = wordToBurn.pts;
+                wordToBurn.pts = -originalPts;
                 
-                // Visual "Incineration" Logic
-                const wordStr = wordToBurn.wordString;
+                const targetTurn = wordToBurn.turnIndex;
                 for(let r=0; r<15; r++) {
                     for(let c=0; c<15; c++) {
-                        if (boardState[r][c] && boardState[r][c].turnPlaced === (globalTurnCounter - 1)) {
-                             // Simplified logic: remove tiles from previous turn
-                             const cell = document.getElementById(`cell-${r}-${c}`);
-                             const tile = cell.querySelector('.tile');
-                             if (tile) {
-                                 tile.classList.add('burning');
-                                 setTimeout(() => {
-                                     boardState[r][c] = null;
-                                     renderBoard();
-                                 }, 1000);
-                             }
+                        if (boardState[r][c] && boardState[r][c].turnPlaced === targetTurn) {
+                            boardState[r][c].isBurning = true;
                         }
                     }
                 }
+                renderBoard();
+                setTimeout(() => {
+                    for(let r=0; r<15; r++) {
+                        for (let c = 0; c < 15; c++) {
+                            if (boardState[r][c]?.isBurning) {
+                                deadTiles.push({ r, c, data: { ...boardState[r][c], isBurning: false } });
+                                boardState[r][c] = null;
+                            }
+                        }
+                    }
+                    renderBoard();
+                }, 1000);
             }
             break;
         case 'aid':
             requestDiceRoll('d20', (roll) => {
+                const searchLimit = roll * 800;
+                const possibleMoves = getPossibleMoves(playerId, searchLimit);
+                
+                if (possibleMoves.length > 0) {
+                    possibleMoves.sort((a, b) => a.score - b.score);
+                    const chosenIndex = Math.floor((possibleMoves.length - 1) * (roll / 20));
+                    const best = possibleMoves[chosenIndex];
+                    
+                    resetMove(); 
+                    currentMove = best.move;
+                    currentMove.forEach(m => {
+                        let targetRack = m.isSecondary ? secondaryRacks[playerId] : racks[playerId];
+                        let rIdx = targetRack.indexOf(m.original);
+                        if (rIdx !== -1) targetRack.splice(rIdx, 1);
+                    });
+                } else {
+                    alert("The spirits found no possible moves.");
+                }
                 moveHistory.unshift({ 
                     player: playerId, 
                     action: 'spell', 
-                    spellTitle: `Aid (Rolled ${roll})`, 
+                    spellTitle: `Aid (Search: ${roll})`, 
                     pts: 0 
                 });
-                const quality = roll / 20; 
-                const wordIndex = Math.floor(Math.random() * (aiVocab.length * quality));
-                alert(`The spirits suggest the word: ${aiVocab[wordIndex]}`);
+                updateUI();
                 if (onComplete) onComplete();
             });
             return true;
@@ -1338,7 +2251,38 @@ function castSpellEffect(spell, playerId, onComplete) {
 function updateUI() {
     document.getElementById('card-p1').classList.toggle('active', turn === 0);
     document.getElementById('card-p2').classList.toggle('active', turn === 1);
+
+    // Handle Copy Player Sidebar
+    let p3Card = document.getElementById('card-p3');
+    if (copyPlayer) {
+        if (!p3Card) {
+            p3Card = document.createElement('div');
+            p3Card.id = 'card-p3';
+            p3Card.className = 'player-card simulacrum-card';
+            document.querySelector('.sidebar').insertBefore(p3Card, document.getElementById('move-history'));
+        }
+        const isSim = copyPlayer.type === 'simulacrum';
+        p3Card.style.display = 'flex';
+        p3Card.classList.toggle('active', turn === 2);
+        p3Card.innerHTML = `
+            <div>
+                <div class="p-name">${isSim ? 'Simulacrum' : 'Projected Image'}</div>
+                <div class="p-timer">${copyPlayer.rounds} Rounds Left</div>
+            </div>
+            <div class="p-score" style="color: ${isSim ? '#7dcfff' : (copyPlayer.owner === 0 ? 'var(--p1-color)' : 'var(--p2-color)')}">
+                ${isSim ? 'COPY' : 'IMAGE'}
+            </div>
+        `;
+    } else if (p3Card) {
+        p3Card.style.display = 'none';
+    }
     
+    document.getElementById('card-p1').classList.toggle('skipped', !!activeEffects[0].skipTurn);
+    document.getElementById('card-p2').classList.toggle('skipped', !!activeEffects[1].skipTurn);
+    document.getElementById('card-p1').classList.toggle('slowed', !!activeEffects[0].slowLimit);
+    document.getElementById('card-p2').classList.toggle('slowed', !!activeEffects[1].slowLimit);
+    document.getElementById(`card-p${turn+1}`).classList.toggle('immune', !!activeEffects[turn].immune);
+
     const t = TRANSLATIONS[currentLang];
     document.getElementById('bag-count').innerText = `${bag.length} ${t.tiles_left}`;
     
@@ -1427,21 +2371,21 @@ function nextMarketTurn() {
     const t = TRANSLATIONS[currentLang];
     
     if (marketQueue.length === 0) {
-        marketActive = false;
-        document.getElementById('game-wrapper').classList.remove('market-active');
-        document.getElementById('market-sidebar').classList.add('market-closed');
-        
-        turn = 0; 
-        updateUI();
+        executeQueuedSpells();
         return;
     }
-    
+
     marketCurrentPlayer = marketQueue.shift();
     couponActiveThisTurn = false;
     
     document.getElementById('market-status').innerText = t.p_market.replace('{0}', playerNames[marketCurrentPlayer]);
     document.getElementById('market-status').style.color = marketCurrentPlayer === 0 ? 'var(--p1-color)' : 'var(--p2-color)';
     document.getElementById('btn-refresh-market').disabled = false;
+
+    if (isTimeRavaging) {
+        setTimeout(() => playAIMarket(marketCurrentPlayer), 200);
+        return;
+    }
     
     if (bingoCoupons[marketCurrentPlayer] > 0) {
         document.getElementById('btn-use-coupon').style.display = 'block';
@@ -1459,7 +2403,7 @@ function nextMarketTurn() {
 }
 
 function startMarketTimer() {
-    if (marketCountdown) clearInterval(marketCountdown);
+    if (marketCountdown || isTimeRavaging) clearInterval(marketCountdown);
     marketTimeLeft = 10;
     document.getElementById('market-timer').innerText = marketTimeLeft;
     
@@ -1493,13 +2437,15 @@ function renderSpellMarket(playerId) {
     const spells = playerSpells[playerId];
     const currentMana = getMana(playerId);
     const t = TRANSLATIONS[currentLang];
+    const isHeld = activeEffects[playerId].holdPerson > 0;
 
     spells.forEach((spell, idx) => {
+        if (spell.id === 'revivify' && deadTiles.length === 0) return;
         const cost = (marketActive && couponActiveThisTurn) ? Math.round(spell.cost / 2) : spell.cost;
-        const canAfford = currentMana >= cost;
+        const canAfford = currentMana >= cost && !isHeld;
         
         const card = document.createElement('div');
-        card.className = `spell-card ${canAfford && marketActive ? '' : 'disabled'} ${(marketActive && couponActiveThisTurn) ? 'discounted' : ''}`;
+        card.className = `spell-card ${canAfford && marketActive ? '' : 'disabled'} ${(marketActive && couponActiveThisTurn) ? 'discounted' : ''} ${isHeld ? 'held-person' : ''}`;
         
         if (!marketActive) {
             card.classList.add('view-only');
@@ -1522,6 +2468,20 @@ function renderSpellMarket(playerId) {
     });
 }
 
+function executeQueuedSpells() {
+    if (queuedSpells.length === 0) {
+        marketActive = false;
+        document.getElementById('game-wrapper').classList.remove('market-active');
+        document.getElementById('market-sidebar').classList.add('market-closed');
+        turn = 0;
+        updateUI();
+        return;
+    }
+    const { spell, playerId } = queuedSpells.shift();
+    const isAsync = castSpellEffect(spell, playerId, executeQueuedSpells);
+    if (!isAsync) executeQueuedSpells();
+}
+
 function buySpell(spellIdx) {
     if (marketCountdown) clearInterval(marketCountdown);
     
@@ -1529,18 +2489,13 @@ function buySpell(spellIdx) {
     let cost = couponActiveThisTurn ? Math.round(spell.cost / 2) : spell.cost;
     
     payMana(marketCurrentPlayer, cost);
+
+    queuedSpells.push({ spell, playerId: marketCurrentPlayer });
+    moveHistory.unshift({ player: marketCurrentPlayer, action: 'spell', spellTitle: spell.title, pts: 0 });
     
-    const completeBuy = () => {
-        moveHistory.unshift({ player: marketCurrentPlayer, action: 'spell', spellTitle: spell.title, pts: 0 });
-        let tier = spellIdx === 0 ? 'low' : (spellIdx === 1 ? 'med' : 'high');
-        playerSpells[marketCurrentPlayer][spellIdx] = getRandomSpell(tier);
-        updateUI();
-        nextMarketTurn();
-    };
-
-    const isAsync = castSpellEffect(spell, marketCurrentPlayer, completeBuy);
-
-    if (!isAsync) completeBuy();
+    let tier = spellIdx === 0 ? 'low' : (spellIdx === 1 ? 'med' : 'high');
+    playerSpells[marketCurrentPlayer][spellIdx] = getRandomSpell(tier);
+    nextMarketTurn();
 }
 
 function refreshMarket() {
@@ -1625,28 +2580,18 @@ async function showDictionary() {
 // A.I LOGIC
 // ----------------------------------------------------
 
-function playAI() {
-    if (gameConfig.ai === 'local' || turn !== 1 || aiVocab.length === 0 || marketActive) return;
+function playAI(forceWorst = false, forceRandom = false, isSimulated = false) {
+    if (!isSimulated && !isTimeRavaging && !forceWorst && !forceRandom && (gameConfig.ai === 'local' || (turn !== 1 && turn !== 2) || aiVocab.length === 0)) return;
+    if (marketActive) return;
     
-    let aiRack = [...racks[1]];
+    let aiRack = [...racks[turn]];
     let anchors = [];
     let isFirstTurn = true;
     for(let r=0; r<15; r++) for(let c=0; c<15; c++) if(boardState[r][c]) { anchors.push({r, c, letter: boardState[r][c].letter}); isFirstTurn = false; }
 
     let validMoves = [];
-    let maxSearchLimit = gameConfig.ai === 'hard' ? 15000 : (gameConfig.ai === 'medium' ? 5000 : 1500);
+    let maxSearchLimit = (gameConfig.ai === 'hard' || isTimeRavaging) ? 15000 : (gameConfig.ai === 'medium' ? 5000 : 1500);
     let wordsToCheck = aiVocab.slice(0, maxSearchLimit);
-
-    function canFormWord(word, availableLetters) {
-        let temp = [...availableLetters]; let blanks = temp.filter(c => c === '_').length;
-        for (let char of word) {
-            let idx = temp.indexOf(char);
-            if (idx !== -1) temp.splice(idx, 1);
-            else if (blanks > 0) blanks--;
-            else return false;
-        }
-        return true;
-    }
 
     function tryPlacement(word, startR, startC, isHoriz) {
         let r = startR, c = startC, rackCopy = [...aiRack], wordMove = [];
@@ -1700,7 +2645,13 @@ function playAI() {
         validMoves.sort((a, b) => a.score - b.score);
         let selectedMove;
 
-        if (gameConfig.ai === 'hard') {
+        if (forceRandom) {
+            selectedMove = validMoves[Math.floor(Math.random() * validMoves.length)].move;
+            delete activeEffects[turn].confused;
+        } else if (forceWorst) {
+            selectedMove = validMoves[0].move;
+            delete activeEffects[turn].suggestion;
+        } else if (gameConfig.ai === 'hard') {
             selectedMove = validMoves[validMoves.length - 1].move;
         } else if (gameConfig.ai === 'medium') {
             selectedMove = validMoves[Math.floor(validMoves.length / 2)].move;
@@ -1709,13 +2660,13 @@ function playAI() {
         }
 
         currentMove = selectedMove;
-        currentMove.forEach(m => { let rIdx = racks[1].indexOf(m.original); if (rIdx !== -1) racks[1].splice(rIdx, 1); });
+        currentMove.forEach(m => { let rIdx = racks[turn].indexOf(m.original); if (rIdx !== -1) racks[turn].splice(rIdx, 1); });
         renderBoard();
-        setTimeout(() => submitMove(), 1200);
+        setTimeout(() => submitMove(), isTimeRavaging ? 200 : 1200);
     } else {
         if (bag.length >= 7) {
-            let toSwap = [...racks[1]]; racks[1] = []; toSwap.forEach(t => bag.push(t)); shuffle(bag); fillRack(1);
-            moveHistory.unshift({ player: 1, action: 'swap', count: toSwap.length, pts: 0 });
+            let toSwap = [...racks[turn]]; racks[turn] = []; toSwap.forEach(t => bag.push(t)); shuffle(bag); fillRack(turn);
+            moveHistory.unshift({ player: turn, action: 'swap', count: toSwap.length, pts: 0 });
             
             globalTurnCounter++;
             if (globalTurnCounter % 2 === 0) startMarketPhase();
@@ -1724,7 +2675,72 @@ function playAI() {
     }
 }
 
+function showWishModal(playerId, onComplete) {
+    const modal = document.getElementById('dictModal');
+    const results = document.getElementById('dict-results');
+    document.getElementById('ui-dict-title').innerText = "Make a Wish";
+    modal.style.display = 'flex';
+    
+    let html = '<p>Select any spell to cast immediately:</p><div class="wish-grid">';
+    Object.values(SPELLS).flat().forEach(spell => {
+        html += `<div class="wish-item" onclick="document.getElementById('dictModal').style.display='none'; castSpellEffect(${JSON.stringify(spell)}, ${playerId}, ${onComplete})">
+            <h4>${spell.title}</h4><p>${spell.desc}</p></div>`;
+    });
+    html += '</div>';
+    results.innerHTML = html;
+}
+
+function canFormWord(word, availableLetters) {
+    let temp = [...availableLetters]; let blanks = temp.filter(c => c === '_').length;
+    for (let char of word) {
+        let idx = temp.indexOf(char);
+        if (idx !== -1) temp.splice(idx, 1);
+        else if (blanks > 0) blanks--;
+        else return false;
+    }
+    return true;
+}
+
+function showSpellTester() {
+    const modal = document.getElementById('dictModal');
+    const results = document.getElementById('dict-results');
+    document.getElementById('ui-dict-title').innerText = "Spell Grimoire (Tester)";
+    modal.style.display = 'flex';
+    
+    let html = '<div class="wish-grid">';
+    Object.values(SPELLS).flat().forEach(spell => {
+        html += `
+            <div class="wish-item" onclick="testSpell('${spell.id}')">
+                <h4>${spell.title} (Lvl ${spell.level})</h4>
+                <p>${spell.desc}</p>
+            </div>
+        `;
+    });
+    html += '</div>';
+    results.innerHTML = html;
+}
+
+function testSpell(spellId) {
+    const spell = Object.values(SPELLS).flat().find(s => s.id === spellId);
+    if (!spell) return;
+
+    document.getElementById('dictModal').style.display = 'none';
+    
+    const onResolve = () => {
+        updateUI();
+        saveGame();
+        console.log(`Debug: ${spell.title} executed.`);
+    };
+
+    const isAsync = castSpellEffect(spell, turn, onResolve);
+    if (!isAsync) onResolve();
+}
+
 function saveGame() { localStorage.setItem('spellbook_save', JSON.stringify({ boardState, racks, bag, scores, turn, moveHistory, timers, playerNames, gameConfig, globalTurnCounter, roundScores, bingoCoupons, playerSpells, activeEffects, lostPoints })); }
 function quitToLauncher() { document.getElementById('game-wrapper').style.display = 'none'; document.getElementById('launcher').style.display = 'flex'; document.body.className = document.getElementById('setting-dark').checked ? 'dark-mode' : ''; }
 
-init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
